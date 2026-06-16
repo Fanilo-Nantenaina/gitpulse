@@ -1,0 +1,27 @@
+# Packaging / build artifacts
+*.egg-info/
+build/
+dist/
+*.egg
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Secrets — never commit these
+.env
+.env.*
+*.key
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
