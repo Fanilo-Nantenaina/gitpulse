@@ -505,7 +505,7 @@ APScheduler and blocks the terminal; closing it stops the schedule.
 ## Cost & token usage
 
 Each summary is a single model call. GitPulse sizes its output budget to the
-number of commits (`max_tokens` scales from 3,000 to 12,000) so the response is
+number of commits (`max_tokens` scales from 4,000 to 16,000) so the response is
 never truncated on large repos. Every run prints a cost line reflecting the
 provider used:
 

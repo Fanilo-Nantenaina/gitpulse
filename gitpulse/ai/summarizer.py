@@ -28,10 +28,13 @@ def _system_prompt(lang_code: str) -> str:
           (what got built, safer, faster, simpler).
 
         Rules for SYNTHESIS:
-        - 2-4 sentences giving the overall picture of the period: what the developer
-          was mainly working on, how the pieces fit together, and where the effort
-          went. Neutral and descriptive. This is the takeaway a teammate would read
-          to understand the period at a glance. Do NOT list risks here.
+        - A thorough, detailed prose overview of the period: what the developer was
+          working on, how the pieces connect, the sequence and shape of the effort,
+          and where the bulk of the work went. Use as many sentences as the activity
+          warrants - do not artificially shorten it. For a busy period this can be a
+          full paragraph or more. Name concrete areas (modules, features, files)
+          where it helps the reader follow the story. Neutral and descriptive: this
+          is the narrative recap, not a place for risks or critique.
 
         Rules for OBSERVATIONS:
         - Optional and secondary. Include only genuinely useful, evidence-backed
@@ -48,7 +51,7 @@ def _system_prompt(lang_code: str) -> str:
         Respond ONLY with valid JSON, no markdown fences, in this exact shape:
         {
           "headline": "one sentence naming the main thrust of the period",
-          "synthesis": "2-4 sentence neutral overview of the period",
+          "synthesis": "detailed neutral prose overview, as long as warranted",
           "themes": [
             {"title": "Theme name",
              "narrative": "3-5 sentences citing concrete files/symbols and intent",
@@ -275,7 +278,7 @@ def summarize(
     if model:
         setattr(prov, "model", model)
 
-    max_tokens = min(12000, max(3000, activity.commit_count * 140))
+    max_tokens = min(16000, max(4000, activity.commit_count * 170))
     try:
         result = prov.generate(
             _system_prompt(lang), _build_payload(activity), max_tokens
