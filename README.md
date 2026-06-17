@@ -70,6 +70,7 @@ Restart the terminal afterwards so the variable is picked up.
 | --------------------------- | ------------------------------------------- | ------------------------ |
 | `ANTHROPIC_API_KEY`         | Enables the Claude provider                 | —                        |
 | `GITPULSE_MODEL`            | Claude model                                | `claude-sonnet-4-6`      |
+| `GITPULSE_LANG`             | Default output language (code or name)      | `en`                     |
 | `OLLAMA_HOST`               | Ollama server URL                           | `http://localhost:11434` |
 | `GITPULSE_OLLAMA_MODEL`     | Default Ollama model (else first installed) | —                        |
 | `GITPULSE_SLACK_WEBHOOK`    | Slack incoming webhook URL                  | —                        |
@@ -134,6 +135,38 @@ the local summary rather than erroring; the cost line reports what happened
 
 ---
 
+## Language
+
+Summaries (headlines, theme titles, narratives, observations) can be written in
+any supported language. Commit identifiers, file paths, code symbols, and branch
+names are always left unchanged.
+
+Supported codes: `en`, `fr`, `es`, `de`, `pt`, `it`, `mg`, `ar`, `zh`, `ja`.
+Both the code (`fr`) and the English name (`French`) are accepted.
+
+The language is resolved in this order, first match wins:
+
+1. the `--lang` / `-l` option on the command
+2. the `GITPULSE_LANG` environment variable
+3. the saved default (set via `gitpulse config --lang`)
+4. English
+
+So you can set it once and forget it, or override per command:
+
+```bash
+gitpulse config --lang fr          # set the default to French, persisted
+gitpulse summary                   # now in French
+gitpulse summary --lang en         # this run in English, default unchanged
+gitpulse config --show             # see the active language and where it comes from
+```
+
+The Claude provider honors the language directly. Ollama follows it too, though
+smaller local models may be less reliable at it. The local fallback is
+translated for `en` and `fr`; other languages fall back to English wording for
+its fixed phrases (the AI providers are unaffected).
+
+---
+
 ## Time windows (`--when`)
 
 All activity commands take `--when` / `-w` (this replaces the old `--since`).
@@ -180,6 +213,7 @@ the summary came from Claude or the local fallback plus token usage and cost.
 | `--branch`   | `-b`  | HEAD             | Specific branch to analyze                |
 | `--provider` | `-p`  | `auto`           | AI backend: auto, claude, ollama, local   |
 | `--model`    | `-m`  | provider default | Model name                                |
+| `--lang`     | `-l`  | default          | Output language (code or name)            |
 
 ```bash
 gitpulse summary
@@ -290,6 +324,25 @@ Takes no options.
 gitpulse providers
 ```
 
+### `gitpulse config`
+
+View or set persistent preferences. Currently the default output language.
+
+| Option   | Alias | Description                                         |
+| -------- | ----- | --------------------------------------------------- |
+| `--lang` | `-l`  | Set and persist the default language (code or name) |
+| `--show` |       | Show the active language and where it comes from    |
+
+```bash
+gitpulse config --lang fr
+gitpulse config --show
+```
+
+The setting is saved to `~/.gitpulse/config.json`.
+
+The four summarizing commands (`summary`, `digest`, `dashboard`, `watch`) also
+accept `--provider` / `-p`, `--model` / `-m`, and `--lang` / `-l`.
+
 ---
 
 ## Notifiers
@@ -357,6 +410,7 @@ gitpulse/
 │   ├── models.py       # plain dataclasses: Commit, FileChange, RepoActivity
 │   ├── collector.py    # pygit2 history walk + per-file diff stats
 │   ├── dateparse.py    # --when parsing: intervals, dates, ranges, weekdays
+│   ├── config.py       # language resolution + persisted preferences
 │   └── changelog.py    # Conventional-Commits release notes
 ├── ai/
 │   ├── providers.py    # Claude API + Ollama backends, auto-detection

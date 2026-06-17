@@ -11,6 +11,7 @@ from rich.table import Table
 from ..core.collector import collect_activity, discover_repos
 from ..core.changelog import generate_changelog
 from ..core.dateparse import parse_range, parse_interval, suggestions, DateRange
+from ..core import config as gp_config
 from ..ai.summarizer import summarize
 from ..ai import providers as ai_providers
 from ..scheduler.runner import run_scheduler
@@ -34,6 +35,7 @@ WHEN_HELP = (
 
 PROVIDER_HELP = "AI backend: auto, claude, ollama, or local (no model)."
 MODEL_HELP = "Model name (provider-specific, e.g. claude-sonnet-4-6 or llama3.1)."
+LANG_HELP = "Output language: code (fr, en, es...) or name. Overrides the default."
 
 
 def _range(when: str) -> DateRange:
@@ -52,10 +54,11 @@ def summary(
     branch: Optional[str] = typer.Option(None, "--branch", "-b"),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     r = _range(when)
     activity = collect_activity(path, r.since, r.until, branch=branch)
-    summ = summarize(activity, provider=provider, model=model)
+    summ = summarize(activity, provider=provider, model=model, lang=lang)
     render_terminal(activity, summ)
 
 
@@ -82,10 +85,11 @@ def digest(
     ),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     r = _range(when)
     activity = collect_activity(path, r.since, r.until)
-    summ = summarize(activity, provider=provider, model=model)
+    summ = summarize(activity, provider=provider, model=model, lang=lang)
     md = render_markdown(activity, summ)
     results = dispatch(to, md)
     for ch, ok in results.items():
@@ -101,6 +105,7 @@ def dashboard(
     depth: int = typer.Option(3, "--depth"),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     r = _range(when)
     repos = discover_repos(root, max_depth=depth)
@@ -120,7 +125,7 @@ def dashboard(
         act = collect_activity(repo, r.since, r.until)
         if act.commit_count == 0:
             continue
-        summ = summarize(act, provider=provider, model=model)
+        summ = summarize(act, provider=provider, model=model, lang=lang)
         rows.append((act, summ))
     rows.sort(key=lambda x: x[0].commit_count, reverse=True)
     for act, summ in rows:
@@ -151,13 +156,14 @@ def watch(
     to: list[str] = typer.Option(["desktop"], "--to"),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     parse_interval(every)
 
     def job():
         r = parse_range(when)
         activity = collect_activity(path, r.since, r.until)
-        summ = summarize(activity, provider=provider, model=model)
+        summ = summarize(activity, provider=provider, model=model, lang=lang)
         md = render_markdown(activity, summ)
         dispatch(to, md)
         from datetime import datetime
@@ -168,6 +174,51 @@ def watch(
 
     console.print(f"[cyan]Watching {path} every {every}...[/]")
     run_scheduler(job, every)
+
+
+@app.command()
+def config(
+    lang: Optional[str] = typer.Option(
+        None, "--lang", "-l", help="Set the default output language (code or name)."
+    ),
+    show: bool = typer.Option(False, "--show", help="Show current settings."),
+):
+    cfg = gp_config.load_config()
+    if lang is not None:
+        code = gp_config.normalize_lang(lang)
+        if code is None:
+            console.print(f"[red]Unknown language: {lang!r}[/]")
+            console.print(
+                "Supported: "
+                + ", ".join(f"{c} ({n})" for c, n in gp_config.LANGUAGES.items())
+            )
+            raise typer.Exit(1)
+        cfg["lang"] = code
+        path = gp_config.save_config(cfg)
+        console.print(
+            f"[green]Default language set to {gp_config.lang_name(code)} ({code}).[/]"
+        )
+        console.print(f"[dim]Saved to {path}[/]")
+        return
+
+    active = gp_config.resolve_lang()
+    table = Table(title="Configuration", show_lines=False)
+    table.add_column("Setting", style="cyan")
+    table.add_column("Value", style="bold")
+    table.add_column("Source", style="dim")
+    if gp_config.normalize_lang(os.environ.get("GITPULSE_LANG")):
+        src = "env GITPULSE_LANG"
+    elif gp_config.normalize_lang(cfg.get("lang")):
+        src = "config file"
+    else:
+        src = "default"
+    table.add_row("language", f"{gp_config.lang_name(active)} ({active})", src)
+    console.print(table)
+    console.print("[dim]Supported: " + ", ".join(gp_config.LANGUAGES) + "[/]")
+    console.print(
+        "[dim]Set default: gitpulse config --lang fr · "
+        "override once: any command with --lang fr[/]"
+    )
 
 
 @app.command()
