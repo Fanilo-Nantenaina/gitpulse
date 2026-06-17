@@ -70,6 +70,16 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
         for o in summary.observations:
             obs.add_row("⚠", o)
         console.print(Panel(obs, title="Observations", border_style="yellow"))
+
+    console.print(Text(f"  {summary.cost_note}", style="dim"))
+    if summary.source == "local(truncated)":
+        console.print(
+            Text(
+                "Claude's reply was cut off (raised max_tokens, retry). "
+                "Showed local summary instead.",
+                style="dim red",
+            )
+        )
     console.print()
 
 
@@ -94,6 +104,6 @@ def render_markdown(activity: RepoActivity, summary: Summary) -> str:
     if summary.observations:
         lines.append("## Observations")
         for o in summary.observations:
-            lines.append(f"- {o}")
+            lines.append(f"-{o}")
         lines.append("")
     return "\n".join(lines)

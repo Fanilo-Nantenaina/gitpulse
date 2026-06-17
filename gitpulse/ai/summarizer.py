@@ -36,6 +36,20 @@ class Summary:
     themes: list[dict]
     observations: list[str]
     raw: str = ""
+    source: str = "local"  # "claude" | "local" | "local(truncated)"
+    input_tokens: int = 0
+    output_tokens: int = 0
+    cost_usd: float = 0.0
+    stop_reason: str = ""
+
+    @property
+    def cost_note(self) -> str:
+        if self.source.startswith("local") and self.cost_usd == 0:
+            return "local fallback (no API call, $0.00)"
+        return (
+            f"{self.source} · {self.input_tokens}+{self.output_tokens} tok "
+            f"· ${self.cost_usd:.4f}"
+        )
 
     @classmethod
     def from_json(cls, text: str) -> "Summary":
@@ -115,17 +129,44 @@ def summarize(activity: RepoActivity, model: str = DEFAULT_MODEL) -> Summary:
     except ImportError:
         return _local_fallback(activity)
 
+    # Sonnet 4.6 pricing (USD per token). Update if pricing changes.
+    PRICE_IN = 3.0 / 1_000_000
+    PRICE_OUT = 15.0 / 1_000_000
+
+    # Scale output budget with commit count: ~80 tokens of JSON per theme,
+    # and themes roughly track commit volume. Clamp to a sane ceiling.
+    max_tokens = min(8000, max(2000, activity.commit_count * 90))
+
     client = anthropic.Anthropic(api_key=api_key)
     msg = client.messages.create(
         model=model,
-        max_tokens=1500,
+        max_tokens=max_tokens,
         system=_SYSTEM,
         messages=[{"role": "user", "content": _build_payload(activity)}],
     )
     text = "".join(b.text for b in msg.content if b.type == "text")
+    in_tok = msg.usage.input_tokens
+    out_tok = msg.usage.output_tokens
+    cost = in_tok * PRICE_IN + out_tok * PRICE_OUT
+
+    # If the model hit the token ceiling, the JSON is almost certainly cut off.
+    if msg.stop_reason == "max_tokens":
+        fb = _local_fallback(activity)
+        fb.raw = text
+        fb.source = "local(truncated)"
+        fb.input_tokens, fb.output_tokens, fb.cost_usd = in_tok, out_tok, cost
+        fb.stop_reason = "max_tokens"
+        return fb
+
     try:
-        return Summary.from_json(text)
+        summ = Summary.from_json(text)
+        summ.source = "claude"
+        summ.input_tokens, summ.output_tokens, summ.cost_usd = in_tok, out_tok, cost
+        summ.stop_reason = msg.stop_reason or ""
+        return summ
     except (json.JSONDecodeError, KeyError):
         fb = _local_fallback(activity)
         fb.raw = text
+        fb.source = "local(parse-failed)"
+        fb.input_tokens, fb.output_tokens, fb.cost_usd = in_tok, out_tok, cost
         return fb

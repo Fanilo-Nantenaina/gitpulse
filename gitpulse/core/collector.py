@@ -54,6 +54,7 @@ def collect_activity(
     branch: Optional[str] = None,
 ) -> RepoActivity:
     """Walk a repo's history and return commits within [since, until].
+
     `branch` defaults to the currently checked-out HEAD.
     """
     repo_path = Path(repo_path).resolve()
