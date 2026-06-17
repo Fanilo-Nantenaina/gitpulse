@@ -84,6 +84,11 @@ Restart the terminal afterwards so the variable is picked up.
 | `ANTHROPIC_API_KEY`         | Enables the Claude provider                 | —                        |
 | `GITPULSE_MODEL`            | Claude model                                | `claude-sonnet-4-6`      |
 | `GITPULSE_LANG`             | Default output language (code or name)      | `en`                     |
+| `GITPULSE_GIT_TOKEN`        | Access token for private HTTPS remotes      | —                        |
+| `GITPULSE_GIT_USERNAME`     | Username for token auth                     | `git`                    |
+| `GITPULSE_SSH_KEY`          | Path to private SSH key for SSH remotes     | agent                    |
+| `GITPULSE_SSH_PASSPHRASE`   | Passphrase for the SSH key, if any          | —                        |
+| `GITPULSE_CACHE_DIR`        | Where remote clones are cached              | `~/.gitpulse/remotes`    |
 | `OLLAMA_HOST`               | Ollama server URL                           | `http://localhost:11434` |
 | `GITPULSE_OLLAMA_MODEL`     | Default Ollama model (else first installed) | —                        |
 | `GITPULSE_SLACK_WEBHOOK`    | Slack incoming webhook URL                  | —                        |
@@ -255,6 +260,47 @@ gitpulse log --when yesterday
 gitpulse log ~/proj -w 2026-06-10..2026-06-14 --files
 ```
 
+### `gitpulse remote <URL>`
+
+Analyze a repository hosted anywhere, without cloning it yourself first. Works
+with any git host — GitHub, GitLab, Forgejo/Gitea, Bitbucket, Codeberg, a
+self-hosted git server — because it uses the standard git protocol, not any
+host-specific API. The repo is cloned bare (history only, no working files)
+into a local cache and refreshed on each run.
+
+| Option                          | Alias | Default   | Description                             |
+| ------------------------------- | ----- | --------- | --------------------------------------- |
+| `URL`                           |       | required  | Git URL, HTTPS or SSH                   |
+| `--when`                        | `-w`  | `7d`      | Time window                             |
+| `--branch`                      | `-b`  | HEAD      | Specific branch                         |
+| `--view`                        |       | `summary` | `summary` (AI) or `log` (plain listing) |
+| `--files`                       | `-f`  | off       | In log view, list files per commit      |
+| `--token`                       |       | env       | Access token for private HTTPS repos    |
+| `--username`                    |       | `git`     | Username for token auth                 |
+| `--ssh-key`                     |       | agent     | Path to a private SSH key               |
+| `--no-refresh`                  |       | off       | Use the cached clone, skip fetching     |
+| `--provider` `--model` `--lang` |       |           | Same as `summary`                       |
+
+Authentication, two ways, both configurable:
+
+- **HTTPS + token** — pass `--token`, or set `GITPULSE_GIT_TOKEN` (and
+  optionally `GITPULSE_GIT_USERNAME`). The token is injected into the fetch URL
+  and never written to disk.
+- **SSH** — use an SSH URL (`git@host:org/repo.git`). GitPulse uses your SSH
+  agent by default, or a specific key via `--ssh-key` / `GITPULSE_SSH_KEY`
+  (passphrase via `GITPULSE_SSH_PASSPHRASE`).
+
+```bash
+gitpulse remote https://github.com/org/project.git -w last-week
+gitpulse remote git@forgejo.example.com:team/project.git -w 7d
+gitpulse remote https://gitlab.com/org/repo.git --token ghp_xxx -p ollama
+gitpulse remote https://codeberg.org/user/app.git --view log --files
+```
+
+Under the hood it tries pygit2 first and falls back to the system `git`
+command, so SSH and HTTPS work even where pygit2 lacks transport support.
+Clear the cache with `gitpulse cache-clear`.
+
 ### `gitpulse digest [PATH]`
 
 Generate the AI summary as Markdown and dispatch it to notification channels.
@@ -367,8 +413,16 @@ gitpulse config --show
 
 The setting is saved to `~/.gitpulse/config.json`.
 
-The four summarizing commands (`summary`, `digest`, `dashboard`, `watch`) also
-accept `--provider` / `-p`, `--model` / `-m`, and `--lang` / `-l`.
+The five summarizing commands (`summary`, `remote`, `digest`, `dashboard`,
+`watch`) also accept `--provider` / `-p`, `--model` / `-m`, and `--lang` / `-l`.
+
+### `gitpulse cache-clear`
+
+Delete all cached remote clones (used by `gitpulse remote`). Takes no options.
+
+```bash
+gitpulse cache-clear
+```
 
 ---
 
@@ -436,6 +490,7 @@ gitpulse/
 ├── core/
 │   ├── models.py       # plain dataclasses: Commit, FileChange, RepoActivity
 │   ├── collector.py    # pygit2 history walk + per-file diff stats
+│   ├── remote.py       # bare-clone any git URL into a cache (pygit2 + git CLI)
 │   ├── dateparse.py    # --when parsing: intervals, dates, ranges, weekdays
 │   ├── config.py       # language resolution + persisted preferences
 │   └── changelog.py    # Conventional-Commits release notes

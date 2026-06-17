@@ -12,6 +12,7 @@ from ..core.collector import collect_activity, discover_repos
 from ..core.changelog import generate_changelog
 from ..core.dateparse import parse_range, parse_interval, suggestions, DateRange
 from ..core import config as gp_config
+from ..core import remote as gp_remote
 from ..ai.summarizer import summarize
 from ..ai import providers as ai_providers
 from ..scheduler.runner import run_scheduler
@@ -87,6 +88,59 @@ def log(
     r = _range(when)
     activity = collect_activity(path, r.since, r.until, branch=branch)
     render_log(activity, show_files=files)
+
+
+@app.command()
+def remote(
+    url: str = typer.Argument(..., help="Git URL (HTTPS or SSH), any platform"),
+    when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
+    branch: Optional[str] = typer.Option(None, "--branch", "-b"),
+    view: str = typer.Option("summary", "--view", help="summary or log"),
+    files: bool = typer.Option(False, "--files", "-f", help="(log view) list files"),
+    token: Optional[str] = typer.Option(
+        None, "--token", help="Access token for private HTTPS repos"
+    ),
+    username: Optional[str] = typer.Option(
+        None, "--username", help="Username for token auth"
+    ),
+    ssh_key: Optional[str] = typer.Option(
+        None, "--ssh-key", help="Path to private SSH key"
+    ),
+    no_refresh: bool = typer.Option(
+        False, "--no-refresh", help="Use cached clone, skip fetch"
+    ),
+    provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
+):
+    r = _range(when)
+    tok, user, key = gp_remote.resolve_auth(token, username, ssh_key)
+    name = gp_remote.repo_name_from_url(url)
+    action = "Fetching" if not no_refresh else "Loading cached"
+    try:
+        with status_spinner(f"{action} {name}"):
+            dest = gp_remote.sync_remote(url, tok, user, key, refresh=not no_refresh)
+    except RuntimeError as e:
+        console.print(f"[red]{e}[/]")
+        raise typer.Exit(1)
+
+    activity = collect_activity(dest, r.since, r.until, branch=branch, name=name)
+    if view == "log":
+        render_log(activity, show_files=files)
+        return
+    if activity.commit_count == 0:
+        render_terminal(activity, summarize(activity, provider="local", lang=lang))
+        return
+    label = "local" if provider == "local" else provider
+    with status_spinner(f"Summarizing {activity.commit_count} commits via {label}"):
+        summ = summarize(activity, provider=provider, model=model, lang=lang)
+    render_terminal(activity, summ)
+
+
+@app.command(name="cache-clear")
+def cache_clear():
+    n = gp_remote.clear_cache()
+    console.print(f"[green]Cleared {n} cached remote repo(s).[/]")
 
 
 @app.command()

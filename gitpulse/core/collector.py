@@ -52,12 +52,14 @@ def collect_activity(
     since: datetime,
     until: Optional[datetime] = None,
     branch: Optional[str] = None,
+    name: Optional[str] = None,
 ) -> RepoActivity:
     """Walk a repo's history and return commits within [since, until].
 
     `branch` defaults to the currently checked-out HEAD.
     """
     repo_path = Path(repo_path).resolve()
+    repo_name = name or repo_path.name
     discovered = pygit2.discover_repository(str(repo_path))
     if discovered is None:
         raise ValueError(f"No git repository found at {repo_path}")
@@ -77,7 +79,7 @@ def collect_activity(
         head = target.target
     else:
         if repo.head_is_unborn:
-            return RepoActivity(repo_path.name, str(repo_path), since, until, [])
+            return RepoActivity(repo_name, str(repo_path), since, until, [])
         head = repo.head.target
         branch = repo.head.shorthand if not repo.head_is_detached else None
 
@@ -104,7 +106,7 @@ def collect_activity(
         )
 
     return RepoActivity(
-        repo_name=repo_path.name,
+        repo_name=repo_name,
         repo_path=str(repo_path),
         since=since,
         until=until,
