@@ -44,6 +44,32 @@ def save_config(cfg: dict) -> Path:
     return p
 
 
+def list_tracked() -> list[dict]:
+    return load_config().get("tracked", [])
+
+
+def add_tracked(url: str, label: str | None = None) -> tuple[bool, list[dict]]:
+    cfg = load_config()
+    tracked = cfg.get("tracked", [])
+    if any(t["url"] == url for t in tracked):
+        return False, tracked
+    tracked.append({"url": url, "label": label} if label else {"url": url})
+    cfg["tracked"] = tracked
+    save_config(cfg)
+    return True, tracked
+
+
+def remove_tracked(needle: str) -> tuple[bool, list[dict]]:
+    cfg = load_config()
+    tracked = cfg.get("tracked", [])
+    kept = [t for t in tracked if t["url"] != needle and t.get("label") != needle]
+    changed = len(kept) != len(tracked)
+    if changed:
+        cfg["tracked"] = kept
+        save_config(cfg)
+    return changed, kept
+
+
 def normalize_lang(value: str | None) -> str | None:
     if not value:
         return None

@@ -359,30 +359,66 @@ terminal as a fallback.
 
 ### `gitpulse dashboard [ROOT]`
 
-Aggregated activity across every repo found under a directory, ranked by
-commit count.
+Aggregated activity across many repositories in one table, ranked by commit
+count. Two modes:
 
-| Option       | Alias | Default          | Description                 |
-| ------------ | ----- | ---------------- | --------------------------- |
-| `ROOT`       |       | `.`              | Directory to scan for repos |
-| `--when`     | `-w`  | `7d`             | Time window                 |
-| `--depth`    |       | `3`              | Max search depth for repos  |
-| `--provider` | `-p`  | `auto`           | AI backend                  |
-| `--model`    | `-m`  | provider default | Model name                  |
-| `--lang`     | `-l`  | default          | Output language             |
+- **Local** (default): scans a directory for cloned repos.
+- **Remote** (`--remote`): analyzes your tracked remote repos (see
+  `track` below), fetching each into the cache first. Works with any git host.
+
+By default the table shows metrics only (commits, lines, files) — fast and
+free, which matters when analyzing 10-15 repos. Add `--summarize` to include an
+AI headline per repo (one model call each, so slower and possibly billed).
+
+| Option                          | Alias | Default | Description                                   |
+| ------------------------------- | ----- | ------- | --------------------------------------------- |
+| `ROOT`                          |       | `.`     | Directory to scan (local mode)                |
+| `--when`                        | `-w`  | `7d`    | Time window                                   |
+| `--depth`                       |       | `3`     | Max search depth (local mode)                 |
+| `--remote`                      |       | off     | Use tracked remotes instead of a local folder |
+| `--summarize`                   |       | off     | Add an AI headline per repo                   |
+| `--no-refresh`                  |       | off     | (remote) use cached clones, skip fetch        |
+| `--provider` `--model` `--lang` |       |         | Used only with `--summarize`                  |
 
 ```bash
-gitpulse dashboard ~/code --when 30d
-gitpulse dashboard "C:\Users\You\Documents" --depth 2
+gitpulse dashboard ~/code --when 30d              # local folder
+gitpulse dashboard --remote -w 7d                 # tracked remotes, metrics
+gitpulse dashboard --remote -w 7d --summarize     # + AI headline per repo
 ```
 
-While running, `dashboard` shows a live progress bar: percentage, a count of
-repositories done versus total, the repository currently being analyzed, and
-elapsed time. When finished, the bar disappears and the result table is printed,
-followed by a one-line summary (how many repositories were active, idle, failed,
-and scanned). `summary` and `digest` show a spinner for each stage they go
-through (reading commits, summarizing, sending) so the terminal never looks
-frozen during a model call.
+While running, `dashboard` shows a live progress bar: percentage, repos done
+versus total, the repo currently being processed, and elapsed time. When
+finished, the table is printed with a one-line summary (active, idle, failed,
+total, plus total commits across all repos).
+
+### `gitpulse track <URL>`
+
+Add a remote repository to the tracked list used by `dashboard --remote`. Any
+git URL, any host. Use `--label` to give it a friendly name in the table.
+
+```bash
+gitpulse track https://github.com/org/dataven.git --label dataven
+gitpulse track git@forgejo.example.com:me/portfolio.git
+```
+
+### `gitpulse untrack <URL-or-label>`
+
+Remove a repository from the tracked list, by URL or by label.
+
+```bash
+gitpulse untrack dataven
+```
+
+### `gitpulse tracked`
+
+List all tracked remotes. Takes no options.
+
+```bash
+gitpulse tracked
+```
+
+Authentication for tracked private repos uses the same environment variables as
+`remote`: `GITPULSE_GIT_TOKEN` (HTTPS) or your SSH key/agent.
 
 ### `gitpulse changelog [PATH]`
 
@@ -533,7 +569,7 @@ gitpulse/
 │   ├── trends.py       # period-over-period comparison metrics
 │   ├── standup.py      # yesterday's work + today context (branches, WIP)
 │   ├── dateparse.py    # --when parsing: intervals, dates, ranges, weekdays
-│   ├── config.py       # language resolution + persisted preferences
+│   ├── config.py       # language, preferences, tracked-remotes list
 │   └── changelog.py    # Conventional-Commits release notes
 ├── ai/
 │   ├── providers.py    # Claude API + Ollama backends, auto-detection
@@ -555,13 +591,12 @@ other tool. The `ai` and `notifiers` layers are optional extras.
 ## Roadmap
 
 Done: remote repos (`remote`), standup mode (`standup`), trend comparison
-(`compare`).
+(`compare`), multi-remote dashboard (`track` + `dashboard --remote`).
 
 - **GUI** — Tauri (Rust shell + React) desktop app, or `gitpulse serve`
   (FastAPI + local web dashboard). The core/ai layers are already
   GUI-agnostic; the frontend just renders `RepoActivity` + `Summary`.
 - **Quality-risk flags** — large unreviewed diffs, commits without test changes.
-- **Multi-remote dashboard** — aggregate several remote URLs in one view.
 
 ---
 
