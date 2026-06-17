@@ -10,15 +10,28 @@ work-pattern detection (hotspots, off-hours commits, productivity heatmaps).
 ## Why it's different
 
 Most git-stat tools count commits. GitPulse _reads_ them: it sends commit
-messages and per-file diff stats to a language model, which clusters them into
-themes and writes a human digest. The collection layer (pygit2) is the boring
-part — the value is the semantic layer on top.
+messages, full bodies, per-file diff stats, and a precomputed signals block
+(churn hotspots, off-hours commits, fix/revert chains, large diffs) to a
+language model, which clusters the work into themes and writes a code-review-
+style digest. The collection layer (pygit2) is the boring part — the value is
+the semantic layer on top.
+
+The digest aims for specificity: themes cite concrete files and symbols, and
+observations are required to reference real evidence (a named file, a commit
+sha, a count, a sequence) rather than generic advice like "may require
+testing". The signals block gives the model hard facts to ground those
+observations in.
 
 The model can be Anthropic's Claude API or a local Ollama model — GitPulse
 auto-detects what's available, or you pick one explicitly. With no model at all
 it still works: it falls back to a deterministic local summary (prefix grouping
 
 - pattern detection), so it's useful fully offline too.
+
+A note on local models: smaller Ollama models follow the "be specific, cite
+evidence" instructions less reliably than Claude or large coder models. For the
+sharpest observations, prefer Claude or a large coder-tuned model
+(e.g. qwen3-coder).
 
 ---
 
@@ -399,7 +412,7 @@ APScheduler and blocks the terminal; closing it stops the schedule.
 ## Cost & token usage
 
 Each summary is a single model call. GitPulse sizes its output budget to the
-number of commits (`max_tokens` scales from 2,000 to 8,000) so the response is
+number of commits (`max_tokens` scales from 3,000 to 12,000) so the response is
 never truncated on large repos. Every run prints a cost line reflecting the
 provider used:
 

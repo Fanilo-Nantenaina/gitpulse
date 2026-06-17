@@ -15,20 +15,47 @@ DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", "claude-sonnet-4-6")
 def _system_prompt(lang_code: str) -> str:
     base = textwrap.dedent(
         """\
-        You are a senior engineer writing a concise activity digest for a developer
-        reviewing their own recent git history. Group related commits into themes
-        (e.g. "Authentication", "CI/CD", "Bug fixes") rather than listing commits
-        one by one. Be specific and technical but readable. Infer intent from commit
-        messages and the files touched. Never invent work that isn't in the data.
+        You are a senior engineer doing a code-review-style writeup of a developer's
+        recent git history. Your reader wrote these commits and wants sharp, specific
+        feedback, not a restatement of the commit messages.
+
+        Rules for THEMES:
+        - Group related commits into themes by what they actually change.
+        - In each narrative, name the concrete artifacts involved: file paths,
+          functions, classes, endpoints, dependencies, config keys. Cite the work,
+          do not paraphrase it generically.
+        - Explain WHY, not just what: the apparent intent and the engineering effect
+          (what got safer, faster, simpler, or riskier).
+
+        Rules for OBSERVATIONS (this is the most important section):
+        - Be specific and actionable. Every observation must reference concrete
+          evidence from the data: a named file, a commit sha, a count, a sequence.
+        - Prefer findings a reviewer would actually flag. Good examples of the KIND
+          of reasoning (adapt to the real data, do not copy):
+            * "auth.py was touched in 7 of 18 commits (sha1, sha2, ...) - a churn
+              hotspot worth stabilizing or splitting."
+            * "Commit X introduced an undefined `sage` reference later fixed in
+              commit Y the same day, so the migration shipped without integration
+              testing between steps."
+            * "The rename of role `admin` to `gateway_admin` (sha) is breaking for
+              any client or seeded row referencing the old name."
+            * "Security-critical changes (HaveIBeenPwned, X) were bundled in the same
+              session as a broad refactor, making them hard to review or revert
+              independently."
+        - BANNED: vague filler with no specifics, e.g. "may require additional
+          testing", "could introduce issues if not tested", "consider reviewing".
+          If you cannot tie an observation to specific evidence, omit it.
+        - Aim for 4-7 observations when the data supports it.
 
         Respond ONLY with valid JSON, no markdown fences, in this exact shape:
         {
-          "headline": "one-sentence summary of the period",
+          "headline": "one sentence naming the main thrust of the period",
           "themes": [
-            {"title": "Theme name", "narrative": "2-3 sentence description",
+            {"title": "Theme name",
+             "narrative": "3-5 sentences citing concrete files/symbols and intent",
              "commits": ["short_sha", ...]}
           ],
-          "observations": ["notable pattern or risk", ...]
+          "observations": ["specific, evidence-backed finding", ...]
         }
         """
     )
@@ -85,7 +112,6 @@ class Summary:
 
 
 def _build_payload(activity: RepoActivity) -> str:
-    """Compact, token-efficient representation of the activity for the model."""
     lines = [
         f"Repository: {activity.repo_name}",
         f"Window: {activity.since:%Y-%m-%d} to {activity.until:%Y-%m-%d}",
@@ -95,15 +121,71 @@ def _build_payload(activity: RepoActivity) -> str:
         "Commits (newest first):",
     ]
     for c in activity.commits:
-        files = ", ".join(
-            f"{f.path}(+{f.additions}/-{f.deletions})" for f in c.files[:8]
-        )
-        lines.append(f"- [{c.short_sha}] {c.when:%m-%d %H:%M} {c.summary}")
+        lines.append(f"- [{c.short_sha}] {c.when:%Y-%m-%d %H:%M} {c.summary}")
         if c.body:
-            lines.append(f"    note: {c.body.splitlines()[0][:120]}")
-        if files:
-            lines.append(f"    files: {files}")
+            for bl in c.body.splitlines():
+                bl = bl.strip()
+                if bl:
+                    lines.append(f"    {bl}")
+        if c.files:
+            shown = c.files[:15]
+            files = ", ".join(f"{f.path}(+{f.additions}/-{f.deletions})" for f in shown)
+            extra = f" +{len(c.files) - 15} more" if len(c.files) > 15 else ""
+            lines.append(f"    files: {files}{extra}")
+
+    signals = _signals(activity)
+    if signals:
+        lines.append("")
+        lines.append("Precomputed signals (use as evidence; verify against commits):")
+        lines.extend(f"- {s}" for s in signals)
+
     return "\n".join(lines)
+
+
+def _signals(activity: RepoActivity) -> list[str]:
+    out: list[str] = []
+    n = activity.commit_count
+
+    hot = [(p, cnt) for p, cnt in activity.hotspots.items() if cnt > 1]
+    for path, cnt in hot[:5]:
+        shas = [
+            c.short_sha
+            for c in activity.commits
+            if any(f.path == path for f in c.files)
+        ]
+        out.append(
+            f"File {path} changed in {cnt} of {n} commits ({' '.join(shas[:10])})."
+        )
+
+    late = [c for c in activity.commits if c.hour >= 22 or c.hour < 6]
+    if late:
+        out.append(
+            f"{len(late)} commit(s) outside working hours: "
+            + ", ".join(f"{c.short_sha}@{c.hour:02d}h" for c in late[:8])
+            + "."
+        )
+
+    fixes = [
+        c
+        for c in activity.commits
+        if c.summary.lower().startswith(("fix", "hotfix", "revert"))
+    ]
+    if fixes:
+        out.append(
+            f"{len(fixes)} fix/revert commit(s): "
+            + ", ".join(c.short_sha for c in fixes[:10])
+            + "."
+        )
+
+    big = sorted(activity.commits, key=lambda c: c.churn, reverse=True)[:3]
+    big = [c for c in big if c.churn > 200]
+    for c in big:
+        out.append(
+            f"Large commit {c.short_sha} (+{c.additions}/-{c.deletions}, "
+            f"{len(c.files)} files): {c.summary}"
+        )
+
+    return out
 
 
 _FALLBACK_STRINGS = {
@@ -173,7 +255,7 @@ def summarize(
     if model:
         setattr(prov, "model", model)
 
-    max_tokens = min(8000, max(2000, activity.commit_count * 90))
+    max_tokens = min(12000, max(3000, activity.commit_count * 140))
     try:
         result = prov.generate(
             _system_prompt(lang), _build_payload(activity), max_tokens

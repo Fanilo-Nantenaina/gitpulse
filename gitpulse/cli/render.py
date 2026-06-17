@@ -1,5 +1,3 @@
-"""Terminal rendering of summaries using Rich."""
-
 from __future__ import annotations
 
 from contextlib import contextmanager
