@@ -6,6 +6,7 @@ import textwrap
 from dataclasses import dataclass
 
 from ..core.models import RepoActivity
+from . import providers
 
 DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", "claude-sonnet-4-6")
 
@@ -44,11 +45,16 @@ class Summary:
 
     @property
     def cost_note(self) -> str:
-        if self.source.startswith("local") and self.cost_usd == 0:
-            return "local fallback (no API call, $0.00)"
+        if self.source.startswith("local"):
+            if self.input_tokens or self.output_tokens:
+                return (
+                    f"{self.source} · {self.input_tokens}+{self.output_tokens} tok "
+                    f"· $0.0000"
+                )
+            return "local fallback (no model call, $0.00)"
+        cost = f"${self.cost_usd:.4f}" if self.cost_usd else "free"
         return (
-            f"{self.source} · {self.input_tokens}+{self.output_tokens} tok "
-            f"· ${self.cost_usd:.4f}"
+            f"{self.source} · {self.input_tokens}+{self.output_tokens} tok " f"· {cost}"
         )
 
     @classmethod
@@ -113,60 +119,57 @@ def _local_fallback(activity: RepoActivity) -> Summary:
     )
 
 
-def summarize(activity: RepoActivity, model: str = DEFAULT_MODEL) -> Summary:
-    """Produce a semantic summary, using Claude if available else local fallback."""
+def summarize(
+    activity: RepoActivity, provider: str = "auto", model: str | None = None
+) -> Summary:
     if activity.commit_count == 0:
         return Summary(
             headline="No activity in this window.", themes=[], observations=[]
         )
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
+    prov = providers.detect(provider)
+    if prov is None:
         return _local_fallback(activity)
 
-    try:
-        import anthropic
-    except ImportError:
-        return _local_fallback(activity)
+    if model:
+        setattr(prov, "model", model)
 
-    # Sonnet 4.6 pricing (USD per token). Update if pricing changes.
-    PRICE_IN = 3.0 / 1_000_000
-    PRICE_OUT = 15.0 / 1_000_000
-
-    # Scale output budget with commit count: ~80 tokens of JSON per theme,
-    # and themes roughly track commit volume. Clamp to a sane ceiling.
     max_tokens = min(8000, max(2000, activity.commit_count * 90))
-
-    client = anthropic.Anthropic(api_key=api_key)
-    msg = client.messages.create(
-        model=model,
-        max_tokens=max_tokens,
-        system=_SYSTEM,
-        messages=[{"role": "user", "content": _build_payload(activity)}],
-    )
-    text = "".join(b.text for b in msg.content if b.type == "text")
-    in_tok = msg.usage.input_tokens
-    out_tok = msg.usage.output_tokens
-    cost = in_tok * PRICE_IN + out_tok * PRICE_OUT
-
-    # If the model hit the token ceiling, the JSON is almost certainly cut off.
-    if msg.stop_reason == "max_tokens":
+    try:
+        result = prov.generate(_SYSTEM, _build_payload(activity), max_tokens)
+    except Exception as e:
         fb = _local_fallback(activity)
-        fb.raw = text
-        fb.source = "local(truncated)"
-        fb.input_tokens, fb.output_tokens, fb.cost_usd = in_tok, out_tok, cost
-        fb.stop_reason = "max_tokens"
+        fb.source = f"local({prov.name}-error)"
+        fb.raw = str(e)
+        return fb
+
+    if result.truncated:
+        fb = _local_fallback(activity)
+        fb.raw = result.text
+        fb.source = f"local({prov.name}-truncated)"
+        fb.input_tokens, fb.output_tokens, fb.cost_usd = (
+            result.input_tokens,
+            result.output_tokens,
+            result.cost_usd,
+        )
         return fb
 
     try:
-        summ = Summary.from_json(text)
-        summ.source = "claude"
-        summ.input_tokens, summ.output_tokens, summ.cost_usd = in_tok, out_tok, cost
-        summ.stop_reason = msg.stop_reason or ""
+        summ = Summary.from_json(result.text)
+        summ.source = f"{prov.name}:{result.model}"
+        summ.input_tokens, summ.output_tokens, summ.cost_usd = (
+            result.input_tokens,
+            result.output_tokens,
+            result.cost_usd,
+        )
         return summ
     except (json.JSONDecodeError, KeyError):
         fb = _local_fallback(activity)
-        fb.raw = text
-        fb.source = "local(parse-failed)"
-        fb.input_tokens, fb.output_tokens, fb.cost_usd = in_tok, out_tok, cost
+        fb.raw = result.text
+        fb.source = f"local({prov.name}-parse-failed)"
+        fb.input_tokens, fb.output_tokens, fb.cost_usd = (
+            result.input_tokens,
+            result.output_tokens,
+            result.cost_usd,
+        )
         return fb

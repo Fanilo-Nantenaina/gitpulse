@@ -10,19 +10,22 @@ work-pattern detection (hotspots, off-hours commits, productivity heatmaps).
 ## Why it's different
 
 Most git-stat tools count commits. GitPulse _reads_ them: it sends commit
-messages and per-file diff stats to Claude, which clusters them into themes and
-writes a human digest. The collection layer (pygit2) is the boring part — the
-value is the semantic layer on top.
+messages and per-file diff stats to a language model, which clusters them into
+themes and writes a human digest. The collection layer (pygit2) is the boring
+part — the value is the semantic layer on top.
 
-Without an API key it still works: it falls back to a deterministic local
-summary (prefix grouping + pattern detection), so it's useful offline too.
+The model can be Anthropic's Claude API or a local Ollama model — GitPulse
+auto-detects what's available, or you pick one explicitly. With no model at all
+it still works: it falls back to a deterministic local summary (prefix grouping
+
+- pattern detection), so it's useful fully offline too.
 
 ---
 
 ## Install
 
 ```bash
-git clone https://github.com/Fanilo-Nantenaina/gitpulse.git
+git clone https://github.com/<you>/gitpulse.git
 cd gitpulse
 pip install -e ".[all]"      # core + AI + scheduler + desktop notifications
 ```
@@ -63,19 +66,71 @@ Restart the terminal afterwards so the variable is picked up.
 
 ### All variables
 
-| Variable                    | Purpose                                        | Default             |
-| --------------------------- | ---------------------------------------------- | ------------------- |
-| `ANTHROPIC_API_KEY`         | Enables Claude summaries (else local fallback) | —                   |
-| `GITPULSE_MODEL`            | Model override                                 | `claude-sonnet-4-6` |
-| `GITPULSE_SLACK_WEBHOOK`    | Slack incoming webhook URL                     | —                   |
-| `GITPULSE_TELEGRAM_TOKEN`   | Telegram bot token (via @BotFather)            | —                   |
-| `GITPULSE_TELEGRAM_CHAT_ID` | Telegram chat ID                               | —                   |
-| `GITPULSE_SMTP_HOST`        | SMTP server host                               | —                   |
-| `GITPULSE_SMTP_PORT`        | SMTP port                                      | `587`               |
-| `GITPULSE_SMTP_USER`        | SMTP username                                  | —                   |
-| `GITPULSE_SMTP_PASS`        | SMTP password (Gmail: app password)            | —                   |
-| `GITPULSE_SMTP_TO`          | Recipient address                              | —                   |
-| `GITPULSE_SMTP_FROM`        | Sender address                                 | falls back to `_TO` |
+| Variable                    | Purpose                                     | Default                  |
+| --------------------------- | ------------------------------------------- | ------------------------ |
+| `ANTHROPIC_API_KEY`         | Enables the Claude provider                 | —                        |
+| `GITPULSE_MODEL`            | Claude model                                | `claude-sonnet-4-6`      |
+| `OLLAMA_HOST`               | Ollama server URL                           | `http://localhost:11434` |
+| `GITPULSE_OLLAMA_MODEL`     | Default Ollama model (else first installed) | —                        |
+| `GITPULSE_SLACK_WEBHOOK`    | Slack incoming webhook URL                  | —                        |
+| `GITPULSE_TELEGRAM_TOKEN`   | Telegram bot token (via @BotFather)         | —                        |
+| `GITPULSE_TELEGRAM_CHAT_ID` | Telegram chat ID                            | —                        |
+| `GITPULSE_SMTP_HOST`        | SMTP server host                            | —                        |
+| `GITPULSE_SMTP_PORT`        | SMTP port                                   | `587`                    |
+| `GITPULSE_SMTP_USER`        | SMTP username                               | —                        |
+| `GITPULSE_SMTP_PASS`        | SMTP password (Gmail: app password)         | —                        |
+| `GITPULSE_SMTP_TO`          | Recipient address                           | —                        |
+| `GITPULSE_SMTP_FROM`        | Sender address                              | falls back to `_TO`      |
+
+---
+
+## AI providers
+
+GitPulse can summarize with different backends, selected per command with
+`--provider` / `-p` and optionally `--model` / `-m`.
+
+| Provider         | Requires                                        | Cost                                                       |
+| ---------------- | ----------------------------------------------- | ---------------------------------------------------------- |
+| `claude`         | `ANTHROPIC_API_KEY` + `anthropic` package       | paid (per token)                                           |
+| `ollama`         | a running Ollama server with at least one model | free, local, offline                                       |
+| `local`          | nothing                                         | free; deterministic, no model                              |
+| `auto` (default) | —                                               | picks the first available: claude, then ollama, then local |
+
+Run `gitpulse providers` to see which backends are available and, for Ollama,
+which models are installed:
+
+```bash
+gitpulse providers
+```
+
+### Using Ollama
+
+Install Ollama, pull a model, and GitPulse finds it automatically:
+
+```bash
+ollama pull llama3.1            # or qwen2.5-coder, mistral, etc.
+gitpulse summary -p ollama      # uses the first installed model
+gitpulse summary -p ollama -m qwen2.5-coder:7b
+```
+
+If `--model` is omitted for Ollama, the first installed model is used. Set
+`GITPULSE_OLLAMA_MODEL` to fix a default. A non-default server location can be
+set with `OLLAMA_HOST`.
+
+Coder-tuned models (qwen2.5-coder, deepseek-coder) tend to produce the best
+commit summaries. Quality is lower than Claude but the run is free and offline.
+
+### Forcing a provider
+
+```bash
+gitpulse summary -p claude -m claude-opus-4-8   # explicit Claude model
+gitpulse summary -p local                        # skip models entirely
+gitpulse summary                                 # auto
+```
+
+If a selected provider fails or returns malformed output, GitPulse degrades to
+the local summary rather than erroring; the cost line reports what happened
+(e.g. `local(ollama-parse-failed)`).
 
 ---
 
@@ -118,11 +173,13 @@ themes grouping related commits, observations (hotspots, off-hours commits,
 risk flags), a 24-hour productivity sparkline, and a cost line showing whether
 the summary came from Claude or the local fallback plus token usage and cost.
 
-| Option     | Alias | Default | Description                               |
-| ---------- | ----- | ------- | ----------------------------------------- |
-| `PATH`     |       | `.`     | Repository path (quote paths with spaces) |
-| `--when`   | `-w`  | `7d`    | Time window (see above)                   |
-| `--branch` | `-b`  | HEAD    | Specific branch to analyze                |
+| Option       | Alias | Default          | Description                               |
+| ------------ | ----- | ---------------- | ----------------------------------------- |
+| `PATH`       |       | `.`              | Repository path (quote paths with spaces) |
+| `--when`     | `-w`  | `7d`             | Time window (see above)                   |
+| `--branch`   | `-b`  | HEAD             | Specific branch to analyze                |
+| `--provider` | `-p`  | `auto`           | AI backend: auto, claude, ollama, local   |
+| `--model`    | `-m`  | provider default | Model name                                |
 
 ```bash
 gitpulse summary
@@ -224,6 +281,15 @@ week. Takes no options.
 gitpulse dates
 ```
 
+### `gitpulse providers`
+
+List AI backends and their availability. For Ollama, shows installed models.
+Takes no options.
+
+```bash
+gitpulse providers
+```
+
 ---
 
 ## Notifiers
@@ -265,22 +331,21 @@ APScheduler and blocks the terminal; closing it stops the schedule.
 
 ## Cost & token usage
 
-Each summary is a single API call. GitPulse sizes its output budget to the
-number of commits (`max_tokens` scales from 2,000 to 8,000) so the JSON
-response is never truncated on large repos. Every run prints a cost line:
+Each summary is a single model call. GitPulse sizes its output budget to the
+number of commits (`max_tokens` scales from 2,000 to 8,000) so the response is
+never truncated on large repos. Every run prints a cost line reflecting the
+provider used:
 
 ```
-claude · 6893+2400 tok · $0.0567
+claude:claude-sonnet-4-6 · 6893+2400 tok · $0.0567
+ollama:qwen2.5-coder:7b · 6893+2400 tok · free
+local fallback (no model call, $0.00)
 ```
 
-or, when no key is set:
-
-```
-local fallback (no API call, $0.00)
-```
-
-Pricing follows the model in use; check the Anthropic console for current
-rates. Use a shorter `--when` window while testing to keep payloads small.
+Ollama and local runs are free. For Claude, pricing follows the model in use;
+check the Anthropic console for current rates. Use a shorter `--when` window
+while testing to keep payloads small, or run `-p ollama` / `-p local` to avoid
+API cost entirely.
 
 ---
 
@@ -294,7 +359,8 @@ gitpulse/
 │   ├── dateparse.py    # --when parsing: intervals, dates, ranges, weekdays
 │   └── changelog.py    # Conventional-Commits release notes
 ├── ai/
-│   └── summarizer.py   # Claude semantic summary + local fallback + cost tracking
+│   ├── providers.py    # Claude API + Ollama backends, auto-detection
+│   └── summarizer.py   # Summary model, local fallback, provider dispatch
 ├── cli/
 │   ├── main.py         # Typer commands
 │   └── render.py       # Rich terminal, git-log view, Markdown output

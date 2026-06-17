@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -11,6 +12,7 @@ from ..core.collector import collect_activity, discover_repos
 from ..core.changelog import generate_changelog
 from ..core.dateparse import parse_range, parse_interval, suggestions, DateRange
 from ..ai.summarizer import summarize
+from ..ai import providers as ai_providers
 from ..scheduler.runner import run_scheduler
 from ..notifiers.dispatch import dispatch
 from .render import render_terminal, render_markdown, render_log
@@ -30,6 +32,10 @@ WHEN_HELP = (
 )
 
 
+PROVIDER_HELP = "AI backend: auto, claude, ollama, or local (no model)."
+MODEL_HELP = "Model name (provider-specific, e.g. claude-sonnet-4-6 or llama3.1)."
+
+
 def _range(when: str) -> DateRange:
     try:
         return parse_range(when)
@@ -44,10 +50,12 @@ def summary(
     path: Path = typer.Argument(Path("."), help="Repository path"),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
     branch: Optional[str] = typer.Option(None, "--branch", "-b"),
+    provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
 ):
     r = _range(when)
     activity = collect_activity(path, r.since, r.until, branch=branch)
-    summ = summarize(activity)
+    summ = summarize(activity, provider=provider, model=model)
     render_terminal(activity, summ)
 
 
@@ -72,10 +80,12 @@ def digest(
     to: list[str] = typer.Option(
         ["desktop"], "--to", help="Channels: slack,email,telegram,desktop"
     ),
+    provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
 ):
     r = _range(when)
     activity = collect_activity(path, r.since, r.until)
-    summ = summarize(activity)
+    summ = summarize(activity, provider=provider, model=model)
     md = render_markdown(activity, summ)
     results = dispatch(to, md)
     for ch, ok in results.items():
@@ -89,6 +99,8 @@ def dashboard(
     root: Path = typer.Argument(Path("."), help="Directory to scan for repos"),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
     depth: int = typer.Option(3, "--depth"),
+    provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
 ):
     r = _range(when)
     repos = discover_repos(root, max_depth=depth)
@@ -108,7 +120,7 @@ def dashboard(
         act = collect_activity(repo, r.since, r.until)
         if act.commit_count == 0:
             continue
-        summ = summarize(act)
+        summ = summarize(act, provider=provider, model=model)
         rows.append((act, summ))
     rows.sort(key=lambda x: x[0].commit_count, reverse=True)
     for act, summ in rows:
@@ -137,13 +149,15 @@ def watch(
     every: str = typer.Option("24h", "--every", "-e", help="Cadence: 24h, 7d, 30m"),
     when: str = typer.Option("24h", "--when", "-w", help="Window each digest covers"),
     to: list[str] = typer.Option(["desktop"], "--to"),
+    provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
 ):
     parse_interval(every)
 
     def job():
         r = parse_range(when)
         activity = collect_activity(path, r.since, r.until)
-        summ = summarize(activity)
+        summ = summarize(activity, provider=provider, model=model)
         md = render_markdown(activity, summ)
         dispatch(to, md)
         from datetime import datetime
@@ -154,6 +168,25 @@ def watch(
 
     console.print(f"[cyan]Watching {path} every {every}...[/]")
     run_scheduler(job, every)
+
+
+@app.command()
+def providers():
+    table = Table(title="AI providers", show_lines=False)
+    table.add_column("Provider", style="cyan")
+    table.add_column("Available", justify="center")
+    table.add_column("Models", style="dim")
+    for name, ok, models in ai_providers.status():
+        mark = "[green]yes[/]" if ok else "[red]no[/]"
+        listed = ", ".join(models[:6]) if models else "-"
+        if len(models) > 6:
+            listed += f", +{len(models) - 6} more"
+        table.add_row(name, mark, listed)
+    console.print(table)
+    console.print(
+        "[dim]Select with --provider <name> [--model <model>]. "
+        "auto picks the first available (claude, then ollama, then local).[/]"
+    )
 
 
 @app.command()
