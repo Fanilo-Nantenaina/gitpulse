@@ -1,8 +1,21 @@
+"""Terminal rendering of summaries using Rich."""
+
 from __future__ import annotations
+
+from contextlib import contextmanager
 
 from rich.console import Console
 from rich.padding import Padding
 from rich.panel import Panel
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    BarColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    MofNCompleteColumn,
+    TaskProgressColumn,
+)
 from rich.table import Table
 from rich.text import Text
 
@@ -10,6 +23,30 @@ from ..core.models import RepoActivity
 from ..ai.summarizer import Summary
 
 console = Console()
+
+
+@contextmanager
+def progress_bar(description: str = "Working"):
+    prog = Progress(
+        SpinnerColumn(),
+        TextColumn("[bold]{task.description}"),
+        BarColumn(bar_width=None),
+        TaskProgressColumn(),
+        MofNCompleteColumn(),
+        TextColumn("[dim]{task.fields[detail]}"),
+        TimeElapsedColumn(),
+        console=console,
+        transient=True,
+    )
+    with prog:
+        yield prog
+
+
+@contextmanager
+def status_spinner(message: str):
+    with console.status(f"[bold]{message}", spinner="dots") as st:
+        yield st
+
 
 _BLOCKS = " ▁▂▃▄▅▆▇█"
 

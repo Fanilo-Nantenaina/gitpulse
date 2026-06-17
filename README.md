@@ -199,6 +199,9 @@ gitpulse summary --when "jeudi dernier"
 Run `gitpulse --help` for the index, or `gitpulse <command> --help` for any
 single command.
 
+Options belong to a command, not to `gitpulse` itself. Write
+`gitpulse summary --provider ollama`, not `gitpulse --provider ollama`.
+
 ### `gitpulse summary [PATH]`
 
 Print an AI semantic summary of recent activity to the terminal: a headline,
@@ -262,16 +265,27 @@ terminal as a fallback.
 Aggregated activity across every repo found under a directory, ranked by
 commit count.
 
-| Option    | Alias | Default | Description                 |
-| --------- | ----- | ------- | --------------------------- |
-| `ROOT`    |       | `.`     | Directory to scan for repos |
-| `--when`  | `-w`  | `7d`    | Time window                 |
-| `--depth` |       | `3`     | Max search depth for repos  |
+| Option       | Alias | Default          | Description                 |
+| ------------ | ----- | ---------------- | --------------------------- |
+| `ROOT`       |       | `.`              | Directory to scan for repos |
+| `--when`     | `-w`  | `7d`             | Time window                 |
+| `--depth`    |       | `3`              | Max search depth for repos  |
+| `--provider` | `-p`  | `auto`           | AI backend                  |
+| `--model`    | `-m`  | provider default | Model name                  |
+| `--lang`     | `-l`  | default          | Output language             |
 
 ```bash
 gitpulse dashboard ~/code --when 30d
 gitpulse dashboard "C:\Users\You\Documents" --depth 2
 ```
+
+While running, `dashboard` shows a live progress bar: percentage, a count of
+repositories done versus total, the repository currently being analyzed, and
+elapsed time. When finished, the bar disappears and the result table is printed,
+followed by a one-line summary (how many repositories were active, idle, failed,
+and scanned). `summary` and `digest` show a spinner for each stage they go
+through (reading commits, summarizing, sending) so the terminal never looks
+frozen during a model call.
 
 ### `gitpulse changelog [PATH]`
 

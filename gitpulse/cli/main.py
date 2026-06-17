@@ -16,7 +16,14 @@ from ..ai.summarizer import summarize
 from ..ai import providers as ai_providers
 from ..scheduler.runner import run_scheduler
 from ..notifiers.dispatch import dispatch
-from .render import render_terminal, render_markdown, render_log
+from .render import (
+    render_terminal,
+    render_markdown,
+    render_log,
+    progress_bar,
+    status_spinner,
+    console as render_console,
+)
 
 app = typer.Typer(
     help="GitPulse - AI-powered git activity digests.",
@@ -57,8 +64,14 @@ def summary(
     lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     r = _range(when)
-    activity = collect_activity(path, r.since, r.until, branch=branch)
-    summ = summarize(activity, provider=provider, model=model, lang=lang)
+    with status_spinner(f"Reading commits from {path.name}"):
+        activity = collect_activity(path, r.since, r.until, branch=branch)
+    if activity.commit_count == 0:
+        render_terminal(activity, summarize(activity, provider="local", lang=lang))
+        return
+    label = "local" if provider == "local" else provider
+    with status_spinner(f"Summarizing {activity.commit_count} commits via {label}"):
+        summ = summarize(activity, provider=provider, model=model, lang=lang)
     render_terminal(activity, summ)
 
 
@@ -88,10 +101,14 @@ def digest(
     lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     r = _range(when)
-    activity = collect_activity(path, r.since, r.until)
-    summ = summarize(activity, provider=provider, model=model, lang=lang)
+    with status_spinner(f"Reading commits from {path.name}"):
+        activity = collect_activity(path, r.since, r.until)
+    label = "local" if provider == "local" else provider
+    with status_spinner(f"Summarizing {activity.commit_count} commits via {label}"):
+        summ = summarize(activity, provider=provider, model=model, lang=lang)
     md = render_markdown(activity, summ)
-    results = dispatch(to, md)
+    with status_spinner(f"Sending to {', '.join(to)}"):
+        results = dispatch(to, md)
     for ch, ok in results.items():
         console.print(f"[{'green' if ok else 'red'}]{'ok' if ok else 'fail'}[/] {ch}")
     if not any(results.values()):
@@ -108,9 +125,36 @@ def dashboard(
     lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     r = _range(when)
-    repos = discover_repos(root, max_depth=depth)
+    with progress_bar() as prog:
+        scan = prog.add_task("Scanning for repositories", total=None, detail=str(root))
+        repos = discover_repos(root, max_depth=depth)
+        prog.update(scan, total=1, completed=1, detail=f"found {len(repos)}")
+
     if not repos:
         console.print("[yellow]No git repositories found.[/]")
+        raise typer.Exit()
+
+    rows = []
+    skipped = 0
+    failed = 0
+    with progress_bar() as prog:
+        task = prog.add_task("Analyzing repositories", total=len(repos), detail="")
+        for repo in repos:
+            prog.update(task, detail=repo.name)
+            try:
+                act = collect_activity(repo, r.since, r.until)
+                if act.commit_count == 0:
+                    skipped += 1
+                    prog.advance(task)
+                    continue
+                summ = summarize(act, provider=provider, model=model, lang=lang)
+                rows.append((act, summ))
+            except Exception:
+                failed += 1
+            prog.advance(task)
+
+    if not rows:
+        console.print("[yellow]No activity in this window for any repository.[/]")
         raise typer.Exit()
 
     table = Table(title=f"Activity: {r.label}", show_lines=False)
@@ -120,13 +164,6 @@ def dashboard(
     table.add_column("-", justify="right", style="red")
     table.add_column("Headline", style="dim", max_width=50)
 
-    rows = []
-    for repo in repos:
-        act = collect_activity(repo, r.since, r.until)
-        if act.commit_count == 0:
-            continue
-        summ = summarize(act, provider=provider, model=model, lang=lang)
-        rows.append((act, summ))
     rows.sort(key=lambda x: x[0].commit_count, reverse=True)
     for act, summ in rows:
         table.add_row(
@@ -137,6 +174,14 @@ def dashboard(
             summ.headline,
         )
     console.print(table)
+
+    footer = f"{len(rows)} active"
+    if skipped:
+        footer += f" · {skipped} idle"
+    if failed:
+        footer += f" · {failed} failed"
+    footer += f" · {len(repos)} scanned"
+    console.print(f"[dim]{footer}[/]")
 
 
 @app.command()
