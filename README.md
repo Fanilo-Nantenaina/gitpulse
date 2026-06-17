@@ -79,6 +79,33 @@ Restart the terminal afterwards so the variable is picked up.
 
 ---
 
+## Time windows (`--when`)
+
+All activity commands take `--when` / `-w` (this replaces the old `--since`).
+It accepts several formats:
+
+| Type        | Example                                                   | Resolves to                            |
+| ----------- | --------------------------------------------------------- | -------------------------------------- |
+| interval    | `7d`, `24h`, `30m`                                        | rolling window ending now              |
+| single date | `2026-06-15`                                              | that whole day (00:00-23:59)           |
+| range       | `2026-06-10..2026-06-14`                                  | inclusive span                         |
+| open range  | `2026-06-12..`                                            | from that date to now                  |
+| relative    | `today`, `yesterday`, `avant-hier`                        | that whole day                         |
+| weekday     | `thursday`, `jeudi`, `"jeudi dernier"`, `"last thursday"` | most recent occurrence of that weekday |
+| week        | `this-week`, `last-week`                                  | Monday-Sunday span                     |
+
+French and English terms are both accepted. Run `gitpulse dates` to print this
+table plus the concrete dates for the current week (e.g. `thursday (last) ->
+2026-06-11`).
+
+```bash
+gitpulse summary --when yesterday
+gitpulse log --when 2026-06-10..2026-06-14
+gitpulse summary --when "jeudi dernier"
+```
+
+---
+
 ## Commands
 
 Run `gitpulse --help` for the index, or `gitpulse <command> --help` for any
@@ -86,37 +113,54 @@ single command.
 
 ### `gitpulse summary [PATH]`
 
-Print a semantic summary of recent activity to the terminal.
+Print an AI semantic summary of recent activity to the terminal: a headline,
+themes grouping related commits, observations (hotspots, off-hours commits,
+risk flags), a 24-hour productivity sparkline, and a cost line showing whether
+the summary came from Claude or the local fallback plus token usage and cost.
 
 | Option     | Alias | Default | Description                               |
 | ---------- | ----- | ------- | ----------------------------------------- |
-| `PATH`     | —     | `.`     | Repository path (quote paths with spaces) |
-| `--since`  | `-s`  | `7d`    | Time window: `7d`, `24h`, `30m`           |
+| `PATH`     |       | `.`     | Repository path (quote paths with spaces) |
+| `--when`   | `-w`  | `7d`    | Time window (see above)                   |
 | `--branch` | `-b`  | HEAD    | Specific branch to analyze                |
 
 ```bash
 gitpulse summary
-gitpulse summary "C:\path with spaces\repo" --since 24h
-gitpulse summary ~/proj -b develop -s 14d
+gitpulse summary "C:\path with spaces\repo" --when 24h
+gitpulse summary ~/proj -b develop -w last-week
 ```
 
-Output includes a 24-hour productivity sparkline, theme panels, observations
-(hotspots, off-hours commits), and a cost line showing whether the summary
-came from Claude or the local fallback, plus exact token usage and cost.
+### `gitpulse log [PATH]`
+
+Plain `git log`-style listing: one entry per commit with SHA, author, date,
+message, and diff stats. No AI call, no cost. Use `--files` to list changed
+files per commit.
+
+| Option     | Alias | Default | Description                   |
+| ---------- | ----- | ------- | ----------------------------- |
+| `PATH`     |       | `.`     | Repository path               |
+| `--when`   | `-w`  | `7d`    | Time window                   |
+| `--branch` | `-b`  | HEAD    | Specific branch               |
+| `--files`  | `-f`  | off     | List changed files per commit |
+
+```bash
+gitpulse log --when yesterday
+gitpulse log ~/proj -w 2026-06-10..2026-06-14 --files
+```
 
 ### `gitpulse digest [PATH]`
 
-Generate the summary as Markdown and dispatch it to notification channels.
+Generate the AI summary as Markdown and dispatch it to notification channels.
 
-| Option    | Alias | Default   | Description         |
-| --------- | ----- | --------- | ------------------- |
-| `PATH`    | —     | `.`       | Repository path     |
-| `--since` | `-s`  | `7d`      | Time window         |
-| `--to`    | —     | `desktop` | Channel; repeatable |
+| Option   | Alias | Default   | Description         |
+| -------- | ----- | --------- | ------------------- |
+| `PATH`   |       | `.`       | Repository path     |
+| `--when` | `-w`  | `7d`      | Time window         |
+| `--to`   |       | `desktop` | Channel; repeatable |
 
 ```bash
 gitpulse digest --to slack
-gitpulse digest ~/proj --since 7d --to slack --to email
+gitpulse digest ~/proj --when 7d --to slack --to email
 ```
 
 If no channel succeeds (e.g. none configured), the Markdown is printed to the
@@ -129,12 +173,12 @@ commit count.
 
 | Option    | Alias | Default | Description                 |
 | --------- | ----- | ------- | --------------------------- |
-| `ROOT`    | —     | `.`     | Directory to scan for repos |
-| `--since` | `-s`  | `7d`    | Time window                 |
-| `--depth` | —     | `3`     | Max search depth for repos  |
+| `ROOT`    |       | `.`     | Directory to scan for repos |
+| `--when`  | `-w`  | `7d`    | Time window                 |
+| `--depth` |       | `3`     | Max search depth for repos  |
 
 ```bash
-gitpulse dashboard ~/code --since 30d
+gitpulse dashboard ~/code --when 30d
 gitpulse dashboard "C:\Users\You\Documents" --depth 2
 ```
 
@@ -159,16 +203,25 @@ gitpulse changelog ~/proj --from v1.0.0 --to v1.1.0 > CHANGELOG.md
 Run digests on a recurring schedule. Blocks the terminal (requires
 `apscheduler`).
 
-| Option    | Alias | Default   | Description               |
-| --------- | ----- | --------- | ------------------------- |
-| `PATH`    | —     | `.`       | Repository path           |
-| `--every` | `-e`  | `24h`     | Cadence between runs      |
-| `--since` | `-s`  | `24h`     | Window each digest covers |
-| `--to`    | —     | `desktop` | Channel; repeatable       |
+| Option    | Alias | Default   | Description                          |
+| --------- | ----- | --------- | ------------------------------------ |
+| `PATH`    |       | `.`       | Repository path                      |
+| `--every` | `-e`  | `24h`     | Cadence between runs (interval only) |
+| `--when`  | `-w`  | `24h`     | Window each digest covers            |
+| `--to`    |       | `desktop` | Channel; repeatable                  |
 
 ```bash
 gitpulse watch --every 24h --to slack
 gitpulse watch ~/proj -e 7d --to email
+```
+
+### `gitpulse dates`
+
+Print the accepted `--when` formats and the concrete dates for the current
+week. Takes no options.
+
+```bash
+gitpulse dates
 ```
 
 ---
@@ -227,7 +280,7 @@ local fallback (no API call, $0.00)
 ```
 
 Pricing follows the model in use; check the Anthropic console for current
-rates. Use a shorter `--since` window while testing to keep payloads small.
+rates. Use a shorter `--when` window while testing to keep payloads small.
 
 ---
 
@@ -238,12 +291,13 @@ gitpulse/
 ├── core/
 │   ├── models.py       # plain dataclasses: Commit, FileChange, RepoActivity
 │   ├── collector.py    # pygit2 history walk + per-file diff stats
+│   ├── dateparse.py    # --when parsing: intervals, dates, ranges, weekdays
 │   └── changelog.py    # Conventional-Commits release notes
 ├── ai/
 │   └── summarizer.py   # Claude semantic summary + local fallback + cost tracking
 ├── cli/
 │   ├── main.py         # Typer commands
-│   └── render.py       # Rich terminal + Markdown output
+│   └── render.py       # Rich terminal, git-log view, Markdown output
 ├── scheduler/
 │   └── runner.py       # APScheduler + systemd-timer unit generation
 └── notifiers/

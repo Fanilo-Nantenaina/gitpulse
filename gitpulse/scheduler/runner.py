@@ -1,21 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Callable
 
-
-def parse_interval(s: str) -> timedelta:
-    """Parse '7d', '24h', '30m' into a timedelta."""
-    s = s.strip().lower()
-    unit = s[-1]
-    n = int(s[:-1])
-    return {"d": timedelta(days=n), "h": timedelta(hours=n), "m": timedelta(minutes=n)}[
-        unit
-    ]
+from ..core.dateparse import parse_interval
 
 
 def run_scheduler(job: Callable[[], None], every: str) -> None:
-    """Run `job` every `every` interval. Blocks. Requires apscheduler."""
     from apscheduler.schedulers.blocking import BlockingScheduler
 
     delta = parse_interval(every)

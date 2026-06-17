@@ -79,7 +79,6 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
             console.print(sha_line)
         console.print()
 
-    # --- Observations --------------------------------------------------------
     if summary.observations:
         console.print(Text("  ⚠ Observations", style="bold yellow"))
         for o in summary.observations:
@@ -92,12 +91,70 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     if summary.source == "local(truncated)":
         console.print(
             Text(
-                "  Claude's reply was cut off; max_tokens was raised — retry. "
+                "Claude's reply was cut off; max_tokens was raised — retry. "
                 "Showed local summary instead.",
                 style="dim red",
             )
         )
     console.print()
+
+
+def render_log(activity: RepoActivity, show_files: bool = False) -> None:
+    w = _width()
+    if activity.commit_count == 0:
+        console.print(Text("  No commits in this window.", style="dim"))
+        return
+
+    header = Text()
+    header.append(f"  {activity.repo_name}  ", style="bold")
+    header.append(
+        f"{activity.since:%Y-%m-%d} .. {activity.until:%Y-%m-%d}  ", style="dim"
+    )
+    header.append(f"{activity.commit_count} commits", style="dim")
+    console.print(header)
+    console.print()
+
+    for c in activity.commits:
+        line = Text("commit ", style="default")
+        line.append(c.sha, style="yellow")
+        if c.branch:
+            line.append(f"  ({c.branch})", style="cyan")
+        console.print(line)
+
+        meta = Text("Author: ", style="default")
+        meta.append(f"{c.author_name} <{c.author_email}>", style="default")
+        console.print(meta)
+
+        date_line = Text("Date:   ", style="default")
+        date_line.append(f"{c.when:%a %b %d %H:%M:%S %Y %z}", style="default")
+        console.print(date_line)
+        console.print()
+
+        subject = Text("    ")
+        subject.append(c.summary, style="bold")
+        console.print(subject, width=w)
+        if c.body:
+            console.print()
+            for para in c.body.split("\n"):
+                console.print(Padding(Text(para), (0, 0, 0, 4)), width=w)
+
+        stat = Text("    ")
+        stat.append(f"+{c.additions}", style="green")
+        stat.append(" / ", style="dim")
+        stat.append(f"-{c.deletions}", style="red")
+        stat.append(
+            f"  {len(c.files)} file{'s' if len(c.files) != 1 else ''}", style="dim"
+        )
+        console.print(stat)
+
+        if show_files:
+            for f in c.files:
+                fl = Text("      ")
+                fl.append(f"{f.status[:3]:>3} ", style="dim")
+                fl.append(f.path, style="default")
+                fl.append(f"  +{f.additions}/-{f.deletions}", style="dim")
+                console.print(fl, width=w)
+        console.print()
 
 
 def render_markdown(activity: RepoActivity, summary: Summary) -> str:
