@@ -98,3 +98,15 @@ class RepoActivity:
         for c in self.commits:
             hist[c.hour] += 1
         return hist
+
+    @property
+    def files_touched(self) -> int:
+        seen = set()
+        for c in self.commits:
+            for f in c.files:
+                seen.add(f.path)
+        return len(seen)
+
+    @property
+    def active_days(self) -> int:
+        return len({c.when.date() for c in self.commits})

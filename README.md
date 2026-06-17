@@ -260,6 +260,44 @@ gitpulse log --when yesterday
 gitpulse log ~/proj -w 2026-06-10..2026-06-14 --files
 ```
 
+### `gitpulse standup [PATH]`
+
+Generate a daily standup: an AI summary of yesterday's commits ("Yesterday"),
+plus an inferred "Today" section from the repo state — the current branch, any
+uncommitted work in progress, and other recently active branches. If yesterday
+was Sunday or Monday, it looks back to the last working day (Friday) instead.
+
+| Option       | Alias | Default          | Description     |
+| ------------ | ----- | ---------------- | --------------- |
+| `PATH`       |       | `.`              | Repository path |
+| `--provider` | `-p`  | `auto`           | AI backend      |
+| `--model`    | `-m`  | provider default | Model name      |
+| `--lang`     | `-l`  | default          | Output language |
+
+```bash
+gitpulse standup
+gitpulse standup "C:\Users\LEGION\Documents\Sage100 ERP\Sage100-vps" -l fr
+```
+
+### `gitpulse compare [PATH]`
+
+Compare the current period against the average of several prior periods, to see
+whether your pace is rising or falling. Reports commits, lines added/deleted,
+files touched, and active days, each with the percentage change and an up/down
+arrow. No AI call, no cost.
+
+| Option      | Alias | Default | Description                       |
+| ----------- | ----- | ------- | --------------------------------- |
+| `PATH`      |       | `.`     | Repository path                   |
+| `--period`  | `-w`  | `7d`    | Length of each period             |
+| `--periods` | `-n`  | `4`     | How many prior periods to average |
+| `--branch`  | `-b`  | HEAD    | Specific branch                   |
+
+```bash
+gitpulse compare                       # this week vs the prior 4 weeks
+gitpulse compare --period 30d -n 3     # this month vs the prior 3 months
+```
+
 ### `gitpulse remote <URL>`
 
 Analyze a repository hosted anywhere, without cloning it yourself first. Works
@@ -292,7 +330,7 @@ Authentication, two ways, both configurable:
 
 ```bash
 gitpulse remote https://github.com/org/project.git -w last-week
-gitpulse remote git@forgejo.example.com:team/project.git -w 7d
+gitpulse remote git@forgejo.example.com:team/dataven.git -w 7d
 gitpulse remote https://gitlab.com/org/repo.git --token ghp_xxx -p ollama
 gitpulse remote https://codeberg.org/user/app.git --view log --files
 ```
@@ -413,8 +451,9 @@ gitpulse config --show
 
 The setting is saved to `~/.gitpulse/config.json`.
 
-The five summarizing commands (`summary`, `remote`, `digest`, `dashboard`,
+The summarizing commands (`summary`, `remote`, `standup`, `digest`, `dashboard`,
 `watch`) also accept `--provider` / `-p`, `--model` / `-m`, and `--lang` / `-l`.
+`compare` is metrics-only (no AI).
 
 ### `gitpulse cache-clear`
 
@@ -491,6 +530,8 @@ gitpulse/
 │   ├── models.py       # plain dataclasses: Commit, FileChange, RepoActivity
 │   ├── collector.py    # pygit2 history walk + per-file diff stats
 │   ├── remote.py       # bare-clone any git URL into a cache (pygit2 + git CLI)
+│   ├── trends.py       # period-over-period comparison metrics
+│   ├── standup.py      # yesterday's work + today context (branches, WIP)
 │   ├── dateparse.py    # --when parsing: intervals, dates, ranges, weekdays
 │   ├── config.py       # language resolution + persisted preferences
 │   └── changelog.py    # Conventional-Commits release notes
@@ -513,14 +554,14 @@ other tool. The `ai` and `notifiers` layers are optional extras.
 
 ## Roadmap
 
+Done: remote repos (`remote`), standup mode (`standup`), trend comparison
+(`compare`).
+
 - **GUI** — Tauri (Rust shell + React) desktop app, or `gitpulse serve`
   (FastAPI + local web dashboard). The core/ai layers are already
   GUI-agnostic; the frontend just renders `RepoActivity` + `Summary`.
-- **Forgejo / GitHub API** — pull remote repos for the dashboard without
-  local clones.
-- **Standup mode** — "yesterday / today" generated from branch + WIP state.
-- **Trend comparison** — this week vs. the rolling 4-week average.
 - **Quality-risk flags** — large unreviewed diffs, commits without test changes.
+- **Multi-remote dashboard** — aggregate several remote URLs in one view.
 
 ---
 

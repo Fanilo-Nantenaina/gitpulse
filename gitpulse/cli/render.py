@@ -18,9 +18,108 @@ from rich.table import Table
 from rich.text import Text
 
 from ..core.models import RepoActivity
+from ..core.trends import Comparison
+from ..core.standup import StandupContext
 from ..ai.summarizer import Summary
 
 console = Console()
+
+
+def render_comparison(cmp: Comparison) -> None:
+    w = _width()
+    days = cmp.period_len.days or round(cmp.period_len.total_seconds() / 86400, 1)
+    header = Text()
+    header.append(f"  {cmp.repo_name}  ", style="bold")
+    header.append(
+        f"current {days}-day period vs avg of prior {cmp.periods_back}", style="dim"
+    )
+    console.print()
+    console.print(header)
+    console.print()
+
+    table = Table(show_header=True, header_style="bold", box=None, padding=(0, 2))
+    table.add_column("Metric", style="cyan")
+    table.add_column("Now", justify="right")
+    table.add_column("Avg", justify="right", style="dim")
+    table.add_column("Change", justify="right")
+    table.add_column("", justify="left")
+
+    for m in cmp.metrics:
+        arrow = {"up": "▲", "down": "▼", "flat": "="}[m.direction]
+        good_up = m.name in ("Commits", "Files touched", "Active days", "Lines added")
+        if m.direction == "flat":
+            color = "dim"
+        elif (m.direction == "up") == good_up:
+            color = "green"
+        else:
+            color = "yellow"
+        if m.pct is None:
+            change = "new" if m.current else "-"
+        else:
+            change = f"{m.pct:+.0f}%"
+        avg_str = f"{m.baseline:.1f}".rstrip("0").rstrip(".")
+        table.add_row(
+            m.name,
+            str(int(m.current)),
+            avg_str,
+            f"[{color}]{change}[/]",
+            f"[{color}]{arrow}[/]",
+        )
+    console.print(table)
+    console.print()
+
+
+def render_standup(ctx: StandupContext, summary: Summary) -> None:
+    w = _width()
+    console.print()
+    console.print(
+        Panel(
+            Text(f"Standup — {ctx.repo_name}", style="bold cyan"),
+            border_style="cyan",
+            width=w,
+            padding=(0, 1),
+        )
+    )
+
+    console.print(Text("  Yesterday", style="bold"))
+    if ctx.yesterday.commit_count == 0:
+        console.print(Padding(Text("No commits.", style="dim"), (0, 0, 0, 4)))
+    else:
+        console.print(Padding(Text(summary.headline), (0, 2, 0, 4)), width=w)
+        for theme in summary.themes:
+            line = Text("• ", style="blue")
+            line.append(theme.get("title", ""), style="bold")
+            console.print(Padding(line, (0, 0, 0, 4)))
+            console.print(
+                Padding(Text(theme.get("narrative", ""), style="dim"), (0, 2, 0, 6)),
+                width=w,
+            )
+    console.print()
+
+    console.print(Text("  Today", style="bold"))
+    plan = []
+    if ctx.current_branch:
+        plan.append(("Continue on branch", ctx.current_branch))
+    if ctx.uncommitted:
+        files = ", ".join(ctx.uncommitted[:5])
+        more = f" (+{len(ctx.uncommitted) - 5})" if len(ctx.uncommitted) > 5 else ""
+        plan.append(("Uncommitted work in progress", files + more))
+    others = [b for b in ctx.recent_branches if b != ctx.current_branch]
+    if others:
+        plan.append(("Other recently active branches", ", ".join(others[:4])))
+    if not plan:
+        console.print(
+            Padding(Text("No work in progress detected.", style="dim"), (0, 0, 0, 4))
+        )
+    else:
+        for label, detail in plan:
+            line = Text("• ", style="green")
+            line.append(label + ": ", style="default")
+            line.append(detail, style="dim")
+            console.print(Padding(line, (0, 2, 0, 4)), width=w)
+    console.print()
+    console.print(Text(f"  {summary.cost_note}", style="dim"))
+    console.print()
 
 
 @contextmanager

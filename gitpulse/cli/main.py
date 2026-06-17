@@ -13,6 +13,8 @@ from ..core.changelog import generate_changelog
 from ..core.dateparse import parse_range, parse_interval, suggestions, DateRange
 from ..core import config as gp_config
 from ..core import remote as gp_remote
+from ..core import trends as gp_trends
+from ..core import standup as gp_standup
 from ..ai.summarizer import summarize
 from ..ai import providers as ai_providers
 from ..scheduler.runner import run_scheduler
@@ -21,6 +23,8 @@ from .render import (
     render_terminal,
     render_markdown,
     render_log,
+    render_comparison,
+    render_standup,
     progress_bar,
     status_spinner,
     console as render_console,
@@ -88,6 +92,43 @@ def log(
     r = _range(when)
     activity = collect_activity(path, r.since, r.until, branch=branch)
     render_log(activity, show_files=files)
+
+
+@app.command()
+def standup(
+    path: Path = typer.Argument(Path("."), help="Repository path"),
+    provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
+):
+    with status_spinner("Gathering yesterday's work"):
+        ctx = gp_standup.gather(path)
+    if ctx.yesterday.commit_count == 0:
+        summ = summarize(ctx.yesterday, provider="local", lang=lang)
+    else:
+        label = "local" if provider == "local" else provider
+        with status_spinner(
+            f"Summarizing {ctx.yesterday.commit_count} commits via {label}"
+        ):
+            summ = summarize(ctx.yesterday, provider=provider, model=model, lang=lang)
+    render_standup(ctx, summ)
+
+
+@app.command()
+def compare(
+    path: Path = typer.Argument(Path("."), help="Repository path"),
+    period: str = typer.Option(
+        "7d", "--period", "-w", help="Length of each period: 7d, 24h, 30d"
+    ),
+    periods: int = typer.Option(
+        4, "--periods", "-n", help="How many prior periods to average"
+    ),
+    branch: Optional[str] = typer.Option(None, "--branch", "-b"),
+):
+    p = parse_interval(period)
+    with status_spinner(f"Comparing last {period} against prior {periods}"):
+        cmp = gp_trends.compare(path, p, periods_back=periods, branch=branch)
+    render_comparison(cmp)
 
 
 @app.command()
