@@ -16,11 +16,11 @@ language model, which clusters the work into themes and writes a code-review-
 style digest. The collection layer (pygit2) is the boring part — the value is
 the semantic layer on top.
 
-The digest aims for specificity: themes cite concrete files and symbols, and
-observations are required to reference real evidence (a named file, a commit
-sha, a count, a sequence) rather than generic advice like "may require
-testing". The signals block gives the model hard facts to ground those
-observations in.
+The digest leads with a synthesis (a neutral Overview of what the period was
+about), then detailed themes citing concrete files and symbols, then optional
+observations. Observations are evidence-backed and balanced — neutral facts,
+positives, or genuine risks — rather than generic advice like "may require
+testing". The signals block gives the model hard facts to ground them in.
 
 The model can be Anthropic's Claude API or a local Ollama model — GitPulse
 auto-detects what's available, or you pick one explicitly. With no model at all
@@ -222,10 +222,10 @@ Options belong to a command, not to `gitpulse` itself. Write
 
 ### `gitpulse summary [PATH]`
 
-Print an AI semantic summary of recent activity to the terminal: a headline,
-themes grouping related commits, observations (hotspots, off-hours commits,
-risk flags), a 24-hour productivity sparkline, and a cost line showing whether
-the summary came from Claude or the local fallback plus token usage and cost.
+Print an AI semantic summary of recent activity to the terminal: a headline, an
+Overview paragraph synthesizing the period, themes grouping related commits, and
+optional evidence-backed observations (neutral facts, positives, or risks, not
+just criticism). Also shows a 24-hour productivity sparkline and a cost line.
 
 | Option       | Alias | Default          | Description                               |
 | ------------ | ----- | ---------------- | ----------------------------------------- |

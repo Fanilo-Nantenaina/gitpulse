@@ -15,9 +15,9 @@ DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", "claude-sonnet-4-6")
 def _system_prompt(lang_code: str) -> str:
     base = textwrap.dedent(
         """\
-        You are a senior engineer doing a code-review-style writeup of a developer's
-        recent git history. Your reader wrote these commits and wants sharp, specific
-        feedback, not a restatement of the commit messages.
+        You are a senior engineer writing an activity digest of a developer's recent
+        git history. The goal is to SUMMARIZE the work clearly first, and only then
+        note anything worth flagging. This is a recap, not a performance review.
 
         Rules for THEMES:
         - Group related commits into themes by what they actually change.
@@ -25,46 +25,46 @@ def _system_prompt(lang_code: str) -> str:
           functions, classes, endpoints, dependencies, config keys. Cite the work,
           do not paraphrase it generically.
         - Explain WHY, not just what: the apparent intent and the engineering effect
-          (what got safer, faster, simpler, or riskier).
+          (what got built, safer, faster, simpler).
 
-        Rules for OBSERVATIONS (this is the most important section):
-        - Be specific and actionable. Every observation must reference concrete
-          evidence from the data: a named file, a commit sha, a count, a sequence.
-        - Prefer findings a reviewer would actually flag. Good examples of the KIND
-          of reasoning (adapt to the real data, do not copy):
-            * "auth.py was touched in 7 of 18 commits (sha1, sha2, ...) - a churn
-              hotspot worth stabilizing or splitting."
-            * "Commit X introduced an undefined `sage` reference later fixed in
-              commit Y the same day, so the migration shipped without integration
-              testing between steps."
-            * "The rename of role `admin` to `gateway_admin` (sha) is breaking for
-              any client or seeded row referencing the old name."
-            * "Security-critical changes (HaveIBeenPwned, X) were bundled in the same
-              session as a broad refactor, making them hard to review or revert
-              independently."
+        Rules for SYNTHESIS:
+        - 2-4 sentences giving the overall picture of the period: what the developer
+          was mainly working on, how the pieces fit together, and where the effort
+          went. Neutral and descriptive. This is the takeaway a teammate would read
+          to understand the period at a glance. Do NOT list risks here.
+
+        Rules for OBSERVATIONS:
+        - Optional and secondary. Include only genuinely useful, evidence-backed
+          notes, each tied to concrete data: a named file, a commit sha, a count,
+          a sequence. These may be neutral facts ("most work landed in two files"),
+          positives ("rate-limit query rewritten from row-fetch to COUNT()"), or
+          risks ("role rename is breaking for old tokens") - not only criticism.
         - BANNED: vague filler with no specifics, e.g. "may require additional
           testing", "could introduce issues if not tested", "consider reviewing".
-          If you cannot tie an observation to specific evidence, omit it.
-        - Aim for 4-7 observations when the data supports it.
+          If you cannot tie a note to specific evidence, omit it. Zero observations
+          is fine if nothing concrete stands out.
+        - At most 5 observations.
 
         Respond ONLY with valid JSON, no markdown fences, in this exact shape:
         {
           "headline": "one sentence naming the main thrust of the period",
+          "synthesis": "2-4 sentence neutral overview of the period",
           "themes": [
             {"title": "Theme name",
              "narrative": "3-5 sentences citing concrete files/symbols and intent",
              "commits": ["short_sha", ...]}
           ],
-          "observations": ["specific, evidence-backed finding", ...]
+          "observations": ["specific, evidence-backed note (optional)", ...]
         }
         """
     )
     name = config.lang_name(lang_code)
     if lang_code != "en":
         base += (
-            f"\nWrite all values (headline, theme titles, narratives, and "
-            f"observations) in {name}. Keep commit identifiers, file paths, "
-            f"code symbols, and branch names unchanged."
+            f"\nWrite all values (headline, synthesis, theme titles, "
+            f"narratives, and observations) in {name}. Keep commit "
+            f"identifiers, file paths, code symbols, and branch names "
+            f"unchanged."
         )
     return base
 
@@ -74,6 +74,7 @@ class Summary:
     headline: str
     themes: list[dict]
     observations: list[str]
+    synthesis: str = ""
     raw: str = ""
     source: str = "local"  # "claude" | "local" | "local(truncated)"
     input_tokens: int = 0
@@ -105,6 +106,7 @@ class Summary:
         data = json.loads(text)
         return cls(
             headline=data.get("headline", ""),
+            synthesis=data.get("synthesis", ""),
             themes=data.get("themes", []),
             observations=data.get("observations", []),
             raw=text,
@@ -195,6 +197,8 @@ _FALLBACK_STRINGS = {
         "off_hours": "{n} commit(s) outside working hours.",
         "hotspot": "Hotspot: {path} changed {n}x (possible churn).",
         "no_activity": "No activity in this window.",
+        "synthesis": "{n} commits across {f} file(s), +{add}/-{dele} lines, "
+        "led by {kinds}.",
     },
     "fr": {
         "commits_on": "{n} commits sur {repo}.",
@@ -202,6 +206,8 @@ _FALLBACK_STRINGS = {
         "off_hours": "{n} commit(s) en dehors des heures de travail.",
         "hotspot": "Point chaud : {path} modifié {n}x (possible instabilité).",
         "no_activity": "Aucune activité sur cette période.",
+        "synthesis": "{n} commits sur {f} fichier(s), +{add}/-{dele} lignes, "
+        "principalement {kinds}.",
     },
 }
 
@@ -227,10 +233,24 @@ def _local_fallback(activity: RepoActivity, lang: str = "en") -> Summary:
     top = next(iter(activity.hotspots.items()), None)
     if top and top[1] > 1:
         obs.append(_fb_str(lang, "hotspot", path=top[0], n=top[1]))
+    kinds = (
+        ", ".join(sorted(by_prefix, key=lambda k: len(by_prefix[k]), reverse=True)[:3])
+        or "-"
+    )
+    synthesis = _fb_str(
+        lang,
+        "synthesis",
+        n=activity.commit_count,
+        f=activity.files_touched,
+        add=activity.total_additions,
+        dele=activity.total_deletions,
+        kinds=kinds,
+    )
     return Summary(
         headline=_fb_str(
             lang, "commits_on", n=activity.commit_count, repo=activity.repo_name
         ),
+        synthesis=synthesis,
         themes=themes,
         observations=obs,
     )

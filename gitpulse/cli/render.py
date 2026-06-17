@@ -85,7 +85,8 @@ def render_standup(ctx: StandupContext, summary: Summary) -> None:
     if ctx.yesterday.commit_count == 0:
         console.print(Padding(Text("No commits.", style="dim"), (0, 0, 0, 4)))
     else:
-        console.print(Padding(Text(summary.headline), (0, 2, 0, 4)), width=w)
+        recap = summary.synthesis or summary.headline
+        console.print(Padding(Text(recap), (0, 2, 0, 4)), width=w)
         for theme in summary.themes:
             line = Text("• ", style="blue")
             line.append(theme.get("title", ""), style="bold")
@@ -195,6 +196,11 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     console.print(heat)
     console.print()
 
+    if summary.synthesis:
+        console.print(Text("  Overview", style="bold"))
+        console.print(Padding(Text(summary.synthesis), (0, 2, 0, 4)), width=w)
+        console.print()
+
     for i, theme in enumerate(summary.themes, 1):
         title = Text()
         title.append(f"  {i}. ", style="bold blue")
@@ -302,6 +308,9 @@ def render_markdown(activity: RepoActivity, summary: Summary) -> str:
         f"`+{activity.total_additions}` / `-{activity.total_deletions}` lines",
         "",
     ]
+    if summary.synthesis:
+        lines.append(summary.synthesis)
+        lines.append("")
     for theme in summary.themes:
         lines.append(f"## {theme['title']}")
         lines.append(theme.get("narrative", ""))
