@@ -615,9 +615,10 @@
     .graph-row {
       display: flex;
       align-items: center;
-      height: 32px;
+      height: 34px;
       font-size: 12px;
-      padding-right: 10px
+      padding-right: 10px;
+      cursor: pointer
     }
 
     .graph-row:hover {
@@ -630,7 +631,9 @@
       gap: 8px;
       align-items: center;
       white-space: nowrap;
-      overflow: hidden
+      overflow: hidden;
+      flex: 1;
+      min-width: 0
     }
 
     .graph-info .gsha {
@@ -642,6 +645,57 @@
       font-family: var(--sans);
       overflow: hidden;
       text-overflow: ellipsis
+    }
+
+    .gauthor {
+      color: var(--muted);
+      font-size: 11px;
+      flex-shrink: 0;
+      width: 130px;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap
+    }
+
+    .gdate {
+      color: var(--muted);
+      font-size: 11px;
+      font-family: var(--mono);
+      flex-shrink: 0;
+      width: 110px;
+      text-align: right
+    }
+
+    .commit-detail {
+      background: var(--panel);
+      border-left: 3px solid var(--accent);
+      padding: 12px 16px;
+      font-size: 12px
+    }
+
+    .cd-grid {
+      display: grid;
+      grid-template-columns: 90px 1fr;
+      gap: 6px 14px;
+      align-items: start
+    }
+
+    .cd-k {
+      color: var(--muted);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .4px
+    }
+
+    .cd-v {
+      font-family: var(--sans);
+      word-break: break-all
+    }
+
+    .cd-v .gsha {
+      font-family: var(--mono);
+      color: var(--yellow)
     }
 
     .ref {
@@ -1265,8 +1319,6 @@
       const ico = r.kind === 'remote' ? '&#8682; ' : r.kind === 'tag' ? '&#9650; ' : '';
       return '<span class="ref ' + cls + (r.head ? ' ref-head' : '') + '">' + ico + esc(r.name) + '</span>';
     }
-    // Draw one row: the lanes passing through, the commit dot, and the routing
-    // paths that connect this row's lanes down to the next row's lanes.
     function appendGraphRows(startIdx) {
       const rows = $('#graphRows'); if (!rows) return;
       const W = graphState.lanes * LANEW + 10;
@@ -1276,31 +1328,52 @@
         const n = graphState.nodes[i];
         const cx = n.lane * LANEW + LANEW / 2;
         let svg = '<svg class="graph-svg" width="' + W + '" height="' + H + '" style="flex-shrink:0">';
-        // routing paths: from each passing lane (top, at its own x) down to where it goes (bottom)
         (n.routing || []).forEach(rt => {
           const x1 = rt.from * LANEW + LANEW / 2, x2 = rt.to * LANEW + LANEW / 2;
           const col = laneColor(rt.to);
-          if (x1 === x2) {
+          if (rt.from === n.lane) {
+            if (x1 === x2) svg += '<line x1="' + x1 + '" y1="' + (H / 2) + '" x2="' + x2 + '" y2="' + H + '" stroke="' + col + '" stroke-width="2"/>';
+            else svg += '<path d="M' + x1 + ',' + (H / 2) + ' C' + x1 + ',' + (H * 0.78) + ' ' + x2 + ',' + (H * 0.72) + ' ' + x2 + ',' + H + '" stroke="' + col + '" stroke-width="2" fill="none"/>';
+          } else if (x1 === x2) {
             svg += '<line x1="' + x1 + '" y1="0" x2="' + x2 + '" y2="' + H + '" stroke="' + col + '" stroke-width="2"/>';
           } else {
             svg += '<path d="M' + x1 + ',0 C' + x1 + ',' + (H * 0.5) + ' ' + x2 + ',' + (H * 0.5) + ' ' + x2 + ',' + H + '" stroke="' + col + '" stroke-width="2" fill="none"/>';
           }
         });
-        // top half of this commit's own lane (incoming line into the dot)
         svg += '<line x1="' + cx + '" y1="0" x2="' + cx + '" y2="' + (H / 2) + '" stroke="' + laneColor(n.lane) + '" stroke-width="2"/>';
-        // merge edges: from the dot down-right to each merged parent lane
         (n.merge_targets || []).forEach(ml => {
           const mx = ml * LANEW + LANEW / 2;
-          svg += '<path d="M' + cx + ',' + (H / 2) + ' C' + cx + ',' + H + ' ' + mx + ',' + (H / 2) + ' ' + mx + ',' + H + '" stroke="' + laneColor(ml) + '" stroke-width="2" fill="none"/>';
+          svg += '<path d="M' + cx + ',' + (H / 2) + ' C' + cx + ',' + (H * 0.78) + ' ' + mx + ',' + (H * 0.72) + ' ' + mx + ',' + H + '" stroke="' + laneColor(ml) + '" stroke-width="2" fill="none"/>';
         });
-        // the dot
         svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="' + DOTR + '" fill="' + laneColor(n.lane) + '" stroke="var(--bg)" stroke-width="2"/>';
         if (n.is_merge) svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="2" fill="var(--bg)"/>';
         svg += '</svg>';
         const refs = (n.refs || []).map(refBadge).join('');
-        html += '<div class="graph-row">' + svg + '<div class="graph-info"><span class="gsha">' + n.short + '</span>' + refs + '<span class="gmsg">' + esc(n.summary) + '</span></div></div>';
+        const when = (n.when || '').replace('T', ' ').slice(0, 16);
+        html += '<div class="graph-row" data-sha="' + n.sha + '" onclick="toggleCommitDetail(\'' + n.sha + '\',this)">' + svg +
+          '<div class="graph-info"><span class="gsha">' + n.short + '</span>' + refs +
+          '<span class="gmsg">' + esc(n.summary) + '</span></div>' +
+          '<span class="gauthor">' + esc(n.author) + '</span><span class="gdate">' + when + '</span></div>';
       }
       rows.insertAdjacentHTML('beforeend', html);
+    }
+    function toggleCommitDetail(sha, rowEl) {
+      const existing = rowEl.nextElementSibling;
+      if (existing && existing.classList.contains('commit-detail')) { existing.remove(); return; }
+      document.querySelectorAll('.commit-detail').forEach(e => e.remove());
+      const n = graphState.nodes.find(x => x.sha === sha); if (!n) return;
+      const refs = (n.refs || []).map(refBadge).join(' ');
+      const d = document.createElement('div');
+      d.className = 'commit-detail';
+      d.innerHTML = '<div class="cd-grid">' +
+        '<span class="cd-k">Commit</span><span class="cd-v gsha">' + n.sha + '</span>' +
+        '<span class="cd-k">Parents</span><span class="cd-v">' + (n.parents.length ? n.parents.map(p => '<span class="gsha">' + p.slice(0, 12) + '</span>').join(' ') : '(root)') + '</span>' +
+        '<span class="cd-k">Author</span><span class="cd-v">' + esc(n.author) + '</span>' +
+        '<span class="cd-k">Date</span><span class="cd-v">' + (n.when || '').replace('T', ' ').slice(0, 19) + '</span>' +
+        (refs ? '<span class="cd-k">Refs</span><span class="cd-v">' + refs + '</span>' : '') +
+        '<span class="cd-k">Message</span><span class="cd-v">' + esc(n.summary) + '</span>' +
+        '</div>';
+      rowEl.after(d);
     }
     async function runCompare() { try { loading('...'); const d = await post('/api/compare', baseBody({ period: document.getElementById('ctlPeriod').value, periods: parseInt(document.getElementById('ctlPeriods').value) || 4, branch: document.getElementById('ctlBranch').value || null })); const rows = d.metrics.map(m => { const ar = m.direction === 'up' ? '&#9650;' : m.direction === 'down' ? '&#9660;' : '='; const gu = ['Commits', 'Files touched', 'Active days', 'Lines added'].includes(m.name); const cls = m.direction === 'flat' ? '' : ((m.direction === 'up') === gu ? 'add' : 'del'); const pct = m.pct === null ? (m.current ? 'new' : '-') : (m.pct >= 0 ? '+' : '') + m.pct.toFixed(0) + '%'; return '<tr><td>' + m.name + '</td><td class="num">' + Math.round(m.current) + '</td><td class="num" style="color:var(--muted)">' + m.baseline.toFixed(1) + '</td><td class="num ' + cls + '">' + pct + ' ' + ar + '</td></tr>'; }).join(''); out.innerHTML = '<div class="block"><h3>' + esc(d.repo_name) + ' &middot; ' + d.period_days + 'd vs ' + d.periods_back + '</h3><table class="grid"><thead><tr><th>Metric</th><th class="num">Now</th><th class="num">Avg</th><th class="num">Change</th></tr></thead><tbody>' + rows + '</tbody></table></div>'; } catch (e) { showErr(e); } }
     function runStandup() { cloudGuard(async () => { try { loading('...'); const d = await post('/api/standup', baseBody(modelArgs())); let h = '<div class="head-card"><div class="title">' + t('standup') + ' &middot; ' + esc(d.repo_name) + '</div></div><div class="block"><h3>' + t('yesterday') + '</h3>'; if (d.yesterday.commit_count === 0) h += '<div class="overview">' + t('noCommits') + '</div>'; else { h += '<div class="overview">' + esc(d.summary.synthesis || d.summary.headline) + '</div>'; if (d.summary.themes.length) h += d.summary.themes.map(x => '<div class="theme"><div class="t">' + esc(x.title) + '</div><div class="narr">' + esc(x.narrative) + '</div></div>').join(''); } h += '</div><div class="block"><h3>' + t('today') + '</h3>'; const plan = []; if (d.current_branch) plan.push([t('continueBranch'), d.current_branch]); if (d.uncommitted.length) plan.push([t('wip'), d.uncommitted.slice(0, 6).join(', ') + (d.uncommitted.length > 6 ? ' (+' + (d.uncommitted.length - 6) + ')' : '')]); const others = d.recent_branches.filter(b => b !== d.current_branch); if (others.length) plan.push([t('otherBranches'), others.slice(0, 4).join(', ')]); h += plan.length ? plan.map(p => '<div class="obs"><span class="dot" style="color:var(--green)">&#9656;</span><span><b>' + esc(p[0]) + ':</b> ' + esc(p[1]) + '</span></div>').join('') : '<div class="overview">' + t('noWip') + '</div>'; out.innerHTML = h + '</div><div class="cost">' + esc(d.summary.cost_note) + '</div>'; } catch (e) { showErr(e); } }); }
