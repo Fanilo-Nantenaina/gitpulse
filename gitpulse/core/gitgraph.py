@@ -60,6 +60,7 @@ def _tips(repo):
         add_commit(repo.head.target)
     for coll in (repo.branches.local, repo.branches.remote):
         for bname in coll:
+            # skip symbolic refs like origin/HEAD that don't point at a commit directly
             if bname.endswith("/HEAD"):
                 continue
             try:
@@ -76,7 +77,13 @@ def graph(
     branch: str | None = None,
     all_commits: bool = True,
 ) -> dict:
+    """Build the full commit graph across ALL branches, newest first.
 
+    The graph is always all-branches: no per-branch filtering, no pagination.
+    `limit`/`offset`/`branch`/`all_commits` are accepted for API compatibility
+    but the graph view loads the entire DAG and the frontend renders it
+    progressively as the user scrolls.
+    """
     discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
     if discovered is None:
         raise ValueError("No git repository found")
@@ -103,6 +110,11 @@ def graph(
         except Exception:
             continue
 
+    # ---- Git Graph-style lane algorithm ----
+    # `lanes` is the list of branch lines currently flowing downward; each entry
+    # is the sha that lane is waiting to reach next (its next expected commit),
+    # or None for a free slot. A lane is only ever created to carry a real
+    # parent link, so there are no "whisker" edges that start and go nowhere.
     lanes: list[str | None] = []
     nodes = []
 
@@ -117,50 +129,55 @@ def graph(
         sha = str(c.id)
         parents = [str(p) for p in c.parent_ids]
 
-        my_lane = None
-        for i, v in enumerate(lanes):
-            if v == sha:
-                my_lane = i
-                break
-        if my_lane is None:
+        # Every lane waiting for THIS commit converges here. The leftmost such
+        # lane becomes the commit's lane; the others are freed (they merge in).
+        waiting = [i for i, v in enumerate(lanes) if v == sha]
+        if waiting:
+            my_lane = waiting[0]
+        else:
             my_lane = first_free()
             lanes[my_lane] = sha
 
-        before = list(lanes)
+        # lanes entering this row from above (everything currently active)
+        incoming = [i for i, v in enumerate(lanes) if v is not None]
 
-        for i, v in enumerate(lanes):
-            if v == sha:
-                lanes[i] = None
-        if parents:
-            lanes[my_lane] = parents[0]
-        merge_targets = []
-        for p in parents[1:]:
-            existing = None
-            for i, v in enumerate(lanes):
-                if v == p:
-                    existing = i
-                    break
-            if existing is None:
-                existing = first_free()
-                lanes[existing] = p
-            merge_targets.append(existing)
-
-        after = list(lanes)
-
+        # edges leaving this row downward, computed against the lane state AFTER
+        # we route parents. Each edge is {from, to, kind}.
         edges = []
-        if parents:
-            to = next((j for j, w in enumerate(after) if w == parents[0]), my_lane)
-            edges.append({"from": my_lane, "to": to, "kind": "commit"})
-        for ml in merge_targets:
-            edges.append({"from": my_lane, "to": ml, "kind": "merge"})
-        for k, v in enumerate(before):
-            if v is None or k == my_lane:
-                continue
-            to = next((j for j, w in enumerate(after) if w == v), None)
-            if to is not None:
-                edges.append({"from": k, "to": to, "kind": "pass"})
 
-        incoming = [k for k, v in enumerate(before) if v is not None]
+        # Lanes that were waiting for this sha but aren't the chosen lane: they
+        # terminate into the commit (converging branches). Free them now.
+        for i in waiting:
+            if i != my_lane:
+                lanes[i] = None
+
+        if parents:
+            # first parent continues straight down the commit's own lane
+            lanes[my_lane] = parents[0]
+        else:
+            lanes[my_lane] = None  # root commit: lane ends
+
+        # extra parents (merge): reuse a lane already waiting for that parent,
+        # else open ONE new lane for it — this is a real edge with a real target
+        for p in parents[1:]:
+            tgt = next((i for i, v in enumerate(lanes) if v == p), None)
+            if tgt is None:
+                tgt = first_free()
+                lanes[tgt] = p
+            edges.append({"from": my_lane, "to": tgt, "kind": "merge"})
+
+        # the commit's own lane edge (if it continues)
+        if parents:
+            edges.append({"from": my_lane, "to": my_lane, "kind": "commit"})
+
+        # every other still-active lane flows straight down to itself
+        for i, v in enumerate(lanes):
+            if v is not None and i != my_lane and not any(e["to"] == i for e in edges):
+                # only if it was already active above (not a brand-new merge lane handled above)
+                if i in incoming:
+                    edges.append({"from": i, "to": i, "kind": "pass"})
+
+        merge_targets = [e["to"] for e in edges if e["kind"] == "merge"]
 
         msg = c.message.strip()
         nodes.append(
@@ -181,18 +198,22 @@ def graph(
                     c.commit_time, timezone(timedelta(minutes=c.commit_time_offset))
                 ).isoformat(),
                 "refs": refs.get(sha, []),
-                "width": len(after),
+                "width": len([v for v in lanes if v is not None]) or 1,
             }
         )
 
     max_w = max((n["width"] for n in nodes), default=1)
     max_w = max(max_w, max((n["lane"] for n in nodes), default=0) + 1)
 
+    # Post-pass: a row's incoming lanes are exactly the destination lanes of the
+    # previous row's edges. This guarantees every top-half connects to a real
+    # bottom-half above it — no floating/dead-ending segments.
     for i, n in enumerate(nodes):
         if i == 0:
             n["incoming"] = [n["lane"]]
         else:
             n["incoming"] = sorted(set(e["to"] for e in nodes[i - 1]["edges"]))
+        # ensure the commit's own lane is always shown entering
         if n["lane"] not in n["incoming"]:
             n["incoming"].append(n["lane"])
 
