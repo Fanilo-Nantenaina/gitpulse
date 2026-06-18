@@ -669,16 +669,25 @@
 
     .commit-detail {
       background: var(--panel);
-      border-left: 3px solid var(--accent);
-      padding: 12px 16px;
-      font-size: 12px
+      position: relative;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border)
+    }
+
+    .cd-lanes {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      pointer-events: none
     }
 
     .cd-grid {
       display: grid;
       grid-template-columns: 90px 1fr;
       gap: 6px 14px;
-      align-items: start
+      align-items: start;
+      padding: 12px 16px
     }
 
     .cd-k {
@@ -1329,48 +1338,36 @@
       const ico = r.kind === 'remote' ? '&#8682; ' : r.kind === 'tag' ? '&#9650; ' : '';
       return '<span class="ref ' + cls + (r.head ? ' ref-head' : '') + '">' + ico + esc(r.name) + '</span>';
     }
-    // Draw one row. Every lane present in `routing` is drawn as a continuous
-    // connector from its top position to its bottom position — that's what
-    // eliminates the gaps (passing-through lanes are always drawn full-height).
+    // Draw one row using the backend's `incoming` (lanes entering from the top)
+    // and `edges` (segments leaving toward the next row). Top halves come from
+    // `incoming`; bottom halves come from `edges`. This makes every line connect.
     function appendGraphRows(startIdx, endIdx) {
       const rows = $('#graphRows'); if (!rows) return;
       const W = graphState.lanes * LANEW + 10;
       const H = ROWH;
-      const headRef = (graphState.nodes.find(n => (n.refs || []).some(r => r.head)) || {}).sha;
+      const lx = l => l * LANEW + LANEW / 2;
       let html = '';
       for (let i = startIdx; i < endIdx; i++) {
         const n = graphState.nodes[i];
-        const cx = n.lane * LANEW + LANEW / 2;
+        const cx = lx(n.lane);
         const isHead = (n.refs || []).some(r => r.head);
         let svg = '<svg class="graph-svg" width="' + W + '" height="' + H + '" style="flex-shrink:0">';
-        // Pass-through connectors: every active lane in this row is drawn from its
-        // top position to its bottom position. The commit's OWN lane is excluded
-        // here (drawn separately as top-half + dot + merge edges) to avoid overlap.
-        (n.routing || []).forEach(rt => {
-          if (rt.from === n.lane) return; // own lane handled below
-          const x1 = rt.from * LANEW + LANEW / 2, x2 = rt.to * LANEW + LANEW / 2;
-          const col = laneColor(rt.to);
-          if (x1 === x2) svg += '<line x1="' + x1 + '" y1="0" x2="' + x2 + '" y2="' + H + '" stroke="' + col + '" stroke-width="2"/>';
-          else svg += '<path d="M' + x1 + ',0 C' + x1 + ',' + (H * 0.5) + ' ' + x2 + ',' + (H * 0.5) + ' ' + x2 + ',' + H + '" stroke="' + col + '" stroke-width="2" fill="none"/>';
+        // TOP halves: each lane entering this row draws from y=0 down to the centre.
+        (n.incoming || []).forEach(l => {
+          svg += '<line x1="' + lx(l) + '" y1="0" x2="' + lx(l) + '" y2="' + (H / 2) + '" stroke="' + laneColor(l) + '" stroke-width="2"/>';
         });
-        // own lane: incoming top-half (above dot)
-        svg += '<line x1="' + cx + '" y1="0" x2="' + cx + '" y2="' + (H / 2) + '" stroke="' + laneColor(n.lane) + '" stroke-width="2"/>';
-        // own lane: outgoing bottom-half toward first parent (the routing entry where from===lane)
-        const ownRoute = (n.routing || []).find(rt => rt.from === n.lane);
-        if (ownRoute) {
-          const x2 = ownRoute.to * LANEW + LANEW / 2;
-          if (x2 === cx) svg += '<line x1="' + cx + '" y1="' + (H / 2) + '" x2="' + cx + '" y2="' + H + '" stroke="' + laneColor(n.lane) + '" stroke-width="2"/>';
-          else svg += '<path d="M' + cx + ',' + (H / 2) + ' C' + cx + ',' + (H * 0.78) + ' ' + x2 + ',' + (H * 0.72) + ' ' + x2 + ',' + H + '" stroke="' + laneColor(ownRoute.to) + '" stroke-width="2" fill="none"/>';
-        }
-        // merge edges to extra parents
-        (n.merge_targets || []).forEach(ml => {
-          const mx = ml * LANEW + LANEW / 2;
-          svg += '<path d="M' + cx + ',' + (H / 2) + ' C' + cx + ',' + (H * 0.78) + ' ' + mx + ',' + (H * 0.72) + ' ' + mx + ',' + H + '" stroke="' + laneColor(ml) + '" stroke-width="2" fill="none"/>';
+        // BOTTOM halves: each edge draws from the centre down to y=H at its target.
+        (n.edges || []).forEach(e => {
+          const x1 = lx(e.from), x2 = lx(e.to), col = laneColor(e.to);
+          if (x1 === x2) {
+            svg += '<line x1="' + x1 + '" y1="' + (H / 2) + '" x2="' + x2 + '" y2="' + H + '" stroke="' + col + '" stroke-width="2"/>';
+          } else {
+            svg += '<path d="M' + x1 + ',' + (H / 2) + ' C' + x1 + ',' + (H * 0.8) + ' ' + x2 + ',' + (H * 0.7) + ' ' + x2 + ',' + H + '" stroke="' + col + '" stroke-width="2" fill="none"/>';
+          }
         });
-        // dot — HEAD gets a hollow ring to mark the current branch distinctly
+        // dot — HEAD (current branch) gets a hollow ring to stand out
         if (isHead) {
-          svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="' + (DOTR + 1.5) + '" fill="none" stroke="' + laneColor(n.lane) + '" stroke-width="2"/>';
-          svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="2.5" fill="' + laneColor(n.lane) + '"/>';
+          svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="' + (DOTR + 1.5) + '" fill="var(--bg)" stroke="' + laneColor(n.lane) + '" stroke-width="2.5"/>';
         } else {
           svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="' + DOTR + '" fill="' + laneColor(n.lane) + '" stroke="var(--bg)" stroke-width="2"/>';
           if (n.is_merge) svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="2" fill="var(--bg)"/>';
@@ -1383,7 +1380,6 @@
           '<span class="gmsg">' + esc(n.summary) + '</span></div>' +
           '<span class="gauthor">' + esc(n.author) + '</span><span class="gdate">' + when + '</span></div>';
       }
-      // keep the sentinel last for scroll detection
       const sentinel = $('#graphSentinel');
       if (sentinel) sentinel.insertAdjacentHTML('beforebegin', html);
       else rows.insertAdjacentHTML('beforeend', html);
@@ -1395,9 +1391,20 @@
       const n = graphState.nodes.find(x => x.sha === sha); if (!n) return;
       const refs = (n.refs || []).map(refBadge).join(' ');
       const body = (n.body || n.summary || '');
+      const W = graphState.lanes * LANEW + 10;
+      // The lanes that pass through this commit's row keep flowing down the side
+      // of the detail panel, so the graph stays visible and just gets "taller".
+      const passing = (n.incoming || []);
       const d = document.createElement('div');
       d.className = 'commit-detail';
-      d.innerHTML = '<div class="cd-grid">' +
+      // a tall SVG strip on the left that continues every active lane vertically
+      let strip = '<svg class="cd-lanes" width="' + W + '" height="100%" preserveAspectRatio="none" style="width:' + W + 'px">';
+      [...new Set(passing)].forEach(l => {
+        const x = l * LANEW + LANEW / 2;
+        strip += '<line x1="' + x + '" y1="0" x2="' + x + '" y2="9999" stroke="' + laneColor(l) + '" stroke-width="2"/>';
+      });
+      strip += '</svg>';
+      d.innerHTML = strip + '<div class="cd-grid" style="margin-left:' + W + 'px">' +
         '<span class="cd-k">Commit</span><span class="cd-v gsha">' + n.sha + '</span>' +
         '<span class="cd-k">Parents</span><span class="cd-v">' + (n.parents.length ? n.parents.map(p => '<span class="gsha">' + p.slice(0, 12) + '</span>').join(' ') : '(root)') + '</span>' +
         '<span class="cd-k">Author</span><span class="cd-v">' + esc(n.author) + (n.email ? ' &lt;' + esc(n.email) + '&gt;' : '') + '</span>' +

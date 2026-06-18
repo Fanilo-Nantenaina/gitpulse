@@ -97,7 +97,6 @@ def graph(
 
     flags = pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL
     walker = repo.walk(repo.head.target, flags)
-
     for oid in _tips(repo):
         try:
             walker.push(oid)
@@ -148,21 +147,20 @@ def graph(
 
         after = list(lanes)
 
-        routing = []
+        edges = []
+        if parents:
+            to = next((j for j, w in enumerate(after) if w == parents[0]), my_lane)
+            edges.append({"from": my_lane, "to": to, "kind": "commit"})
+        for ml in merge_targets:
+            edges.append({"from": my_lane, "to": ml, "kind": "merge"})
         for k, v in enumerate(before):
-            if v is None:
+            if v is None or k == my_lane:
                 continue
-            if k == my_lane:
-                if parents:
-                    for j, w in enumerate(after):
-                        if w == parents[0]:
-                            routing.append({"from": k, "to": j})
-                            break
-                continue
-            for j, w in enumerate(after):
-                if w == v:
-                    routing.append({"from": k, "to": j})
-                    break
+            to = next((j for j, w in enumerate(after) if w == v), None)
+            if to is not None:
+                edges.append({"from": k, "to": to, "kind": "pass"})
+
+        incoming = [k for k, v in enumerate(before) if v is not None]
 
         msg = c.message.strip()
         nodes.append(
@@ -171,8 +169,8 @@ def graph(
                 "short": sha[:8],
                 "lane": my_lane,
                 "parents": parents,
-                "routing": routing,
-                "merge_targets": merge_targets,
+                "incoming": incoming,
+                "edges": edges,
                 "is_merge": len(parents) > 1,
                 "summary": msg.splitlines()[0] if msg else "",
                 "body": msg,
@@ -189,6 +187,14 @@ def graph(
 
     max_w = max((n["width"] for n in nodes), default=1)
     max_w = max(max_w, max((n["lane"] for n in nodes), default=0) + 1)
+
+    for i, n in enumerate(nodes):
+        if i == 0:
+            n["incoming"] = [n["lane"]]
+        else:
+            n["incoming"] = sorted(set(e["to"] for e in nodes[i - 1]["edges"]))
+        if n["lane"] not in n["incoming"]:
+            n["incoming"].append(n["lane"])
 
     return {
         "nodes": nodes,
