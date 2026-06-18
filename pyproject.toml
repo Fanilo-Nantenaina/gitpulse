@@ -14,7 +14,8 @@ dependencies = [
 ai = ["anthropic>=0.40"]
 schedule = ["apscheduler>=3.10"]
 desktop = ["plyer>=2.1"]
-all = ["anthropic>=0.40", "apscheduler>=3.10", "plyer>=2.1"]
+web = ["fastapi>=0.110", "uvicorn[standard]>=0.27"]
+all = ["anthropic>=0.40", "apscheduler>=3.10", "plyer>=2.1", "fastapi>=0.110", "uvicorn[standard]>=0.27"]
 
 [project.scripts]
 gitpulse = "gitpulse.cli.main:main"
@@ -25,3 +26,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["gitpulse*"]
+
+[tool.setuptools.package-data]
+gitpulse = ["web/static/*"]

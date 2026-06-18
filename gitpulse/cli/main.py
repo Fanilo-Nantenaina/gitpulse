@@ -178,6 +178,19 @@ def remote(
     render_terminal(activity, summ)
 
 
+@app.command()
+def serve(
+    port: int = typer.Option(18420, "--port", help="Port to serve on"),
+    host: str = typer.Option("127.0.0.1", "--host"),
+    no_open: bool = typer.Option(False, "--no-open", help="Don't open the browser"),
+):
+    """Launch the GitPulse web interface."""
+    from ..web.server import serve as run_server
+
+    console.print(f"[cyan]GitPulse UI on http://{host}:{port}[/]  (Ctrl+C to stop)")
+    run_server(host=host, port=port, open_browser=not no_open)
+
+
 @app.command(name="cache-clear")
 def cache_clear():
     n = gp_remote.clear_cache()

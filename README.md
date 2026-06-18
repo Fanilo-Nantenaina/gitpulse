@@ -212,6 +212,29 @@ gitpulse summary --when "jeudi dernier"
 
 ---
 
+## Web interface
+
+If you'd rather click than remember commands, GitPulse ships a local web UI
+covering every feature:
+
+```bash
+pip install -e ".[web]"     # or ".[all]"
+gitpulse serve              # opens your browser at http://127.0.0.1:18420
+```
+
+It runs entirely on your machine (no data leaves it). The UI has:
+
+- a repository picker accepting a pasted path **or** a built-in folder browser,
+  and a toggle for local path vs. remote URL;
+- a memory of recently used repositories;
+- provider/model/language selectors (Claude or Ollama, with the available
+  sub-models populated automatically);
+- tabs for every action — Summary, Log, Graph (commit/branch graph), Compare,
+  Standup, Dashboard (tracked remotes), and Tracked (add/remove remotes);
+- a dedicated output panel, and a dark/light theme toggle.
+
+`gitpulse serve` options: `--port` (default 8420), `--host`, `--no-open`.
+
 ## Commands
 
 Run `gitpulse --help` for the index, or `gitpulse <command> --help` for any
@@ -579,8 +602,12 @@ gitpulse/
 │   └── render.py       # Rich terminal, git-log view, Markdown output
 ├── scheduler/
 │   └── runner.py       # APScheduler + systemd-timer unit generation
-└── notifiers/
-    └── dispatch.py     # slack / telegram / email / desktop
+├── notifiers/
+│   └── dispatch.py     # slack / telegram / email / desktop
+└── web/
+    ├── server.py       # FastAPI: endpoints wrapping every module
+    ├── browse.py       # server-side folder picker
+    └── static/index.html  # single-page UI (dark/light, all actions)
 ```
 
 The `core` layer has zero AI/CLI dependencies — import the collector in any
@@ -591,11 +618,9 @@ other tool. The `ai` and `notifiers` layers are optional extras.
 ## Roadmap
 
 Done: remote repos (`remote`), standup mode (`standup`), trend comparison
-(`compare`), multi-remote dashboard (`track` + `dashboard --remote`).
+(`compare`), multi-remote dashboard (`track` + `dashboard --remote`), web UI
+(`serve`).
 
-- **GUI** — Tauri (Rust shell + React) desktop app, or `gitpulse serve`
-  (FastAPI + local web dashboard). The core/ai layers are already
-  GUI-agnostic; the frontend just renders `RepoActivity` + `Summary`.
 - **Quality-risk flags** — large unreviewed diffs, commits without test changes.
 
 ---

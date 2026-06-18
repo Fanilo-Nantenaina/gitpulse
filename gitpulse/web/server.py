@@ -315,7 +315,7 @@ if _STATIC.exists():
     app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
 
 
-def serve(host: str = "127.0.0.1", port: int = 8420, open_browser: bool = True):
+def serve(host: str = "127.0.0.1", port: int = 18420, open_browser: bool = True):
     import uvicorn
 
     if open_browser:
