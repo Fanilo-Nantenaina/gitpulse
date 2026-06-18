@@ -118,7 +118,9 @@ class CompareReq(BaseModel):
 class GraphReq(BaseModel):
     path: Optional[str] = None
     url: Optional[str] = None
-    limit: int = 120
+    limit: int = 150
+    offset: int = 0
+    all_commits: bool = False
     branch: Optional[str] = None
     refresh: bool = True
     insecure: bool = False
@@ -369,7 +371,13 @@ def api_standup(req: SummaryReq):
 def api_graph(req: GraphReq):
     try:
         src, _ = _resolve_source(req)
-        return gitgraph.graph(src, limit=req.limit, branch=req.branch)
+        return gitgraph.graph(
+            src,
+            limit=req.limit,
+            offset=req.offset,
+            branch=req.branch,
+            all_commits=req.all_commits,
+        )
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
 
