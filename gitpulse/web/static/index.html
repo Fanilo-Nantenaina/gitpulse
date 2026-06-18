@@ -690,7 +690,16 @@
 
     .cd-v {
       font-family: var(--sans);
-      word-break: break-all
+      word-break: break-word
+    }
+
+    .cd-msg {
+      white-space: pre-wrap;
+      line-height: 1.55
+    }
+
+    .graph-row.is-head {
+      background: rgba(247, 129, 102, 0.06)
     }
 
     .cd-v .gsha {
@@ -1017,7 +1026,7 @@
         wip: 'Work in progress', otherBranches: 'Other active branches', addRemote: 'Add a remote', gitUrl: 'Git URL', label: 'Label (optional)',
         track: 'Track', remove: 'Remove', noTracked: 'No tracked repositories yet.', remoteActivity: 'Remote activity',
         noTrackedHint: 'No tracked remotes. Add repos in the Tracked tab.', apiKey: 'API key', save: 'Save', saved: 'Saved', notSet: 'not set',
-        startOllama: 'Start Ollama', ollamaStarting: 'Starting Ollama...', custom: 'Custom...', loadingProviders: 'Checking providers...', ollamaNoModels: 'Server running, but no models pulled yet. Pull one:', loading: 'Loading...', loadMore: 'Load more', allCommits: 'All commits', commitCount: 'Commits to load', allBranches: 'All branches',
+        startOllama: 'Start Ollama', ollamaStarting: 'Starting Ollama...', custom: 'Custom...', loadingProviders: 'Checking providers...', ollamaNoModels: 'Server running, but no models pulled yet. Pull one:', loading: 'Loading...', loadMore: 'Load more', allCommits: 'All commits', commitCount: 'Commits to load', allBranches: 'All branches', selectRepoGraph: 'Select a repository to view its graph.',
         metered: 'A metered/limited connection may apply data charges for cloud models.',
         highLatency: 'High latency to cloud APIs detected. Cloud runs risk timeouts and wasted tokens.',
         switchLocal: 'Switch to local', proceedAnyway: 'Use cloud anyway', loadBranches: 'Load remote branches', allowInsecure: 'Allow insecure SSL (expired/self-signed cert)',
@@ -1036,7 +1045,7 @@
         wip: 'Travail en cours', otherBranches: 'Autres branches actives', addRemote: 'Ajouter un dépôt distant', gitUrl: 'URL Git', label: 'Étiquette (optionnel)',
         track: 'Suivre', remove: 'Retirer', noTracked: 'Aucun dépôt suivi pour l\'instant.', remoteActivity: 'Activité distante',
         noTrackedHint: 'Aucun dépôt distant suivi. Ajoutez-en dans l\'onglet Suivis.', apiKey: 'Clé API', save: 'Enregistrer', saved: 'Enregistré', notSet: 'non définie',
-        startOllama: 'Démarrer Ollama', ollamaStarting: 'Démarrage d\'Ollama...', custom: 'Personnalisé...', loadingProviders: 'Vérification des fournisseurs...', ollamaNoModels: 'Serveur démarré, mais aucun modèle installé. Installez-en un :', loading: 'Chargement...', loadMore: 'Charger plus', allCommits: 'Tous les commits', commitCount: 'Commits à charger', allBranches: 'Toutes les branches',
+        startOllama: 'Démarrer Ollama', ollamaStarting: 'Démarrage d\'Ollama...', custom: 'Personnalisé...', loadingProviders: 'Vérification des fournisseurs...', ollamaNoModels: 'Serveur démarré, mais aucun modèle installé. Installez-en un :', loading: 'Chargement...', loadMore: 'Charger plus', allCommits: 'Tous les commits', commitCount: 'Commits à charger', allBranches: 'Toutes les branches', selectRepoGraph: 'Sélectionnez un dépôt pour afficher son graphe.',
         metered: 'Une connexion limitée peut entraîner des frais de données pour les modèles cloud.',
         highLatency: 'Latence élevée vers les API cloud. Risque de coupures et de gaspillage de tokens.',
         switchLocal: 'Passer en local', proceedAnyway: 'Utiliser le cloud quand même', loadBranches: 'Charger les branches distantes', allowInsecure: 'Autoriser SSL non sécurisé (certificat expiré/auto-signé)',
@@ -1065,14 +1074,21 @@
         const li = document.createElement('li');
         const short = r.value.replace(/\.git$/, '').split(/[\/\\]/).pop() || r.value;
         li.innerHTML = '<span class="tag">' + (r.kind === 'url' ? 'URL' : 'DIR') + '</span><span class="nm" title="' + r.value + '">' + short + '</span><span class="x">&#10005;</span>';
-        li.querySelector('.nm').onclick = () => { if (r.kind === 'url') { setSource('url'); $('#urlInput').value = r.value; } else { setSource('local'); $('#pathInput').value = r.value; } loadBranches(); };
+        li.querySelector('.nm').onclick = () => { if (r.kind === 'url') { setSource('url'); $('#urlInput').value = r.value; } else { setSource('local'); $('#pathInput').value = r.value; } onRepoChanged(); };
         li.querySelector('.x').onclick = e => { e.stopPropagation(); saveMem(loadMem().filter(x => x.value !== r.value)); renderMem(); };
         ul.appendChild(li);
       });
     }
     function setSource(src) { state.source = src; document.querySelectorAll('.source-tab').forEach(t => t.classList.toggle('active', t.dataset.src === src)); $('#localField').style.display = src === 'local' ? '' : 'none'; $('#urlField').style.display = src === 'url' ? '' : 'none'; }
-    document.querySelectorAll('.source-tab').forEach(tb => tb.onclick = () => { setSource(tb.dataset.src); loadBranches(); });
+    document.querySelectorAll('.source-tab').forEach(tb => tb.onclick = () => { setSource(tb.dataset.src); onRepoChanged(); });
     function currentSource() { if (state.source === 'url') { const v = $('#urlInput').value.trim(); return v ? { url: v } : null; } const v = $('#pathInput').value.trim(); return v ? { path: v } : null; }
+    function onRepoChanged() {
+      loadBranches();
+      if (state.action === 'graph' && currentSource()) runGraph(false);
+    }
+    // auto-trigger graph when the user finishes typing/pasting a repo
+    $('#pathInput').addEventListener('change', onRepoChanged);
+    $('#urlInput').addEventListener('change', onRepoChanged);
 
     // ---------- providers ----------
     async function loadProviders() {
@@ -1191,7 +1207,7 @@
     // ---------- actions ----------
     const ACTIONS = {
       summary: { when: 1, branch: 1, run: runSummary }, log: { when: 1, branch: 1, run: runLog },
-      graph: { limit: 1, branch: 1, run: runGraph }, compare: { period: 1, periods: 1, branch: 1, run: runCompare },
+      graph: { graphmode: 1, run: runGraph }, compare: { period: 1, periods: 1, branch: 1, run: runCompare },
       standup: { run: runStandup }, dashboard: { when: 1, summarize: 1, run: runDashboard }, tracked: { run: runTracked },
     };
     function setAction(a) { state.action = a; document.querySelectorAll('.action').forEach(x => x.classList.toggle('active', x.dataset.act === a)); renderControls(); }
@@ -1208,10 +1224,16 @@
       if (cfg.period) add('<div class="field"><label>' + t('periodLen') + '</label><input id="ctlPeriod" value="7d"></div>');
       if (cfg.periods) add('<div class="field"><label>' + t('priorPeriods') + '</label><input id="ctlPeriods" type="number" value="4" min="1"></div>');
       if (cfg.branch) add('<div class="field"><label>' + t('branch') + '</label><select id="ctlBranch"><option value="">' + t('current') + '</option></select></div>');
-      if (cfg.limit) {
-        add('<div class="field"><label>' + t('commitCount') + '</label><select id="ctlLimit"><option value="50">50</option><option value="150" selected>150</option><option value="300">300</option><option value="500">500</option><option value="0">' + t('allCommits') + '</option></select></div>');
-      }
       if (cfg.summarize) add('<div class="field"><label>' + t('aiHeadline') + '</label><select id="ctlSummarize"><option value="false">' + t('off') + '</option><option value="true">' + t('on') + '</option></select></div>');
+      if (cfg.graphmode) {
+        // graph auto-loads all branches; only a refresh control is shown
+        add('<div class="field go"><label>&nbsp;</label><button class="btn ghost" id="refreshBtn">&#8635; ' + t('refresh') + '</button></div>');
+        $('#refreshBtn').onclick = () => runGraph(true);
+        // auto-run if a repo is already selected
+        if (currentSource()) runGraph(false);
+        else out.innerHTML = '<div class="placeholder">' + t('selectRepoGraph') + '</div>';
+        return;
+      }
       const lbl = state.action === 'tracked' ? t('refresh') : t('run');
       add('<div class="field go"><label>&nbsp;</label><button class="btn" id="runBtn">' + lbl + '</button></div>');
       $('#runBtn').onclick = () => cfg.run();
@@ -1270,92 +1292,101 @@
       openai: 'Paid (pay-as-you-go): platform.openai.com/api-keys. Requires credit.',
     };
     const ROWH = 34, LANEW = 20, DOTR = 5;
+    const RENDER_CHUNK = 120; // rows drawn per scroll step (data is already all-loaded)
     function laneColor(l) { return LANE_COLORS[l % LANE_COLORS.length]; }
 
-    async function runGraph() {
-      const limitSel = document.getElementById('ctlLimit').value;
-      // "all" loads progressively on scroll too — just keeps paging until exhausted
-      graphState = { nodes: [], offset: 0, hasMore: false, lanes: 1, loading: false, all: limitSel === '0', batch: parseInt(limitSel) || 100, shellDone: false };
+    async function runGraph(refresh) {
+      const src = currentSource();
+      if (!src) { out.innerHTML = '<div class="placeholder">' + t('selectRepoGraph') + '</div>'; return; }
+      graphState = { nodes: [], lanes: 1, rendered: 0, loading: true };
       loading(t('loading'));
-      await fetchGraphPage(true);
-    }
-    async function fetchGraphPage(first) {
-      if (graphState.loading) return; graphState.loading = true;
-      const more = document.getElementById('graphMore');
-      if (more && !first) more.innerHTML = '<span class="loading" style="margin:0"><span class="spinner"></span> ' + t('loading') + '</span>';
       try {
-        const batch = 100; // always page in chunks, even for "all"
-        const br = document.getElementById('ctlBranch');
-        const d = await post('/api/graph', baseBody({ limit: batch, offset: graphState.offset, all_commits: false, branch: (br && br.value) || null }));
-        if (first && !d.nodes.length) { out.innerHTML = '<div class="placeholder">' + t('noCommits') + '</div>'; graphState.loading = false; return; }
-        graphState.lanes = Math.max(graphState.lanes, d.lanes);
-        const startIdx = graphState.nodes.length;
-        graphState.nodes = graphState.nodes.concat(d.nodes);
-        graphState.offset += d.returned;
-        // when not "all", stop after the chosen batch size; when "all", keep going on scroll
-        graphState.hasMore = d.has_more && (graphState.all || graphState.nodes.length < graphState.batch);
-        if (first) { renderGraphShell(d); }
-        appendGraphRows(startIdx);
-        graphState.loading = false;
-        updateMore();
+        const body = Object.assign({}, src);
+        if (src.url) { const ins = document.getElementById('insecureChk'); if (ins && ins.checked) body.insecure = true; }
+        body.refresh = !!refresh;            // only re-fetch remote when refreshing
+        if (src.url) rememberRepo('url', src.url); else rememberRepo('local', src.path);
+        const d = await post('/api/graph', body);
+        graphState.nodes = d.nodes; graphState.lanes = d.lanes; graphState.loading = false;
+        if (!d.nodes.length) { out.innerHTML = '<div class="placeholder">' + t('noCommits') + '</div>'; return; }
+        renderGraphShell(d);
+        renderMoreRows();      // first chunk
       } catch (e) { graphState.loading = false; showErr(e); }
     }
     function renderGraphShell(d) {
       const rb = d.remote_branches ? d.remote_branches.length : 0;
-      out.innerHTML = '<div class="block"><h3>' + t('graph') + ' &middot; ' + d.branches.length + ' local' + (rb ? ' / ' + rb + ' remote' : '') + ' &middot; HEAD: ' + esc(d.head || 'detached') + '</h3>' +
-        '<div class="graph-wrap" id="graphWrap"><div id="graphRows"></div></div>' +
-        '<div id="graphMore" style="text-align:center;padding:12px"></div></div>';
+      out.innerHTML = '<div class="block"><h3>' + t('graph') + ' &middot; ' + d.branches.length + ' local' + (rb ? ' / ' + rb + ' remote' : '') + ' &middot; HEAD: ' + esc(d.head || 'detached') + ' &middot; ' + d.nodes.length + ' commits</h3>' +
+        '<div class="graph-wrap" id="graphWrap"><div id="graphRows"></div><div id="graphSentinel"></div></div></div>';
       const wrap = $('#graphWrap');
-      wrap.onscroll = () => { if (graphState.hasMore && !graphState.loading && wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 150) fetchGraphPage(false); };
+      wrap.onscroll = () => { if (graphState.rendered < graphState.nodes.length && wrap.scrollTop + wrap.clientHeight >= wrap.scrollHeight - 300) renderMoreRows(); };
     }
-    function updateMore() {
-      const more = document.getElementById('graphMore'); if (!more) return;
-      more.innerHTML = graphState.hasMore
-        ? '<button class="btn ghost sm" onclick="fetchGraphPage(false)">' + t('loadMore') + '</button>'
-        : '<span style="color:var(--muted);font-size:11px">' + graphState.nodes.length + ' commits</span>';
+    function renderMoreRows() {
+      const end = Math.min(graphState.rendered + RENDER_CHUNK, graphState.nodes.length);
+      appendGraphRows(graphState.rendered, end);
+      graphState.rendered = end;
     }
     function refBadge(r) {
       const cls = r.kind === 'remote' ? 'ref-remote' : r.kind === 'tag' ? 'ref-tag' : 'ref-local';
       const ico = r.kind === 'remote' ? '&#8682; ' : r.kind === 'tag' ? '&#9650; ' : '';
       return '<span class="ref ' + cls + (r.head ? ' ref-head' : '') + '">' + ico + esc(r.name) + '</span>';
     }
-    function appendGraphRows(startIdx) {
+    // Draw one row. Every lane present in `routing` is drawn as a continuous
+    // connector from its top position to its bottom position — that's what
+    // eliminates the gaps (passing-through lanes are always drawn full-height).
+    function appendGraphRows(startIdx, endIdx) {
       const rows = $('#graphRows'); if (!rows) return;
       const W = graphState.lanes * LANEW + 10;
       const H = ROWH;
+      const headRef = (graphState.nodes.find(n => (n.refs || []).some(r => r.head)) || {}).sha;
       let html = '';
-      for (let i = startIdx; i < graphState.nodes.length; i++) {
+      for (let i = startIdx; i < endIdx; i++) {
         const n = graphState.nodes[i];
         const cx = n.lane * LANEW + LANEW / 2;
+        const isHead = (n.refs || []).some(r => r.head);
         let svg = '<svg class="graph-svg" width="' + W + '" height="' + H + '" style="flex-shrink:0">';
+        // Pass-through connectors: every active lane in this row is drawn from its
+        // top position to its bottom position. The commit's OWN lane is excluded
+        // here (drawn separately as top-half + dot + merge edges) to avoid overlap.
         (n.routing || []).forEach(rt => {
+          if (rt.from === n.lane) return; // own lane handled below
           const x1 = rt.from * LANEW + LANEW / 2, x2 = rt.to * LANEW + LANEW / 2;
           const col = laneColor(rt.to);
-          if (rt.from === n.lane) {
-            if (x1 === x2) svg += '<line x1="' + x1 + '" y1="' + (H / 2) + '" x2="' + x2 + '" y2="' + H + '" stroke="' + col + '" stroke-width="2"/>';
-            else svg += '<path d="M' + x1 + ',' + (H / 2) + ' C' + x1 + ',' + (H * 0.78) + ' ' + x2 + ',' + (H * 0.72) + ' ' + x2 + ',' + H + '" stroke="' + col + '" stroke-width="2" fill="none"/>';
-          } else if (x1 === x2) {
-            svg += '<line x1="' + x1 + '" y1="0" x2="' + x2 + '" y2="' + H + '" stroke="' + col + '" stroke-width="2"/>';
-          } else {
-            svg += '<path d="M' + x1 + ',0 C' + x1 + ',' + (H * 0.5) + ' ' + x2 + ',' + (H * 0.5) + ' ' + x2 + ',' + H + '" stroke="' + col + '" stroke-width="2" fill="none"/>';
-          }
+          if (x1 === x2) svg += '<line x1="' + x1 + '" y1="0" x2="' + x2 + '" y2="' + H + '" stroke="' + col + '" stroke-width="2"/>';
+          else svg += '<path d="M' + x1 + ',0 C' + x1 + ',' + (H * 0.5) + ' ' + x2 + ',' + (H * 0.5) + ' ' + x2 + ',' + H + '" stroke="' + col + '" stroke-width="2" fill="none"/>';
         });
+        // own lane: incoming top-half (above dot)
         svg += '<line x1="' + cx + '" y1="0" x2="' + cx + '" y2="' + (H / 2) + '" stroke="' + laneColor(n.lane) + '" stroke-width="2"/>';
+        // own lane: outgoing bottom-half toward first parent (the routing entry where from===lane)
+        const ownRoute = (n.routing || []).find(rt => rt.from === n.lane);
+        if (ownRoute) {
+          const x2 = ownRoute.to * LANEW + LANEW / 2;
+          if (x2 === cx) svg += '<line x1="' + cx + '" y1="' + (H / 2) + '" x2="' + cx + '" y2="' + H + '" stroke="' + laneColor(n.lane) + '" stroke-width="2"/>';
+          else svg += '<path d="M' + cx + ',' + (H / 2) + ' C' + cx + ',' + (H * 0.78) + ' ' + x2 + ',' + (H * 0.72) + ' ' + x2 + ',' + H + '" stroke="' + laneColor(ownRoute.to) + '" stroke-width="2" fill="none"/>';
+        }
+        // merge edges to extra parents
         (n.merge_targets || []).forEach(ml => {
           const mx = ml * LANEW + LANEW / 2;
           svg += '<path d="M' + cx + ',' + (H / 2) + ' C' + cx + ',' + (H * 0.78) + ' ' + mx + ',' + (H * 0.72) + ' ' + mx + ',' + H + '" stroke="' + laneColor(ml) + '" stroke-width="2" fill="none"/>';
         });
-        svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="' + DOTR + '" fill="' + laneColor(n.lane) + '" stroke="var(--bg)" stroke-width="2"/>';
-        if (n.is_merge) svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="2" fill="var(--bg)"/>';
+        // dot — HEAD gets a hollow ring to mark the current branch distinctly
+        if (isHead) {
+          svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="' + (DOTR + 1.5) + '" fill="none" stroke="' + laneColor(n.lane) + '" stroke-width="2"/>';
+          svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="2.5" fill="' + laneColor(n.lane) + '"/>';
+        } else {
+          svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="' + DOTR + '" fill="' + laneColor(n.lane) + '" stroke="var(--bg)" stroke-width="2"/>';
+          if (n.is_merge) svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="2" fill="var(--bg)"/>';
+        }
         svg += '</svg>';
         const refs = (n.refs || []).map(refBadge).join('');
         const when = (n.when || '').replace('T', ' ').slice(0, 16);
-        html += '<div class="graph-row" data-sha="' + n.sha + '" onclick="toggleCommitDetail(\'' + n.sha + '\',this)">' + svg +
+        html += '<div class="graph-row' + (isHead ? ' is-head' : '') + '" data-sha="' + n.sha + '" onclick="toggleCommitDetail(\'' + n.sha + '\',this)">' + svg +
           '<div class="graph-info"><span class="gsha">' + n.short + '</span>' + refs +
           '<span class="gmsg">' + esc(n.summary) + '</span></div>' +
           '<span class="gauthor">' + esc(n.author) + '</span><span class="gdate">' + when + '</span></div>';
       }
-      rows.insertAdjacentHTML('beforeend', html);
+      // keep the sentinel last for scroll detection
+      const sentinel = $('#graphSentinel');
+      if (sentinel) sentinel.insertAdjacentHTML('beforebegin', html);
+      else rows.insertAdjacentHTML('beforeend', html);
     }
     function toggleCommitDetail(sha, rowEl) {
       const existing = rowEl.nextElementSibling;
@@ -1363,15 +1394,17 @@
       document.querySelectorAll('.commit-detail').forEach(e => e.remove());
       const n = graphState.nodes.find(x => x.sha === sha); if (!n) return;
       const refs = (n.refs || []).map(refBadge).join(' ');
+      const body = (n.body || n.summary || '');
       const d = document.createElement('div');
       d.className = 'commit-detail';
       d.innerHTML = '<div class="cd-grid">' +
         '<span class="cd-k">Commit</span><span class="cd-v gsha">' + n.sha + '</span>' +
         '<span class="cd-k">Parents</span><span class="cd-v">' + (n.parents.length ? n.parents.map(p => '<span class="gsha">' + p.slice(0, 12) + '</span>').join(' ') : '(root)') + '</span>' +
-        '<span class="cd-k">Author</span><span class="cd-v">' + esc(n.author) + '</span>' +
+        '<span class="cd-k">Author</span><span class="cd-v">' + esc(n.author) + (n.email ? ' &lt;' + esc(n.email) + '&gt;' : '') + '</span>' +
+        (n.committer && n.committer !== n.author ? '<span class="cd-k">Committer</span><span class="cd-v">' + esc(n.committer) + '</span>' : '') +
         '<span class="cd-k">Date</span><span class="cd-v">' + (n.when || '').replace('T', ' ').slice(0, 19) + '</span>' +
         (refs ? '<span class="cd-k">Refs</span><span class="cd-v">' + refs + '</span>' : '') +
-        '<span class="cd-k">Message</span><span class="cd-v">' + esc(n.summary) + '</span>' +
+        '<span class="cd-k">Message</span><span class="cd-v cd-msg">' + esc(body) + '</span>' +
         '</div>';
       rowEl.after(d);
     }
@@ -1387,7 +1420,7 @@
     $('#browseBtn').onclick = openBrowser;
     $('#modalClose').onclick = () => $('#modalBg').classList.remove('show');
     $('#modalBg').onclick = e => { if (e.target === $('#modalBg')) $('#modalBg').classList.remove('show'); };
-    $('#modalPick').onclick = () => { $('#pathInput').value = modalPath; setSource('local'); $('#modalBg').classList.remove('show'); loadBranches(); };
+    $('#modalPick').onclick = () => { $('#pathInput').value = modalPath; setSource('local'); $('#modalBg').classList.remove('show'); onRepoChanged(); };
 
     (async function () {
       state.uiLang = localStorage.getItem('gp-uilang') || 'en'; $('#uiLangSel').value = state.uiLang;

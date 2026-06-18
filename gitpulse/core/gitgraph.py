@@ -45,18 +45,25 @@ def _tips(repo):
     oids = []
     seen = set()
 
-    def add(o):
-        s = str(o)
+    def add_commit(target):
+        try:
+            obj = repo[target]
+            commit = obj.peel(pygit2.Commit)
+        except Exception:
+            return
+        s = str(commit.id)
         if s not in seen:
             seen.add(s)
-            oids.append(o)
+            oids.append(commit.id)
 
     if not repo.head_is_unborn:
-        add(repo.head.target)
+        add_commit(repo.head.target)
     for coll in (repo.branches.local, repo.branches.remote):
         for bname in coll:
+            if bname.endswith("/HEAD"):
+                continue
             try:
-                add(repo.branches[bname].target)
+                add_commit(repo.branches[bname].target)
             except Exception:
                 continue
     return oids
@@ -64,11 +71,12 @@ def _tips(repo):
 
 def graph(
     repo_path,
-    limit: int = 100,
+    limit: int = 0,
     offset: int = 0,
     branch: str | None = None,
-    all_commits: bool = False,
+    all_commits: bool = True,
 ) -> dict:
+
     discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
     if discovered is None:
         raise ValueError("No git repository found")
@@ -88,22 +96,16 @@ def graph(
     head = repo.head.shorthand if not repo.head_is_detached else None
 
     flags = pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL
-    if branch:
-        b = repo.branches.get(branch)
-        if b is None:
-            raise ValueError(f"Branch '{branch}' not found")
-        walker = repo.walk(b.target, flags)
-    else:
-        walker = repo.walk(repo.head.target, flags)
-        for oid in _tips(repo):
-            walker.push(oid)
+    walker = repo.walk(repo.head.target, flags)
 
-    # lanes[i] holds the sha that lane i is currently "waiting" to draw, or None.
+    for oid in _tips(repo):
+        try:
+            walker.push(oid)
+        except Exception:
+            continue
+
     lanes: list[str | None] = []
     nodes = []
-    seen = 0
-    produced = 0
-    stop = offset + limit
 
     def first_free():
         for i, v in enumerate(lanes):
@@ -116,7 +118,6 @@ def graph(
         sha = str(c.id)
         parents = [str(p) for p in c.parent_ids]
 
-        # this commit's lane = a lane already expecting it, else a fresh lane
         my_lane = None
         for i, v in enumerate(lanes):
             if v == sha:
@@ -126,12 +127,8 @@ def graph(
             my_lane = first_free()
             lanes[my_lane] = sha
 
-        in_window = offset <= seen and (all_commits or seen < stop)
-
-        # snapshot lanes BEFORE routing (the row's "passing" lanes)
         before = list(lanes)
 
-        # route: first parent continues my lane; clear duplicates of this sha
         for i, v in enumerate(lanes):
             if v == sha:
                 lanes[i] = None
@@ -151,50 +148,44 @@ def graph(
 
         after = list(lanes)
 
-        if in_window:
-            # routing[k] = lane index in `after` that lane k of `before` flows into
-            routing = []
-            for k, v in enumerate(before):
-                if v is None:
-                    continue
-                if k == my_lane:
-                    # continues to wherever first parent sits
-                    if parents:
-                        for j, w in enumerate(after):
-                            if w == parents[0]:
-                                routing.append({"from": k, "to": j})
-                                break
-                    continue
-                # other lanes keep flowing to the same sha
-                for j, w in enumerate(after):
-                    if w == v:
-                        routing.append({"from": k, "to": j})
-                        break
-            nodes.append(
-                {
-                    "sha": sha,
-                    "short": sha[:8],
-                    "lane": my_lane,
-                    "parents": parents,
-                    "routing": routing,
-                    "merge_targets": merge_targets,
-                    "is_merge": len(parents) > 1,
-                    "summary": (
-                        c.message.strip().splitlines()[0] if c.message.strip() else ""
-                    ),
-                    "author": c.author.name,
-                    "when": datetime.fromtimestamp(
-                        c.commit_time, timezone(timedelta(minutes=c.commit_time_offset))
-                    ).isoformat(),
-                    "refs": refs.get(sha, []),
-                    "width": len(after),
-                }
-            )
-            produced += 1
+        routing = []
+        for k, v in enumerate(before):
+            if v is None:
+                continue
+            if k == my_lane:
+                if parents:
+                    for j, w in enumerate(after):
+                        if w == parents[0]:
+                            routing.append({"from": k, "to": j})
+                            break
+                continue
+            for j, w in enumerate(after):
+                if w == v:
+                    routing.append({"from": k, "to": j})
+                    break
 
-        seen += 1
-        if not all_commits and produced >= limit:
-            break
+        msg = c.message.strip()
+        nodes.append(
+            {
+                "sha": sha,
+                "short": sha[:8],
+                "lane": my_lane,
+                "parents": parents,
+                "routing": routing,
+                "merge_targets": merge_targets,
+                "is_merge": len(parents) > 1,
+                "summary": msg.splitlines()[0] if msg else "",
+                "body": msg,
+                "author": c.author.name,
+                "email": c.author.email,
+                "committer": c.committer.name,
+                "when": datetime.fromtimestamp(
+                    c.commit_time, timezone(timedelta(minutes=c.commit_time_offset))
+                ).isoformat(),
+                "refs": refs.get(sha, []),
+                "width": len(after),
+            }
+        )
 
     max_w = max((n["width"] for n in nodes), default=1)
     max_w = max(max_w, max((n["lane"] for n in nodes), default=0) + 1)
@@ -204,8 +195,7 @@ def graph(
         "branches": sorted(repo.branches.local),
         "remote_branches": sorted(repo.branches.remote),
         "head": head,
-        "offset": offset,
         "returned": len(nodes),
         "lanes": max_w,
-        "has_more": (not all_commits) and produced >= limit,
+        "has_more": False,
     }

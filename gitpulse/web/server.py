@@ -371,13 +371,7 @@ def api_standup(req: SummaryReq):
 def api_graph(req: GraphReq):
     try:
         src, _ = _resolve_source(req)
-        return gitgraph.graph(
-            src,
-            limit=req.limit,
-            offset=req.offset,
-            branch=req.branch,
-            all_commits=req.all_commits,
-        )
+        return gitgraph.graph(src)
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
 
