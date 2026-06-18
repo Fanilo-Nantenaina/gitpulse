@@ -1351,35 +1351,23 @@
         const isHead = (n.refs || []).some(r => r.head);
         let svg = '<svg class="graph-svg" width="' + W + '" height="' + H + '" style="flex-shrink:0">';
         // TOP halves: each lane entering this row draws from y=0 to the centre —
-        // EXCEPT lanes that converge into this commit's dot (those are drawn as
-        // curves by the 'converge' edges below, so they bend into the dot instead
-        // of dropping straight down a phantom column).
+        // except lanes that converge into this dot (drawn as curves below).
         const convergeFrom = new Set((n.edges || []).filter(e => e.kind === 'converge').map(e => e.from));
         (n.incoming || []).forEach(l => {
           if (convergeFrom.has(l)) return;
           svg += '<line x1="' + lx(l) + '" y1="0" x2="' + lx(l) + '" y2="' + (H / 2) + '" stroke="' + laneColor(l) + '" stroke-width="2"/>';
         });
-        // BOTTOM halves & cross-lane connectors. Geometry rules:
-        //  - 'converge': another lane merging INTO this commit's dot → curve ends at
-        //    the dot centre (my_lane, H/2), drawn in the TOP half of the row.
-        //  - 'commit'/'pass': the lane continues downward → curve spans centre→bottom.
-        //  - 'merge': this commit spawns a line toward another lane below → centre→bottom.
         (n.edges || []).forEach(e => {
           const x1 = lx(e.from), x2 = lx(e.to), col = laneColor(e.kind === 'converge' ? e.from : e.to);
           if (e.kind === 'converge') {
-            // from another lane's top into this dot — occupies the upper half
-            if (x1 === x2) {
-              svg += '<line x1="' + x1 + '" y1="0" x2="' + cx + '" y2="' + (H / 2) + '" stroke="' + col + '" stroke-width="2"/>';
-            } else {
-              svg += '<path d="M' + x1 + ',0 C' + x1 + ',' + (H * 0.3) + ' ' + cx + ',' + (H * 0.2) + ' ' + cx + ',' + (H / 2) + '" stroke="' + col + '" stroke-width="2" fill="none"/>';
-            }
+            if (x1 === x2) svg += '<line x1="' + x1 + '" y1="0" x2="' + cx + '" y2="' + (H / 2) + '" stroke="' + col + '" stroke-width="2"/>';
+            else svg += '<path d="M' + x1 + ',0 C' + x1 + ',' + (H * 0.3) + ' ' + cx + ',' + (H * 0.2) + ' ' + cx + ',' + (H / 2) + '" stroke="' + col + '" stroke-width="2" fill="none"/>';
           } else if (x1 === x2) {
             svg += '<line x1="' + x1 + '" y1="' + (H / 2) + '" x2="' + x2 + '" y2="' + H + '" stroke="' + col + '" stroke-width="2"/>';
           } else {
             svg += '<path d="M' + x1 + ',' + (H / 2) + ' C' + x1 + ',' + (H * 0.8) + ' ' + x2 + ',' + (H * 0.7) + ' ' + x2 + ',' + H + '" stroke="' + col + '" stroke-width="2" fill="none"/>';
           }
         });
-        // dot — HEAD (current branch) gets a hollow ring to stand out
         if (isHead) {
           svg += '<circle cx="' + cx + '" cy="' + (H / 2) + '" r="' + (DOTR + 1.5) + '" fill="var(--bg)" stroke="' + laneColor(n.lane) + '" stroke-width="2.5"/>';
         } else {

@@ -76,13 +76,6 @@ def graph(
     branch: str | None = None,
     all_commits: bool = True,
 ) -> dict:
-    """Build the full commit graph across ALL branches, newest first.
-
-    The graph is always all-branches: no per-branch filtering, no pagination.
-    `limit`/`offset`/`branch`/`all_commits` are accepted for API compatibility
-    but the graph view loads the entire DAG and the frontend renders it
-    progressively as the user scrolls.
-    """
     discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
     if discovered is None:
         raise ValueError("No git repository found")
