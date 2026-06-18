@@ -850,6 +850,10 @@
         </div>
         <div class="field" id="urlField" style="display:none">
           <input class="path" id="urlInput" placeholder="https://... or git@...">
+          <label style="display:flex;align-items:center;gap:6px;margin-top:7px;cursor:pointer;font-size:11px">
+            <input type="checkbox" id="insecureChk" style="width:auto"> <span data-i="allowInsecure">Allow insecure SSL
+              (expired/self-signed cert)</span>
+          </label>
         </div>
       </div>
       <div class="side-section" style="flex:1">
@@ -929,7 +933,7 @@
         startOllama: 'Start Ollama', ollamaStarting: 'Starting Ollama...', custom: 'Custom...',
         metered: 'A metered/limited connection may apply data charges for cloud models.',
         highLatency: 'High latency to cloud APIs detected. Cloud runs risk timeouts and wasted tokens.',
-        switchLocal: 'Switch to local', proceedAnyway: 'Use cloud anyway', loadBranches: 'Load remote branches',
+        switchLocal: 'Switch to local', proceedAnyway: 'Use cloud anyway', loadBranches: 'Load remote branches', allowInsecure: 'Allow insecure SSL (expired/self-signed cert)',
         windows: { '7d': 'Last 7 days', '24h': 'Last 24 hours', '30d': 'Last 30 days', 'today': 'Today', 'yesterday': 'Yesterday', 'this-week': 'This week', 'last-week': 'Last week' }
       },
       fr: {
@@ -948,7 +952,7 @@
         startOllama: 'Démarrer Ollama', ollamaStarting: 'Démarrage d\'Ollama...', custom: 'Personnalisé...',
         metered: 'Une connexion limitée peut entraîner des frais de données pour les modèles cloud.',
         highLatency: 'Latence élevée vers les API cloud. Risque de coupures et de gaspillage de tokens.',
-        switchLocal: 'Passer en local', proceedAnyway: 'Utiliser le cloud quand même', loadBranches: 'Charger les branches distantes',
+        switchLocal: 'Passer en local', proceedAnyway: 'Utiliser le cloud quand même', loadBranches: 'Charger les branches distantes', allowInsecure: 'Autoriser SSL non sécurisé (certificat expiré/auto-signé)',
         windows: { '7d': '7 derniers jours', '24h': '24 dernières heures', '30d': '30 derniers jours', 'today': 'Aujourd\'hui', 'yesterday': 'Hier', 'this-week': 'Cette semaine', 'last-week': 'Semaine dernière' }
       }
     };
@@ -1048,7 +1052,7 @@
     async function loadBranches() {
       const src = currentSource(); if (!src) { fillBranches(); return; }
       try {
-        const r = await post('/api/branches', src.path ? { path: src.path } : { url: src.url, include_remote: !!src.url });
+        const ins = document.getElementById('insecureChk'); const r = await post('/api/branches', src.path ? { path: src.path } : { url: src.url, include_remote: !!src.url, insecure: !!(ins && ins.checked) });
         branchList = r; fillBranches();
       } catch { fillBranches(); }
     }
@@ -1138,7 +1142,7 @@
         '<div class="stats"><span><span class="n">' + a.commit_count + '</span> ' + t('commits') + '</span><span class="add"><span class="n">+' + a.additions + '</span></span><span class="del"><span class="n">-' + a.deletions + '</span></span><span><span class="n">' + a.files_touched + '</span> ' + t('files') + '</span><span><span class="n">' + a.active_days + '</span> ' + t('activeDays') + '</span></div>' +
         '<div class="heat">' + bars + '</div><div class="heat-label">00h &rarr; 23h</div></div>';
     }
-    function baseBody(extra) { const src = currentSource(); if (!src) throw new Error(t('selectFirst')); if (src.url) rememberRepo('url', src.url); else rememberRepo('local', src.path); return Object.assign({}, src, extra); }
+    function baseBody(extra) { const src = currentSource(); if (!src) throw new Error(t('selectFirst')); if (src.url) rememberRepo('url', src.url); else rememberRepo('local', src.path); const ins = document.getElementById('insecureChk'); if (src.url && ins && ins.checked) src.insecure = true; return Object.assign({}, src, extra); }
 
     function runSummary() { cloudGuard(async () => { try { loading('...'); const d = await post('/api/summary', baseBody(Object.assign({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null }, modelArgs()))); renderSummary(d.activity, d.summary); } catch (e) { showErr(e); } }); }
     function renderSummary(a, s) {

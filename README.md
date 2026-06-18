@@ -347,18 +347,19 @@ self-hosted git server — because it uses the standard git protocol, not any
 host-specific API. The repo is cloned bare (history only, no working files)
 into a local cache and refreshed on each run.
 
-| Option                          | Alias | Default   | Description                             |
-| ------------------------------- | ----- | --------- | --------------------------------------- |
-| `URL`                           |       | required  | Git URL, HTTPS or SSH                   |
-| `--when`                        | `-w`  | `7d`      | Time window                             |
-| `--branch`                      | `-b`  | HEAD      | Specific branch                         |
-| `--view`                        |       | `summary` | `summary` (AI) or `log` (plain listing) |
-| `--files`                       | `-f`  | off       | In log view, list files per commit      |
-| `--token`                       |       | env       | Access token for private HTTPS repos    |
-| `--username`                    |       | `git`     | Username for token auth                 |
-| `--ssh-key`                     |       | agent     | Path to a private SSH key               |
-| `--no-refresh`                  |       | off       | Use the cached clone, skip fetching     |
-| `--provider` `--model` `--lang` |       |           | Same as `summary`                       |
+| Option                          | Alias | Default   | Description                                       |
+| ------------------------------- | ----- | --------- | ------------------------------------------------- |
+| `URL`                           |       | required  | Git URL, HTTPS or SSH                             |
+| `--when`                        | `-w`  | `7d`      | Time window                                       |
+| `--branch`                      | `-b`  | HEAD      | Specific branch                                   |
+| `--view`                        |       | `summary` | `summary` (AI) or `log` (plain listing)           |
+| `--files`                       | `-f`  | off       | In log view, list files per commit                |
+| `--token`                       |       | env       | Access token for private HTTPS repos              |
+| `--username`                    |       | `git`     | Username for token auth                           |
+| `--ssh-key`                     |       | agent     | Path to a private SSH key                         |
+| `--no-refresh`                  |       | off       | Use the cached clone, skip fetching               |
+| `--insecure`                    |       | off       | Disable SSL cert verification (see warning below) |
+| `--provider` `--model` `--lang` |       |           | Same as `summary`                                 |
 
 Authentication, two ways, both configurable:
 
@@ -379,6 +380,14 @@ gitpulse remote https://codeberg.org/user/app.git --view log --files
 Under the hood it tries pygit2 first and falls back to the system `git`
 command, so SSH and HTTPS work even where pygit2 lacks transport support.
 Clear the cache with `gitpulse cache-clear`.
+
+**`--insecure` / "Allow insecure SSL".** If the server's certificate has
+expired or is self-signed, the clone fails with a cert error. `--insecure`
+(CLI) or the checkbox in the web UI disables SSL verification so you can keep
+working. This is a workaround, not a fix: it removes protection against
+man-in-the-middle attacks, so use it only on trusted networks. The real fix is
+to renew the certificate server-side (e.g. Let's Encrypt). In the web UI a
+warning is shown whenever it's enabled.
 
 ### `gitpulse digest [PATH]`
 

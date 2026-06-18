@@ -150,6 +150,9 @@ def remote(
     no_refresh: bool = typer.Option(
         False, "--no-refresh", help="Use cached clone, skip fetch"
     ),
+    insecure: bool = typer.Option(
+        False, "--insecure", help="Disable SSL cert verification (use at your own risk)"
+    ),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
@@ -158,9 +161,15 @@ def remote(
     tok, user, key = gp_remote.resolve_auth(token, username, ssh_key)
     name = gp_remote.repo_name_from_url(url)
     action = "Fetching" if not no_refresh else "Loading cached"
+    if insecure:
+        console.print(
+            "[yellow] ⚠ SSL verification disabled — use only on trusted networks.[/]"
+        )
     try:
         with status_spinner(f"{action} {name}"):
-            dest = gp_remote.sync_remote(url, tok, user, key, refresh=not no_refresh)
+            dest = gp_remote.sync_remote(
+                url, tok, user, key, refresh=not no_refresh, insecure=insecure
+            )
     except RuntimeError as e:
         console.print(f"[red]{e}[/]")
         raise typer.Exit(1)

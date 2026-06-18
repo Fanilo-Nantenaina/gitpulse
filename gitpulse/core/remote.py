@@ -96,24 +96,52 @@ def _run_git(args: list[str], env: dict | None = None) -> tuple[bool, str]:
         return False, str(e)
 
 
-def _clone_cli(url: str, dest: Path, token, username) -> tuple[bool, str]:
+def _git_ssl_opts(insecure: bool) -> list[str]:
+    return ["-c", "http.sslVerify=false"] if insecure else []
+
+
+def _clone_cli(
+    url: str, dest: Path, token, username, insecure: bool = False
+) -> tuple[bool, str]:
     clone_url = url
     env = {"GIT_TERMINAL_PROMPT": "0"}
     if token and not _is_ssh(url):
         clone_url = _inject_token(url, token, username)
-    ok, msg = _run_git(["clone", "--bare", "--quiet", clone_url, str(dest)], env)
-    return ok, msg
+    args = _git_ssl_opts(insecure) + [
+        "clone",
+        "--bare",
+        "--quiet",
+        clone_url,
+        str(dest),
+    ]
+    return _run_git(args, env)
 
 
-def _fetch_cli(dest: Path, url: str, token, username) -> tuple[bool, str]:
+def _fetch_cli(
+    dest: Path, url: str, token, username, insecure: bool = False
+) -> tuple[bool, str]:
     env = {"GIT_TERMINAL_PROMPT": "0"}
     fetch_url = url
     if token and not _is_ssh(url):
         fetch_url = _inject_token(url, token, username)
-    return _run_git(
-        ["-C", str(dest), "fetch", "--quiet", fetch_url, "+refs/heads/*:refs/heads/*"],
-        env,
-    )
+    args = _git_ssl_opts(insecure) + [
+        "-C",
+        str(dest),
+        "fetch",
+        "--quiet",
+        fetch_url,
+        "+refs/heads/*:refs/heads/*",
+    ]
+    return _run_git(args, env)
+
+
+def _is_valid_repo(dest: Path) -> bool:
+    if not dest.exists():
+        return False
+    try:
+        return pygit2.discover_repository(str(dest)) is not None
+    except Exception:
+        return False
 
 
 def sync_remote(
@@ -122,33 +150,53 @@ def sync_remote(
     username: str | None = None,
     ssh_key: str | None = None,
     refresh: bool = True,
+    insecure: bool = False,
 ) -> Path:
     dest = _cache_path(url)
     dest.parent.mkdir(parents=True, exist_ok=True)
 
-    if dest.exists():
-        if refresh:
-            ok, _ = _fetch_cli(dest, url, token, username)
-            if not ok:
-                shutil.rmtree(dest, ignore_errors=True)
-            else:
-                return dest
-        else:
-            return dest
+    valid = _is_valid_repo(dest)
 
-    if _clone_pygit2(url, dest, token, username, ssh_key):
+    if valid and not refresh:
         return dest
 
-    ok, msg = _clone_cli(url, dest, token, username)
+    if valid and refresh:
+        ok, _ = _fetch_cli(dest, url, token, username, insecure)
+        if ok:
+            return dest
+        shutil.rmtree(dest, ignore_errors=True)
+
+    # Any leftover (partial/invalid) directory must be removed before cloning,
+    # otherwise git refuses with "destination path already exists".
+    if dest.exists():
+        shutil.rmtree(dest, ignore_errors=True)
+
+    # pygit2 can't disable SSL verification, so when insecure is requested we
+    # go straight to the git CLI which supports http.sslVerify=false.
+    if not insecure and _clone_pygit2(url, dest, token, username, ssh_key):
+        return dest
+
+    if dest.exists():
+        shutil.rmtree(dest, ignore_errors=True)
+
+    ok, msg = _clone_cli(url, dest, token, username, insecure)
     if ok:
         return dest
 
-    raise RuntimeError(
-        f"Could not clone {url}.\n"
-        f"git said: {msg.strip()[:400]}\n"
+    if dest.exists():
+        shutil.rmtree(dest, ignore_errors=True)
+
+    hint = (
         "For private repos set GITPULSE_GIT_TOKEN (HTTPS) or use an SSH URL "
         "with your key/agent configured."
     )
+    if "CERT" in msg.upper() or "sslVerify" in msg or "SEC_E_CERT" in msg:
+        hint = (
+            "The server's SSL certificate failed verification (often expired). "
+            "Fix the certificate server-side, or — at your own risk — enable "
+            "the 'Allow insecure SSL' option for this repo."
+        )
+    raise RuntimeError(f"Could not clone {url}.\ngit said: {msg.strip()[:400]}\n{hint}")
 
 
 def resolve_auth(

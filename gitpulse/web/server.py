@@ -69,7 +69,14 @@ def _resolve_source(req) -> tuple[object, Optional[str]]:
     """Return (path-or-cache-dir, display_name). Handles local or remote URLs."""
     if req.url:
         tok, user, key = gp_remote.resolve_auth(None, None, None)
-        dest = gp_remote.sync_remote(req.url, tok, user, key, refresh=req.refresh)
+        dest = gp_remote.sync_remote(
+            req.url,
+            tok,
+            user,
+            key,
+            refresh=req.refresh,
+            insecure=getattr(req, "insecure", False),
+        )
         return dest, gp_remote.repo_name_from_url(req.url)
     if not req.path:
         raise HTTPException(400, "Provide a path or url")
@@ -86,6 +93,7 @@ class SummaryReq(BaseModel):
     model: Optional[str] = None
     lang: Optional[str] = None
     refresh: bool = True
+    insecure: bool = False
 
 
 class LogReq(BaseModel):
@@ -94,6 +102,7 @@ class LogReq(BaseModel):
     when: str = "7d"
     branch: Optional[str] = None
     refresh: bool = True
+    insecure: bool = False
 
 
 class CompareReq(BaseModel):
@@ -103,6 +112,7 @@ class CompareReq(BaseModel):
     periods: int = 4
     branch: Optional[str] = None
     refresh: bool = True
+    insecure: bool = False
 
 
 class GraphReq(BaseModel):
@@ -111,6 +121,7 @@ class GraphReq(BaseModel):
     limit: int = 120
     branch: Optional[str] = None
     refresh: bool = True
+    insecure: bool = False
 
 
 class TrackReq(BaseModel):
@@ -125,6 +136,7 @@ class DashboardReq(BaseModel):
     model: Optional[str] = None
     lang: Optional[str] = None
     refresh: bool = True
+    insecure: bool = False
 
 
 # ---- endpoints ----
@@ -219,8 +231,9 @@ def api_branches(body: dict):
             ls_url = url
             if tok and url.startswith("http"):
                 ls_url = gp_remote._inject_token(url, tok, user)
+            ssl_opts = ["-c", "http.sslVerify=false"] if body.get("insecure") else []
             proc = subprocess.run(
-                ["git", "ls-remote", "--heads", ls_url],
+                ["git", *ssl_opts, "ls-remote", "--heads", ls_url],
                 capture_output=True,
                 text=True,
                 timeout=30,
@@ -391,7 +404,14 @@ def api_dashboard(req: DashboardReq):
         url = t["url"]
         name = t.get("label") or gp_remote.repo_name_from_url(url)
         try:
-            dest = gp_remote.sync_remote(url, tok, user, key, refresh=req.refresh)
+            dest = gp_remote.sync_remote(
+                url,
+                tok,
+                user,
+                key,
+                refresh=req.refresh,
+                insecure=getattr(req, "insecure", False),
+            )
             act = collect_activity(dest, r.since, r.until, name=name)
             row = {
                 "name": name,
@@ -413,6 +433,7 @@ def api_dashboard(req: DashboardReq):
     return {"rows": rows, "failed": failed, "range_label": r.label}
 
 
+# ---- static frontend ----
 @app.get("/")
 def index():
     return FileResponse(_STATIC / "index.html")
