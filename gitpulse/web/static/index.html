@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitPulse</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-2: #1c2230;
+      --border: #2d3340;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #f78166;
+      --accent-dim: #6e3b2e;
+      --green: #3fb950;
+      --red: #f85149;
+      --blue: #58a6ff;
+      --yellow: #d29922;
+      --mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+
+    [data-theme="light"] {
+      --bg: #f6f8fa;
+      --panel: #ffffff;
+      --panel-2: #f0f3f6;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --muted: #656d76;
+      --accent: #d4471f;
+      --accent-dim: #f3c9bc;
+      --green: #1a7f37;
+      --red: #cf222e;
+      --blue: #0969da;
+      --yellow: #9a6700;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.5;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      height: 100vh;
+    }
+
+    .sidebar {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .brand {
+      padding: 18px 18px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand h1 {
+      font-family: var(--mono);
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    .brand .pulse {
+      color: var(--accent);
+    }
+
+    .theme-btn {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .theme-btn:hover {
+      color: var(--text);
+    }
+
+    .side-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .side-section h2 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .source-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 10px;
+    }
+
+    .source-tab {
+      flex: 1;
+      padding: 5px;
+      text-align: center;
+      font-size: 12px;
+      cursor: pointer;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--muted);
+    }
+
+    .source-tab.active {
+      color: var(--text);
+      border-color: var(--accent);
+    }
+
+    input,
+    select {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 7px 9px;
+      font-size: 13px;
+      font-family: var(--sans);
+    }
+
+    input:focus,
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    input.path {
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .field {
+      margin-bottom: 9px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 3px;
+    }
+
+    .row {
+      display: flex;
+      gap: 7px;
+    }
+
+    .row>input {
+      flex: 1;
+    }
+
+    button.btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    button.btn:hover {
+      filter: brightness(1.08);
+    }
+
+    button.btn.ghost {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .browse-btn {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 7px 10px;
+      cursor: pointer;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .browse-btn:hover {
+      color: var(--text);
+    }
+
+    .repo-mem {
+      list-style: none;
+    }
+
+    .repo-mem li {
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+    }
+
+    .repo-mem li:hover {
+      background: var(--panel-2);
+      color: var(--text);
+    }
+
+    .repo-mem li .tag {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+
+    .repo-mem li .nm {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      flex: 1;
+    }
+
+    .repo-mem li .x {
+      color: var(--muted);
+      opacity: 0;
+    }
+
+    .repo-mem li:hover .x {
+      opacity: 1;
+    }
+
+    .main {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .actionbar {
+      display: flex;
+      gap: 2px;
+      padding: 0 16px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+
+    .action {
+      padding: 13px 14px;
+      cursor: pointer;
+      font-size: 13px;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      white-space: nowrap;
+    }
+
+    .action:hover {
+      color: var(--text);
+    }
+
+    .action.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+
+    .controls {
+      padding: 12px 18px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 14px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .controls .field {
+      margin: 0;
+      min-width: 120px;
+    }
+
+    .controls .go {
+      min-width: 120px;
+    }
+
+    .output {
+      flex: 1;
+      overflow-y: auto;
+      padding: 22px 26px;
+    }
+
+    .placeholder {
+      color: var(--muted);
+      text-align: center;
+      margin-top: 80px;
+      font-size: 15px;
+    }
+
+    .placeholder code {
+      font-family: var(--mono);
+      color: var(--accent);
+    }
+
+    .head-card {
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      background: var(--panel);
+      border-radius: 8px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+
+    .head-card .title {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .head-card .headline {
+      font-size: 17px;
+      font-weight: 600;
+      margin: 6px 0 12px;
+    }
+
+    .stats {
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      font-size: 13px;
+    }
+
+    .stats .n {
+      font-weight: 700;
+    }
+
+    .add {
+      color: var(--green);
+    }
+
+    .del {
+      color: var(--red);
+    }
+
+    .heat {
+      display: flex;
+      gap: 2px;
+      align-items: flex-end;
+      height: 34px;
+      margin-top: 14px;
+    }
+
+    .heat .bar {
+      flex: 1;
+      background: var(--accent);
+      border-radius: 2px 2px 0 0;
+      min-height: 2px;
+      opacity: 0.85;
+    }
+
+    .heat-label {
+      font-size: 10px;
+      color: var(--muted);
+      font-family: var(--mono);
+      margin-top: 4px;
+    }
+
+    .block {
+      margin-bottom: 20px;
+    }
+
+    .block h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .overview {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      line-height: 1.65;
+    }
+
+    .theme {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 13px 16px;
+      margin-bottom: 10px;
+      background: var(--panel);
+    }
+
+    .theme .t {
+      font-weight: 600;
+      color: var(--blue);
+      margin-bottom: 5px;
+    }
+
+    .theme .narr {
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    .theme .shas {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .obs {
+      display: flex;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .obs:last-child {
+      border-bottom: none;
+    }
+
+    .obs .dot {
+      color: var(--yellow);
+    }
+
+    table.grid {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    table.grid th {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    table.grid td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    table.grid td.num {
+      text-align: right;
+      font-family: var(--mono);
+    }
+
+    table.grid tr:hover td {
+      background: var(--panel);
+    }
+
+    .repo-name {
+      color: var(--blue);
+      font-weight: 600;
+    }
+
+    .commit {
+      border-bottom: 1px solid var(--border);
+      padding: 12px 0;
+    }
+
+    .commit .sha {
+      font-family: var(--mono);
+      color: var(--yellow);
+      font-size: 12px;
+    }
+
+    .commit .meta {
+      color: var(--muted);
+      font-size: 12px;
+      margin: 3px 0;
+    }
+
+    .commit .msg {
+      font-weight: 500;
+    }
+
+    .commit .cstat {
+      font-family: var(--mono);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .graph-wrap {
+      overflow-x: auto;
+    }
+
+    .graph-row {
+      display: flex;
+      align-items: center;
+      height: 30px;
+      font-size: 12px;
+    }
+
+    .graph-svg {
+      flex-shrink: 0;
+    }
+
+    .graph-info {
+      font-family: var(--mono);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    .graph-info .gsha {
+      color: var(--yellow);
+    }
+
+    .graph-info .gmsg {
+      color: var(--text);
+      font-family: var(--sans);
+    }
+
+    .ref {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .cost {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 16px;
+    }
+
+    .err {
+      color: var(--red);
+      background: var(--panel);
+      border: 1px solid var(--red);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    .loading {
+      color: var(--muted);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 40px;
+      justify-content: center;
+    }
+
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 50;
+    }
+
+    .modal-bg.show {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      width: 600px;
+      max-width: 90vw;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .modal-head {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-head .cur {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .modal-list {
+      overflow-y: auto;
+      padding: 8px;
+      flex: 1;
+    }
+
+    .dir-item {
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .dir-item:hover {
+      background: var(--panel-2);
+    }
+
+    .dir-item .ico {
+      color: var(--muted);
+    }
+
+    .dir-item.is-repo .ico {
+      color: var(--accent);
+    }
+
+    .modal-foot {
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+    }
+
+    .drives {
+      display: flex;
+      gap: 6px;
+      padding: 8px 12px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .drive {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 3px 8px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .drive:hover {
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>git<span class="pulse">pulse</span></h1>
+        <button class="theme-btn" id="themeBtn" title="Toggle theme">&#9680;</button>
+      </div>
+      <div class="side-section">
+        <h2>Repository</h2>
+        <div class="source-tabs">
+          <div class="source-tab active" data-src="local">Local</div>
+          <div class="source-tab" data-src="url">Remote URL</div>
+        </div>
+        <div class="field" id="localField">
+          <div class="row">
+            <input class="path" id="pathInput" placeholder="Paste path or browse">
+            <button class="browse-btn" id="browseBtn">Browse</button>
+          </div>
+        </div>
+        <div class="field" id="urlField" style="display:none">
+          <input class="path" id="urlInput" placeholder="https://... or git@...">
+        </div>
+      </div>
+      <div class="side-section" style="flex:1">
+        <h2>Recent repositories</h2>
+        <ul class="repo-mem" id="repoMem"></ul>
+      </div>
+      <div class="side-section">
+        <h2>Model</h2>
+        <div class="field"><label>Provider</label><select id="providerSel"></select></div>
+        <div class="field"><label>Model</label><select id="modelSel">
+            <option value="">(provider default)</option>
+          </select></div>
+        <div class="field"><label>Language</label><select id="langSel"></select></div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <nav class="actionbar" id="actionbar">
+        <div class="action active" data-act="summary">Summary</div>
+        <div class="action" data-act="log">Log</div>
+        <div class="action" data-act="graph">Graph</div>
+        <div class="action" data-act="compare">Compare</div>
+        <div class="action" data-act="standup">Standup</div>
+        <div class="action" data-act="dashboard">Dashboard</div>
+        <div class="action" data-act="tracked">Tracked</div>
+      </nav>
+      <div class="controls" id="controls"></div>
+      <div class="output" id="output">
+        <div class="placeholder">
+          Pick a repository, choose an action, and run it.<br>
+          Try <code>Summary</code> on a local repo to start.
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-bg" id="modalBg">
+    <div class="modal">
+      <div class="modal-head">
+        <span class="cur" id="modalCur"></span>
+        <button class="theme-btn" id="modalClose">&#10005;</button>
+      </div>
+      <div class="drives" id="modalDrives"></div>
+      <div class="modal-list" id="modalList"></div>
+      <div class="modal-foot">
+        <button class="btn ghost" id="modalUp">&#8593; Up</button>
+        <button class="btn" id="modalPick">Use this folder</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const $ = s => document.querySelector(s);
+    const api = async (path, opts) => {
+      const res = await fetch(path, opts);
+      if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || 'Error'); }
+      return res.json();
+    };
+    const post = (path, body) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    let state = { source: 'local', action: 'summary', providers: [], langs: {} };
+
+    function initTheme() { document.documentElement.dataset.theme = localStorage.getItem('gp-theme') || 'dark'; }
+    $('#themeBtn').onclick = () => {
+      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+      document.documentElement.dataset.theme = next; localStorage.setItem('gp-theme', next);
+    };
+
+    function loadMem() { try { return JSON.parse(localStorage.getItem('gp-mem') || '[]'); } catch { return []; } }
+    function saveMem(m) { localStorage.setItem('gp-mem', JSON.stringify(m.slice(0, 12))); }
+    function rememberRepo(kind, value) {
+      if (!value) return;
+      let m = loadMem().filter(r => r.value !== value);
+      m.unshift({ kind, value }); saveMem(m); renderMem();
+    }
+    function renderMem() {
+      const m = loadMem(); const ul = $('#repoMem'); ul.innerHTML = '';
+      if (!m.length) { ul.innerHTML = '<li style="cursor:default;opacity:.6">No repos yet</li>'; return; }
+      m.forEach(r => {
+        const li = document.createElement('li');
+        const short = r.value.replace(/\.git$/, '').split(/[\/\\]/).pop() || r.value;
+        li.innerHTML = '<span class="tag">' + (r.kind === 'url' ? 'URL' : 'DIR') + '</span><span class="nm" title="' + r.value + '">' + short + '</span><span class="x">&#10005;</span>';
+        li.querySelector('.nm').onclick = () => {
+          if (r.kind === 'url') { setSource('url'); $('#urlInput').value = r.value; }
+          else { setSource('local'); $('#pathInput').value = r.value; }
+        };
+        li.querySelector('.x').onclick = (e) => { e.stopPropagation(); saveMem(loadMem().filter(x => x.value !== r.value)); renderMem(); };
+        ul.appendChild(li);
+      });
+    }
+
+    function setSource(src) {
+      state.source = src;
+      document.querySelectorAll('.source-tab').forEach(t => t.classList.toggle('active', t.dataset.src === src));
+      $('#localField').style.display = src === 'local' ? '' : 'none';
+      $('#urlField').style.display = src === 'url' ? '' : 'none';
+    }
+    document.querySelectorAll('.source-tab').forEach(t => t.onclick = () => setSource(t.dataset.src));
+    function currentSource() {
+      if (state.source === 'url') { const v = $('#urlInput').value.trim(); return v ? { url: v } : null; }
+      const v = $('#pathInput').value.trim(); return v ? { path: v } : null;
+    }
+
+    async function loadConfig() {
+      const provs = await api('/api/providers'); state.providers = provs;
+      $('#providerSel').innerHTML = '<option value="auto">Auto</option>' +
+        provs.map(p => '<option value="' + p.name + '" ' + (p.available ? '' : 'disabled') + '>' + p.name + (p.available ? '' : ' (offline)') + '</option>').join('') +
+        '<option value="local">Local (no model)</option>';
+      $('#providerSel').onchange = updateModels; updateModels();
+      const cfg = await api('/api/config'); state.langs = cfg.languages;
+      $('#langSel').innerHTML = Object.entries(cfg.languages).map(([c, n]) => '<option value="' + c + '" ' + (c === cfg.lang ? 'selected' : '') + '>' + n + '</option>').join('');
+    }
+    function updateModels() {
+      const prov = $('#providerSel').value; const msel = $('#modelSel');
+      if (prov === 'auto' || prov === 'local') { msel.innerHTML = '<option value="">(provider default)</option>'; return; }
+      const p = state.providers.find(x => x.name === prov); const models = p ? p.models : [];
+      msel.innerHTML = '<option value="">(provider default)</option>' + models.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+    }
+    function modelArgs() { return { provider: $('#providerSel').value, model: $('#modelSel').value || null, lang: $('#langSel').value || null }; }
+
+    const ACTIONS = {
+      summary: { when: true, branch: true, run: runSummary }, log: { when: true, branch: true, run: runLog },
+      graph: { limit: true, branch: true, run: runGraph }, compare: { period: true, periods: true, branch: true, run: runCompare },
+      standup: { run: runStandup }, dashboard: { when: true, summarize: true, run: runDashboard }, tracked: { run: runTracked },
+    };
+    function setAction(act) {
+      state.action = act;
+      document.querySelectorAll('.action').forEach(a => a.classList.toggle('active', a.dataset.act === act));
+      renderControls();
+    }
+    document.querySelectorAll('.action').forEach(a => a.onclick = () => setAction(a.dataset.act));
+    function renderControls() {
+      const cfg = ACTIONS[state.action]; const c = $('#controls'); c.innerHTML = '';
+      const add = html => { const d = document.createElement('div'); d.innerHTML = html; c.appendChild(d.firstElementChild); };
+      if (cfg.when) add('<div class="field"><label>Time window</label><input id="ctlWhen" value="7d" placeholder="7d, yesterday, 2026-06-10.."></div>');
+      if (cfg.period) add('<div class="field"><label>Period length</label><input id="ctlPeriod" value="7d"></div>');
+      if (cfg.periods) add('<div class="field"><label>Prior periods</label><input id="ctlPeriods" type="number" value="4" min="1"></div>');
+      if (cfg.branch) add('<div class="field"><label>Branch</label><input id="ctlBranch" placeholder="(current)"></div>');
+      if (cfg.limit) add('<div class="field"><label>Max commits</label><input id="ctlLimit" type="number" value="120"></div>');
+      if (cfg.summarize) add('<div class="field"><label>AI headline per repo</label><select id="ctlSummarize"><option value="false">Off (fast, free)</option><option value="true">On</option></select></div>');
+      const label = state.action === 'tracked' ? 'Refresh' : state.action.charAt(0).toUpperCase() + state.action.slice(1);
+      add('<div class="field go"><label>&nbsp;</label><button class="btn" id="runBtn">' + label + '</button></div>');
+      $('#runBtn').onclick = () => cfg.run();
+    }
+
+    const out = $('#output');
+    function loading(msg) { out.innerHTML = '<div class="loading"><span class="spinner"></span> ' + msg + '</div>'; }
+    function showErr(e) { out.innerHTML = '<div class="err">' + (e.message || e) + '</div>'; }
+    function esc(s) { return (s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+
+    function headCard(a, headline) {
+      const max = Math.max(1, ...Object.values(a.hour_histogram));
+      const bars = Object.keys(a.hour_histogram).map(h => '<div class="bar" style="height:' + Math.max(2, (a.hour_histogram[h] / max) * 34) + 'px" title="' + h + 'h: ' + a.hour_histogram[h] + '"></div>').join('');
+      return '<div class="head-card"><div class="title">' + esc(a.repo_name) + ' &middot; ' + a.since.slice(0, 10) + ' &rarr; ' + a.until.slice(0, 10) + '</div>' +
+        (headline ? '<div class="headline">' + esc(headline) + '</div>' : '') +
+        '<div class="stats"><span><span class="n">' + a.commit_count + '</span> commits</span>' +
+        '<span class="add"><span class="n">+' + a.additions + '</span></span><span class="del"><span class="n">-' + a.deletions + '</span></span>' +
+        '<span><span class="n">' + a.files_touched + '</span> files</span><span><span class="n">' + a.active_days + '</span> active days</span></div>' +
+        '<div class="heat">' + bars + '</div><div class="heat-label">00h &rarr; 23h</div></div>';
+    }
+    function baseBody(extra) {
+      const src = currentSource();
+      if (!src) throw new Error('Select a local path or a remote URL first.');
+      if (src.url) rememberRepo('url', src.url); else rememberRepo('local', src.path);
+      return Object.assign({}, src, extra);
+    }
+
+    async function runSummary() {
+      try {
+        loading('Reading commits and summarizing...');
+        const d = await post('/api/summary', baseBody(Object.assign({ when: $('#ctlWhen').value, branch: $('#ctlBranch').value || null }, modelArgs())));
+        renderSummary(d.activity, d.summary);
+      } catch (e) { showErr(e); }
+    }
+    function renderSummary(a, s) {
+      let h = headCard(a, s.headline);
+      if (s.synthesis) h += '<div class="block"><h3>Overview</h3><div class="overview">' + esc(s.synthesis) + '</div></div>';
+      if (s.themes.length) {
+        h += '<div class="block"><h3>Themes</h3>' + s.themes.map(t => '<div class="theme"><div class="t">' + esc(t.title) + '</div><div class="narr">' + esc(t.narrative) + '</div>' + (t.commits && t.commits.length ? '<div class="shas">' + t.commits.map(esc).join(' ') + '</div>' : '') + '</div>').join('') + '</div>';
+      }
+      if (s.observations.length) {
+        h += '<div class="block"><h3>Observations</h3>' + s.observations.map(o => '<div class="obs"><span class="dot">&#9656;</span><span>' + esc(o) + '</span></div>').join('') + '</div>';
+      }
+      h += '<div class="cost">' + esc(s.cost_note) + '</div>';
+      out.innerHTML = h;
+    }
+
+    async function runLog() {
+      try {
+        loading('Reading commits...');
+        const d = await post('/api/log', baseBody({ when: $('#ctlWhen').value, branch: $('#ctlBranch').value || null }));
+        const a = d.activity; let h = headCard(a, null) + '<div class="block"><h3>Commits</h3>';
+        if (!a.commits.length) h += '<div class="placeholder" style="margin-top:20px">No commits in this window.</div>';
+        a.commits.forEach(c => {
+          h += '<div class="commit"><span class="sha">' + c.sha + '</span><div class="meta">' + esc(c.author) + ' &middot; ' + c.when.replace('T', ' ').slice(0, 16) + '</div><div class="msg">' + esc(c.summary) + '</div><div class="cstat"><span class="add">+' + c.additions + '</span> / <span class="del">-' + c.deletions + '</span> &middot; ' + c.files + ' files</div></div>';
+        });
+        out.innerHTML = h + '</div>';
+      } catch (e) { showErr(e); }
+    }
+
+    async function runGraph() {
+      try {
+        loading('Building commit graph...');
+        const d = await post('/api/graph', baseBody({ limit: parseInt($('#ctlLimit').value) || 120, branch: $('#ctlBranch').value || null }));
+        renderGraph(d);
+      } catch (e) { showErr(e); }
+    }
+    function renderGraph(g) {
+      if (!g.nodes.length) { out.innerHTML = '<div class="placeholder">No commits to graph.</div>'; return; }
+      const idx = {}; g.nodes.forEach((n, i) => idx[n.sha] = i);
+      const rows = g.nodes.map((n, i) => {
+        let svg = '<svg class="graph-svg" width="16" height="30">';
+        if (n.parents.some(p => idx[p] !== undefined)) svg += '<line x1="8" y1="15" x2="8" y2="30" stroke="var(--border)" stroke-width="2"/>';
+        if (i > 0) svg += '<line x1="8" y1="0" x2="8" y2="15" stroke="var(--border)" stroke-width="2"/>';
+        svg += '<circle cx="8" cy="15" r="4" fill="var(--accent)"/></svg>';
+        const refs = n.refs.map(r => '<span class="ref">' + esc(r) + '</span>').join('');
+        return '<div class="graph-row">' + svg + '<div class="graph-info"><span class="gsha">' + n.short + '</span>' + refs + '<span class="gmsg">' + esc(n.summary) + '</span></div></div>';
+      }).join('');
+      out.innerHTML = '<div class="block"><h3>Graph &middot; ' + g.branches.length + ' branches &middot; HEAD: ' + esc(g.head || 'detached') + '</h3><div class="graph-wrap">' + rows + '</div></div>';
+    }
+
+    async function runCompare() {
+      try {
+        loading('Comparing periods...');
+        const d = await post('/api/compare', baseBody({ period: $('#ctlPeriod').value, periods: parseInt($('#ctlPeriods').value) || 4, branch: $('#ctlBranch').value || null }));
+        const rows = d.metrics.map(m => {
+          const arrow = m.direction === 'up' ? '&#9650;' : m.direction === 'down' ? '&#9660;' : '=';
+          const goodUp = ['Commits', 'Files touched', 'Active days', 'Lines added'].includes(m.name);
+          const cls = m.direction === 'flat' ? '' : ((m.direction === 'up') === goodUp ? 'add' : 'del');
+          const pct = m.pct === null ? (m.current ? 'new' : '-') : (m.pct >= 0 ? '+' : '') + m.pct.toFixed(0) + '%';
+          return '<tr><td>' + m.name + '</td><td class="num">' + Math.round(m.current) + '</td><td class="num" style="color:var(--muted)">' + m.baseline.toFixed(1) + '</td><td class="num ' + cls + '">' + pct + ' ' + arrow + '</td></tr>';
+        }).join('');
+        out.innerHTML = '<div class="block"><h3>' + esc(d.repo_name) + ' &middot; current ' + d.period_days + '-day vs avg of prior ' + d.periods_back + '</h3><table class="grid"><thead><tr><th>Metric</th><th class="num">Now</th><th class="num">Avg</th><th class="num">Change</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+      } catch (e) { showErr(e); }
+    }
+
+    async function runStandup() {
+      try {
+        loading('Gathering yesterday and today...');
+        const d = await post('/api/standup', baseBody(modelArgs()));
+        let h = '<div class="head-card"><div class="title">Standup &middot; ' + esc(d.repo_name) + '</div></div><div class="block"><h3>Yesterday</h3>';
+        if (d.yesterday.commit_count === 0) h += '<div class="overview">No commits.</div>';
+        else {
+          h += '<div class="overview">' + esc(d.summary.synthesis || d.summary.headline) + '</div>';
+          if (d.summary.themes.length) h += d.summary.themes.map(t => '<div class="theme"><div class="t">' + esc(t.title) + '</div><div class="narr">' + esc(t.narrative) + '</div></div>').join('');
+        }
+        h += '</div><div class="block"><h3>Today</h3>';
+        const plan = [];
+        if (d.current_branch) plan.push(['Continue on branch', d.current_branch]);
+        if (d.uncommitted.length) plan.push(['Work in progress', d.uncommitted.slice(0, 6).join(', ') + (d.uncommitted.length > 6 ? ' (+' + (d.uncommitted.length - 6) + ')' : '')]);
+        const others = d.recent_branches.filter(b => b !== d.current_branch);
+        if (others.length) plan.push(['Other active branches', others.slice(0, 4).join(', ')]);
+        h += plan.length ? plan.map(p => '<div class="obs"><span class="dot" style="color:var(--green)">&#9656;</span><span><b>' + esc(p[0]) + ':</b> ' + esc(p[1]) + '</span></div>').join('') : '<div class="overview">No work in progress detected.</div>';
+        out.innerHTML = h + '</div><div class="cost">' + esc(d.summary.cost_note) + '</div>';
+      } catch (e) { showErr(e); }
+    }
+
+    async function runDashboard() {
+      try {
+        loading('Fetching tracked remotes and analyzing...');
+        const sum = $('#ctlSummarize').value === 'true';
+        const d = await post('/api/dashboard', Object.assign({ when: $('#ctlWhen').value, summarize: sum }, modelArgs()));
+        if (d.error) { out.innerHTML = '<div class="placeholder">' + d.error + '. Add repos in the <b>Tracked</b> tab.</div>'; return; }
+        const head = '<tr><th>Repository</th><th class="num">Commits</th><th class="num">+</th><th class="num">&minus;</th><th class="num">Files</th>' + (sum ? '<th>Headline</th>' : '') + '</tr>';
+        const rows = d.rows.map(r => '<tr><td class="repo-name">' + esc(r.name) + '</td><td class="num">' + r.commits + '</td><td class="num add">+' + r.additions + '</td><td class="num del">-' + r.deletions + '</td><td class="num">' + r.files + '</td>' + (sum ? '<td style="color:var(--muted)">' + esc(r.headline || '') + '</td>' : '') + '</tr>').join('');
+        const total = d.rows.reduce((s, r) => s + r.commits, 0);
+        out.innerHTML = '<div class="block"><h3>Remote activity &middot; ' + esc(d.range_label) + '</h3><table class="grid"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table><div class="cost">' + d.rows.length + ' active &middot; ' + total + ' commits total' + (d.failed.length ? ' &middot; ' + d.failed.length + ' failed' : '') + '</div></div>';
+      } catch (e) { showErr(e); }
+    }
+
+    async function runTracked() {
+      try {
+        loading('Loading tracked repositories...');
+        const items = await api('/api/tracked');
+        let add = '<div class="block"><h3>Add a remote</h3><div class="controls" style="padding:0;border:none;background:none"><div class="field" style="flex:2"><label>Git URL</label><input id="trackUrl" placeholder="https://... or git@..."></div><div class="field"><label>Label (optional)</label><input id="trackLabel"></div><div class="field go"><label>&nbsp;</label><button class="btn" id="trackBtn">Track</button></div></div></div>';
+        const rows = items.length ? items.map((t, i) => {
+          const nm = t.label || t.url.replace(/\.git$/, '').split(/[\/:]/).pop();
+          return '<tr><td class="num" style="color:var(--muted)">' + (i + 1) + '</td><td class="repo-name">' + esc(nm) + '</td><td style="font-family:var(--mono);font-size:12px;color:var(--muted)">' + esc(t.url) + '</td><td class="num"><button class="browse-btn untrackBtn" data-url="' + esc(t.url) + '">Remove</button></td></tr>';
+        }).join('') : '<tr><td colspan="4" style="color:var(--muted);padding:14px">No tracked repositories yet.</td></tr>';
+        out.innerHTML = add + '<div class="block"><h3>Tracked (' + items.length + ')</h3><table class="grid"><tbody>' + rows + '</tbody></table></div>';
+        $('#trackBtn').onclick = async () => { const url = $('#trackUrl').value.trim(); if (!url) return; await post('/api/tracked', { url, label: $('#trackLabel').value.trim() || null }); runTracked(); };
+        document.querySelectorAll('.untrackBtn').forEach(b => b.onclick = async () => { await api('/api/tracked?needle=' + encodeURIComponent(b.dataset.url), { method: 'DELETE' }); runTracked(); });
+      } catch (e) { showErr(e); }
+    }
+
+    let modalPath = null;
+    async function openBrowser() {
+      $('#modalBg').classList.add('show');
+      const drv = await api('/api/drives');
+      $('#modalDrives').innerHTML = drv.drives.map(d => '<span class="drive" data-p="' + d + '">' + d + '</span>').join('');
+      document.querySelectorAll('.drive').forEach(el => el.onclick = () => browseTo(el.dataset.p));
+      browseTo($('#pathInput').value.trim() || null);
+    }
+    async function browseTo(path) {
+      const d = await api('/api/browse' + (path ? ('?path=' + encodeURIComponent(path)) : ''));
+      modalPath = d.path;
+      $('#modalCur').textContent = d.path + (d.is_repo ? '  git repo' : '');
+      $('#modalUp').onclick = () => d.parent && browseTo(d.parent);
+      $('#modalList').innerHTML = d.error ? '<div class="err">' + d.error + '</div>' :
+        (d.entries.length ? d.entries.map(e => '<div class="dir-item ' + (e.is_repo ? 'is-repo' : '') + '" data-p="' + esc(e.path) + '"><span class="ico">' + (e.is_repo ? '&#9670;' : '&#9656;') + '</span> ' + esc(e.name) + '</div>').join('') : '<div style="color:var(--muted);padding:14px">No subfolders.</div>');
+      document.querySelectorAll('.dir-item').forEach(el => el.onclick = () => browseTo(el.dataset.p));
+    }
+    $('#browseBtn').onclick = openBrowser;
+    $('#modalClose').onclick = () => $('#modalBg').classList.remove('show');
+    $('#modalBg').onclick = e => { if (e.target === $('#modalBg')) $('#modalBg').classList.remove('show'); };
+    $('#modalPick').onclick = () => { $('#pathInput').value = modalPath; setSource('local'); $('#modalBg').classList.remove('show'); };
+
+    (async function () { initTheme(); renderMem(); await loadConfig(); setAction('summary'); })();
+  </script>
+</body>
+
+</html>
