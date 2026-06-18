@@ -25,7 +25,7 @@
 
     [data-theme="light"] {
       --bg: #f6f8fa;
-      --panel: #ffffff;
+      --panel: #fff;
       --panel-2: #f0f3f6;
       --border: #d0d7de;
       --text: #1f2328;
@@ -41,7 +41,7 @@
     * {
       box-sizing: border-box;
       margin: 0;
-      padding: 0;
+      padding: 0
     }
 
     body {
@@ -51,13 +51,13 @@
       font-size: 14px;
       line-height: 1.5;
       height: 100vh;
-      overflow: hidden;
+      overflow: hidden
     }
 
     .app {
       display: grid;
       grid-template-columns: 300px 1fr;
-      height: 100vh;
+      height: 100vh
     }
 
     .sidebar {
@@ -65,7 +65,7 @@
       border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
-      overflow-y: auto;
+      overflow-y: auto
     }
 
     .brand {
@@ -74,51 +74,71 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px
     }
 
     .brand h1 {
       font-family: var(--mono);
       font-size: 17px;
       font-weight: 600;
-      letter-spacing: -0.3px;
+      letter-spacing: -.3px
     }
 
     .brand .pulse {
-      color: var(--accent);
+      color: var(--accent)
     }
 
-    .theme-btn {
+    .brand-ctl {
+      display: flex;
+      gap: 6px;
+      align-items: center
+    }
+
+    .mini {
       background: var(--panel-2);
       border: 1px solid var(--border);
       color: var(--muted);
       border-radius: 6px;
       padding: 4px 8px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px
     }
 
-    .theme-btn:hover {
-      color: var(--text);
+    .mini:hover {
+      color: var(--text)
+    }
+
+    select.uilang {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 3px 5px;
+      font-size: 11px;
+      width: auto
     }
 
     .side-section {
       padding: 14px 16px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border)
     }
 
     .side-section h2 {
       font-size: 11px;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
+      letter-spacing: .6px;
       color: var(--muted);
       margin-bottom: 10px;
       font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center
     }
 
     .source-tabs {
       display: flex;
       gap: 4px;
-      margin-bottom: 10px;
+      margin-bottom: 10px
     }
 
     .source-tab {
@@ -130,12 +150,12 @@
       background: var(--panel-2);
       border: 1px solid var(--border);
       border-radius: 6px;
-      color: var(--muted);
+      color: var(--muted)
     }
 
     .source-tab.active {
       color: var(--text);
-      border-color: var(--accent);
+      border-color: var(--accent)
     }
 
     input,
@@ -147,38 +167,38 @@
       border-radius: 6px;
       padding: 7px 9px;
       font-size: 13px;
-      font-family: var(--sans);
+      font-family: var(--sans)
     }
 
     input:focus,
     select:focus {
       outline: none;
-      border-color: var(--accent);
+      border-color: var(--accent)
     }
 
     input.path {
       font-family: var(--mono);
-      font-size: 12px;
+      font-size: 12px
     }
 
     .field {
-      margin-bottom: 9px;
+      margin-bottom: 9px
     }
 
     .field label {
       display: block;
       font-size: 11px;
       color: var(--muted);
-      margin-bottom: 3px;
+      margin-bottom: 3px
     }
 
     .row {
       display: flex;
-      gap: 7px;
+      gap: 7px
     }
 
     .row>input {
-      flex: 1;
+      flex: 1
     }
 
     button.btn {
@@ -190,17 +210,23 @@
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      width: 100%;
+      width: 100%
     }
 
     button.btn:hover {
-      filter: brightness(1.08);
+      filter: brightness(1.08)
     }
 
     button.btn.ghost {
       background: var(--panel-2);
       color: var(--text);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border)
+    }
+
+    button.btn.sm {
+      padding: 6px 10px;
+      font-size: 12px;
+      width: auto
     }
 
     .browse-btn {
@@ -211,15 +237,15 @@
       padding: 7px 10px;
       cursor: pointer;
       font-size: 12px;
-      white-space: nowrap;
+      white-space: nowrap
     }
 
     .browse-btn:hover {
-      color: var(--text);
+      color: var(--text)
     }
 
     .repo-mem {
-      list-style: none;
+      list-style: none
     }
 
     .repo-mem li {
@@ -230,43 +256,76 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      color: var(--muted);
+      color: var(--muted)
     }
 
     .repo-mem li:hover {
       background: var(--panel-2);
-      color: var(--text);
+      color: var(--text)
     }
 
-    .repo-mem li .tag {
+    .repo-mem .tag {
       font-family: var(--mono);
       font-size: 10px;
       padding: 1px 5px;
       border-radius: 4px;
       background: var(--accent-dim);
-      color: var(--accent);
+      color: var(--accent)
     }
 
-    .repo-mem li .nm {
+    .repo-mem .nm {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      flex: 1;
+      flex: 1
     }
 
-    .repo-mem li .x {
-      color: var(--muted);
-      opacity: 0;
+    .repo-mem .x {
+      opacity: 0
     }
 
     .repo-mem li:hover .x {
-      opacity: 1;
+      opacity: 1
+    }
+
+    /* provider status pills in sidebar */
+    .prov-line {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      padding: 4px 0;
+      cursor: pointer
+    }
+
+    .dot-s {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0
+    }
+
+    .dot-s.on {
+      background: var(--green)
+    }
+
+    .dot-s.off {
+      background: var(--red)
+    }
+
+    .prov-line .pn {
+      flex: 1
+    }
+
+    .prov-line .pd {
+      color: var(--muted);
+      font-size: 11px
     }
 
     .main {
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      overflow: hidden
     }
 
     .actionbar {
@@ -275,7 +334,7 @@
       padding: 0 16px;
       background: var(--panel);
       border-bottom: 1px solid var(--border);
-      overflow-x: auto;
+      overflow-x: auto
     }
 
     .action {
@@ -284,16 +343,16 @@
       font-size: 13px;
       color: var(--muted);
       border-bottom: 2px solid transparent;
-      white-space: nowrap;
+      white-space: nowrap
     }
 
     .action:hover {
-      color: var(--text);
+      color: var(--text)
     }
 
     .action.active {
       color: var(--text);
-      border-bottom-color: var(--accent);
+      border-bottom-color: var(--accent)
     }
 
     .controls {
@@ -303,34 +362,62 @@
       display: flex;
       gap: 14px;
       align-items: flex-end;
-      flex-wrap: wrap;
+      flex-wrap: wrap
     }
 
     .controls .field {
       margin: 0;
-      min-width: 120px;
+      min-width: 120px
     }
 
     .controls .go {
-      min-width: 120px;
+      min-width: 120px
     }
 
     .output {
       flex: 1;
       overflow-y: auto;
-      padding: 22px 26px;
+      padding: 22px 26px
     }
 
     .placeholder {
       color: var(--muted);
       text-align: center;
       margin-top: 80px;
-      font-size: 15px;
+      font-size: 15px
     }
 
     .placeholder code {
       font-family: var(--mono);
-      color: var(--accent);
+      color: var(--accent)
+    }
+
+    .banner {
+      border-radius: 8px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      font-size: 13px;
+      display: flex;
+      gap: 10px;
+      align-items: center
+    }
+
+    .banner.warn {
+      background: var(--accent-dim);
+      border: 1px solid var(--accent);
+      color: var(--text)
+    }
+
+    .banner.info {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--muted)
+    }
+
+    .banner .b-act {
+      margin-left: auto;
+      display: flex;
+      gap: 8px
     }
 
     .head-card {
@@ -339,38 +426,38 @@
       background: var(--panel);
       border-radius: 8px;
       padding: 16px 18px;
-      margin-bottom: 18px;
+      margin-bottom: 18px
     }
 
     .head-card .title {
       font-family: var(--mono);
       font-size: 13px;
-      color: var(--muted);
+      color: var(--muted)
     }
 
     .head-card .headline {
       font-size: 17px;
       font-weight: 600;
-      margin: 6px 0 12px;
+      margin: 6px 0 12px
     }
 
     .stats {
       display: flex;
       gap: 18px;
       flex-wrap: wrap;
-      font-size: 13px;
+      font-size: 13px
     }
 
     .stats .n {
-      font-weight: 700;
+      font-weight: 700
     }
 
     .add {
-      color: var(--green);
+      color: var(--green)
     }
 
     .del {
-      color: var(--red);
+      color: var(--red)
     }
 
     .heat {
@@ -378,7 +465,7 @@
       gap: 2px;
       align-items: flex-end;
       height: 34px;
-      margin-top: 14px;
+      margin-top: 14px
     }
 
     .heat .bar {
@@ -386,26 +473,26 @@
       background: var(--accent);
       border-radius: 2px 2px 0 0;
       min-height: 2px;
-      opacity: 0.85;
+      opacity: .85
     }
 
     .heat-label {
       font-size: 10px;
       color: var(--muted);
       font-family: var(--mono);
-      margin-top: 4px;
+      margin-top: 4px
     }
 
     .block {
-      margin-bottom: 20px;
+      margin-bottom: 20px
     }
 
     .block h3 {
       font-size: 12px;
       text-transform: uppercase;
-      letter-spacing: 0.6px;
+      letter-spacing: .6px;
       color: var(--muted);
-      margin-bottom: 10px;
+      margin-bottom: 10px
     }
 
     .overview {
@@ -413,7 +500,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 14px 16px;
-      line-height: 1.65;
+      line-height: 1.65
     }
 
     .theme {
@@ -421,46 +508,45 @@
       border-radius: 8px;
       padding: 13px 16px;
       margin-bottom: 10px;
-      background: var(--panel);
+      background: var(--panel)
     }
 
     .theme .t {
       font-weight: 600;
       color: var(--blue);
-      margin-bottom: 5px;
+      margin-bottom: 5px
     }
 
     .theme .narr {
-      color: var(--text);
-      line-height: 1.6;
+      line-height: 1.6
     }
 
     .theme .shas {
       font-family: var(--mono);
       font-size: 11px;
       color: var(--muted);
-      margin-top: 8px;
+      margin-top: 8px
     }
 
     .obs {
       display: flex;
       gap: 8px;
       padding: 8px 0;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border)
     }
 
     .obs:last-child {
-      border-bottom: none;
+      border-bottom: none
     }
 
     .obs .dot {
-      color: var(--yellow);
+      color: var(--yellow)
     }
 
     table.grid {
       width: 100%;
       border-collapse: collapse;
-      font-size: 13px;
+      font-size: 13px
     }
 
     table.grid th {
@@ -470,68 +556,64 @@
       font-size: 11px;
       text-transform: uppercase;
       padding: 8px 10px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border)
     }
 
     table.grid td {
       padding: 9px 10px;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border)
     }
 
     table.grid td.num {
       text-align: right;
-      font-family: var(--mono);
+      font-family: var(--mono)
     }
 
     table.grid tr:hover td {
-      background: var(--panel);
+      background: var(--panel)
     }
 
     .repo-name {
       color: var(--blue);
-      font-weight: 600;
+      font-weight: 600
     }
 
     .commit {
       border-bottom: 1px solid var(--border);
-      padding: 12px 0;
+      padding: 12px 0
     }
 
     .commit .sha {
       font-family: var(--mono);
       color: var(--yellow);
-      font-size: 12px;
+      font-size: 12px
     }
 
     .commit .meta {
       color: var(--muted);
       font-size: 12px;
-      margin: 3px 0;
+      margin: 3px 0
     }
 
     .commit .msg {
-      font-weight: 500;
+      font-weight: 500
     }
 
     .commit .cstat {
       font-family: var(--mono);
       font-size: 12px;
-      margin-top: 4px;
+      margin-top: 4px
     }
 
     .graph-wrap {
-      overflow-x: auto;
+      overflow-x: auto
     }
 
     .graph-row {
       display: flex;
       align-items: center;
       height: 30px;
-      font-size: 12px;
-    }
-
-    .graph-svg {
-      flex-shrink: 0;
+      font-size: 12px
     }
 
     .graph-info {
@@ -539,16 +621,15 @@
       display: flex;
       gap: 8px;
       align-items: center;
-      white-space: nowrap;
+      white-space: nowrap
     }
 
     .graph-info .gsha {
-      color: var(--yellow);
+      color: var(--yellow)
     }
 
     .graph-info .gmsg {
-      color: var(--text);
-      font-family: var(--sans);
+      font-family: var(--sans)
     }
 
     .ref {
@@ -557,14 +638,14 @@
       color: var(--accent);
       background: var(--accent-dim);
       padding: 1px 6px;
-      border-radius: 4px;
+      border-radius: 4px
     }
 
     .cost {
       font-family: var(--mono);
       font-size: 11px;
       color: var(--muted);
-      margin-top: 16px;
+      margin-top: 16px
     }
 
     .err {
@@ -572,7 +653,7 @@
       background: var(--panel);
       border: 1px solid var(--red);
       border-radius: 8px;
-      padding: 12px 14px;
+      padding: 12px 14px
     }
 
     .spinner {
@@ -582,12 +663,12 @@
       border: 2px solid var(--border);
       border-top-color: var(--accent);
       border-radius: 50%;
-      animation: spin 0.7s linear infinite;
+      animation: spin .7s linear infinite
     }
 
     @keyframes spin {
       to {
-        transform: rotate(360deg);
+        transform: rotate(360deg)
       }
     }
 
@@ -597,21 +678,21 @@
       gap: 10px;
       align-items: center;
       margin-top: 40px;
-      justify-content: center;
+      justify-content: center
     }
 
     .modal-bg {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.55);
+      background: rgba(0, 0, 0, .55);
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 50;
+      z-index: 50
     }
 
     .modal-bg.show {
-      display: flex;
+      display: flex
     }
 
     .modal {
@@ -622,7 +703,7 @@
       max-width: 90vw;
       max-height: 80vh;
       display: flex;
-      flex-direction: column;
+      flex-direction: column
     }
 
     .modal-head {
@@ -630,7 +711,7 @@
       border-bottom: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: center
     }
 
     .modal-head .cur {
@@ -639,13 +720,19 @@
       color: var(--muted);
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
+      white-space: nowrap
+    }
+
+    .modal-body {
+      overflow-y: auto;
+      padding: 14px 18px;
+      flex: 1
     }
 
     .modal-list {
       overflow-y: auto;
       padding: 8px;
-      flex: 1;
+      flex: 1
     }
 
     .dir-item {
@@ -655,26 +742,26 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 13px;
+      font-size: 13px
     }
 
     .dir-item:hover {
-      background: var(--panel-2);
+      background: var(--panel-2)
     }
 
     .dir-item .ico {
-      color: var(--muted);
+      color: var(--muted)
     }
 
     .dir-item.is-repo .ico {
-      color: var(--accent);
+      color: var(--accent)
     }
 
     .modal-foot {
       padding: 12px 18px;
       border-top: 1px solid var(--border);
       display: flex;
-      gap: 10px;
+      gap: 10px
     }
 
     .drives {
@@ -682,7 +769,7 @@
       gap: 6px;
       padding: 8px 12px;
       flex-wrap: wrap;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border)
     }
 
     .drive {
@@ -692,11 +779,46 @@
       background: var(--panel-2);
       border: 1px solid var(--border);
       border-radius: 5px;
-      cursor: pointer;
+      cursor: pointer
     }
 
     .drive:hover {
-      border-color: var(--accent);
+      border-color: var(--accent)
+    }
+
+    .prov-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 12px
+    }
+
+    .prov-card .ph {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px
+    }
+
+    .prov-card .ph .name {
+      font-weight: 600;
+      font-size: 15px
+    }
+
+    .prov-card .badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--panel-2);
+      color: var(--muted)
+    }
+
+    .prov-card .badge.cloud {
+      color: var(--blue)
+    }
+
+    .prov-card .badge.local {
+      color: var(--green)
     }
   </style>
 </head>
@@ -706,18 +828,24 @@
     <aside class="sidebar">
       <div class="brand">
         <h1>git<span class="pulse">pulse</span></h1>
-        <button class="theme-btn" id="themeBtn" title="Toggle theme">&#9680;</button>
+        <div class="brand-ctl">
+          <select class="uilang" id="uiLangSel">
+            <option value="en">EN</option>
+            <option value="fr">FR</option>
+          </select>
+          <button class="mini" id="themeBtn" title="Theme">&#9680;</button>
+        </div>
       </div>
       <div class="side-section">
-        <h2>Repository</h2>
+        <h2 data-i="repository">Repository</h2>
         <div class="source-tabs">
-          <div class="source-tab active" data-src="local">Local</div>
-          <div class="source-tab" data-src="url">Remote URL</div>
+          <div class="source-tab active" data-src="local" data-i="local">Local</div>
+          <div class="source-tab" data-src="url" data-i="remoteUrl">Remote URL</div>
         </div>
         <div class="field" id="localField">
           <div class="row">
-            <input class="path" id="pathInput" placeholder="Paste path or browse">
-            <button class="browse-btn" id="browseBtn">Browse</button>
+            <input class="path" id="pathInput" data-i-ph="pastePath" placeholder="Paste path or browse">
+            <button class="browse-btn" id="browseBtn" data-i="browse">Browse</button>
           </div>
         </div>
         <div class="field" id="urlField" style="display:none">
@@ -725,310 +853,323 @@
         </div>
       </div>
       <div class="side-section" style="flex:1">
-        <h2>Recent repositories</h2>
+        <h2 data-i="recentRepos">Recent repositories</h2>
         <ul class="repo-mem" id="repoMem"></ul>
       </div>
       <div class="side-section">
-        <h2>Model</h2>
-        <div class="field"><label>Provider</label><select id="providerSel"></select></div>
-        <div class="field"><label>Model</label><select id="modelSel">
-            <option value="">(provider default)</option>
+        <h2><span data-i="model">Model</span><button class="mini" id="provMgrBtn" data-i="manage">Manage</button></h2>
+        <div id="provStatus"></div>
+        <div class="field" style="margin-top:8px"><label data-i="provider">Provider</label><select
+            id="providerSel"></select></div>
+        <div class="field"><label data-i="modelName">Model</label><select id="modelSel">
+            <option value="">(default)</option>
           </select></div>
-        <div class="field"><label>Language</label><select id="langSel"></select></div>
+        <div class="field"><label data-i="summaryLang">Summary language</label><select id="langSel"></select></div>
       </div>
     </aside>
-
     <main class="main">
       <nav class="actionbar" id="actionbar">
-        <div class="action active" data-act="summary">Summary</div>
-        <div class="action" data-act="log">Log</div>
-        <div class="action" data-act="graph">Graph</div>
-        <div class="action" data-act="compare">Compare</div>
-        <div class="action" data-act="standup">Standup</div>
-        <div class="action" data-act="dashboard">Dashboard</div>
-        <div class="action" data-act="tracked">Tracked</div>
+        <div class="action active" data-act="summary" data-i="summary">Summary</div>
+        <div class="action" data-act="log" data-i="log">Log</div>
+        <div class="action" data-act="graph" data-i="graph">Graph</div>
+        <div class="action" data-act="compare" data-i="compare">Compare</div>
+        <div class="action" data-act="standup" data-i="standup">Standup</div>
+        <div class="action" data-act="dashboard" data-i="dashboard">Dashboard</div>
+        <div class="action" data-act="tracked" data-i="tracked">Tracked</div>
       </nav>
       <div class="controls" id="controls"></div>
       <div class="output" id="output">
-        <div class="placeholder">
-          Pick a repository, choose an action, and run it.<br>
-          Try <code>Summary</code> on a local repo to start.
-        </div>
+        <div class="placeholder" data-i="welcome">Pick a repository, choose an action, and run it.</div>
       </div>
     </main>
   </div>
 
+  <!-- folder browser -->
   <div class="modal-bg" id="modalBg">
     <div class="modal">
-      <div class="modal-head">
-        <span class="cur" id="modalCur"></span>
-        <button class="theme-btn" id="modalClose">&#10005;</button>
-      </div>
+      <div class="modal-head"><span class="cur" id="modalCur"></span><button class="mini"
+          id="modalClose">&#10005;</button></div>
       <div class="drives" id="modalDrives"></div>
       <div class="modal-list" id="modalList"></div>
-      <div class="modal-foot">
-        <button class="btn ghost" id="modalUp">&#8593; Up</button>
-        <button class="btn" id="modalPick">Use this folder</button>
-      </div>
+      <div class="modal-foot"><button class="btn ghost" id="modalUp" data-i="up">&#8593; Up</button><button class="btn"
+          id="modalPick" data-i="useFolder">Use this folder</button></div>
+    </div>
+  </div>
+
+  <!-- provider manager -->
+  <div class="modal-bg" id="provBg">
+    <div class="modal">
+      <div class="modal-head"><span data-i="aiProviders">AI providers</span><button class="mini"
+          id="provClose">&#10005;</button></div>
+      <div class="modal-body" id="provBody"></div>
     </div>
   </div>
 
   <script>
     const $ = s => document.querySelector(s);
-    const api = async (path, opts) => {
-      const res = await fetch(path, opts);
-      if (!res.ok) { const e = await res.json().catch(() => ({ detail: res.statusText })); throw new Error(e.detail || 'Error'); }
-      return res.json();
+    const api = async (p, o) => { const r = await fetch(p, o); if (!r.ok) { const e = await r.json().catch(() => ({ detail: r.statusText })); throw new Error(e.detail || 'Error'); } return r.json(); };
+    const post = (p, b) => api(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
+    let state = { source: 'local', action: 'summary', providers: [], langs: {}, uiLang: 'en', latency: null };
+
+    // ---------- i18n ----------
+    const I18N = {
+      en: {
+        repository: 'Repository', local: 'Local', remoteUrl: 'Remote URL', browse: 'Browse', pastePath: 'Paste path or browse',
+        recentRepos: 'Recent repositories', model: 'Model', manage: 'Manage', provider: 'Provider', modelName: 'Model', summaryLang: 'Summary language',
+        summary: 'Summary', log: 'Log', graph: 'Graph', compare: 'Compare', standup: 'Standup', dashboard: 'Dashboard', tracked: 'Tracked',
+        welcome: 'Pick a repository, choose an action, and run it.', up: 'Up', useFolder: 'Use this folder', aiProviders: 'AI providers',
+        timeWindow: 'Time window', branch: 'Branch', current: '(current)', periodLen: 'Period length', priorPeriods: 'Prior periods',
+        maxCommits: 'Max commits', aiHeadline: 'AI headline per repo', off: 'Off (fast, free)', on: 'On', run: 'Run', refresh: 'Refresh',
+        noRepos: 'No repos yet', selectFirst: 'Select a local path or a remote URL first.', overview: 'Overview', themes: 'Themes',
+        observations: 'Observations', commits: 'commits', files: 'files', activeDays: 'active days', noCommits: 'No commits in this window.',
+        yesterday: 'Yesterday', today: 'Today', noWip: 'No work in progress detected.', continueBranch: 'Continue on branch',
+        wip: 'Work in progress', otherBranches: 'Other active branches', addRemote: 'Add a remote', gitUrl: 'Git URL', label: 'Label (optional)',
+        track: 'Track', remove: 'Remove', noTracked: 'No tracked repositories yet.', remoteActivity: 'Remote activity',
+        noTrackedHint: 'No tracked remotes. Add repos in the Tracked tab.', apiKey: 'API key', save: 'Save', saved: 'Saved', notSet: 'not set',
+        startOllama: 'Start Ollama', ollamaStarting: 'Starting Ollama...', custom: 'Custom...',
+        metered: 'A metered/limited connection may apply data charges for cloud models.',
+        highLatency: 'High latency to cloud APIs detected. Cloud runs risk timeouts and wasted tokens.',
+        switchLocal: 'Switch to local', proceedAnyway: 'Use cloud anyway', loadBranches: 'Load remote branches',
+        windows: { '7d': 'Last 7 days', '24h': 'Last 24 hours', '30d': 'Last 30 days', 'today': 'Today', 'yesterday': 'Yesterday', 'this-week': 'This week', 'last-week': 'Last week' }
+      },
+      fr: {
+        repository: 'Dépôt', local: 'Local', remoteUrl: 'URL distante', browse: 'Parcourir', pastePath: 'Coller un chemin ou parcourir',
+        recentRepos: 'Dépôts récents', model: 'Modèle', manage: 'Gérer', provider: 'Fournisseur', modelName: 'Modèle', summaryLang: 'Langue du résumé',
+        summary: 'Résumé', log: 'Journal', graph: 'Graphe', compare: 'Comparer', standup: 'Point quotidien', dashboard: 'Tableau de bord', tracked: 'Suivis',
+        welcome: 'Choisissez un dépôt, une action, puis lancez.', up: 'Remonter', useFolder: 'Utiliser ce dossier', aiProviders: 'Fournisseurs IA',
+        timeWindow: 'Période', branch: 'Branche', current: '(courante)', periodLen: 'Durée de période', priorPeriods: 'Périodes précédentes',
+        maxCommits: 'Commits max', aiHeadline: 'Titre IA par dépôt', off: 'Désactivé (rapide, gratuit)', on: 'Activé', run: 'Lancer', refresh: 'Actualiser',
+        noRepos: 'Aucun dépôt', selectFirst: 'Sélectionnez d\'abord un chemin local ou une URL distante.', overview: 'Synthèse', themes: 'Thèmes',
+        observations: 'Observations', commits: 'commits', files: 'fichiers', activeDays: 'jours actifs', noCommits: 'Aucun commit sur cette période.',
+        yesterday: 'Hier', today: 'Aujourd\'hui', noWip: 'Aucun travail en cours détecté.', continueBranch: 'Continuer sur la branche',
+        wip: 'Travail en cours', otherBranches: 'Autres branches actives', addRemote: 'Ajouter un dépôt distant', gitUrl: 'URL Git', label: 'Étiquette (optionnel)',
+        track: 'Suivre', remove: 'Retirer', noTracked: 'Aucun dépôt suivi pour l\'instant.', remoteActivity: 'Activité distante',
+        noTrackedHint: 'Aucun dépôt distant suivi. Ajoutez-en dans l\'onglet Suivis.', apiKey: 'Clé API', save: 'Enregistrer', saved: 'Enregistré', notSet: 'non définie',
+        startOllama: 'Démarrer Ollama', ollamaStarting: 'Démarrage d\'Ollama...', custom: 'Personnalisé...',
+        metered: 'Une connexion limitée peut entraîner des frais de données pour les modèles cloud.',
+        highLatency: 'Latence élevée vers les API cloud. Risque de coupures et de gaspillage de tokens.',
+        switchLocal: 'Passer en local', proceedAnyway: 'Utiliser le cloud quand même', loadBranches: 'Charger les branches distantes',
+        windows: { '7d': '7 derniers jours', '24h': '24 dernières heures', '30d': '30 derniers jours', 'today': 'Aujourd\'hui', 'yesterday': 'Hier', 'this-week': 'Cette semaine', 'last-week': 'Semaine dernière' }
+      }
     };
-    const post = (path, body) => api(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-    let state = { source: 'local', action: 'summary', providers: [], langs: {} };
+    function t(k) { return (I18N[state.uiLang] && I18N[state.uiLang][k]) || I18N.en[k] || k; }
+    function applyI18n() {
+      document.querySelectorAll('[data-i]').forEach(el => { const k = el.dataset.i; el.textContent = t(k); });
+      document.querySelectorAll('[data-i-ph]').forEach(el => { el.placeholder = t(el.dataset.iPh); });
+      renderControls(); renderMem();
+    }
+    $('#uiLangSel').onchange = () => { state.uiLang = $('#uiLangSel').value; localStorage.setItem('gp-uilang', state.uiLang); applyI18n(); };
 
     function initTheme() { document.documentElement.dataset.theme = localStorage.getItem('gp-theme') || 'dark'; }
-    $('#themeBtn').onclick = () => {
-      const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-      document.documentElement.dataset.theme = next; localStorage.setItem('gp-theme', next);
-    };
+    $('#themeBtn').onclick = () => { const n = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = n; localStorage.setItem('gp-theme', n); };
 
+    // ---------- repo memory ----------
     function loadMem() { try { return JSON.parse(localStorage.getItem('gp-mem') || '[]'); } catch { return []; } }
     function saveMem(m) { localStorage.setItem('gp-mem', JSON.stringify(m.slice(0, 12))); }
-    function rememberRepo(kind, value) {
-      if (!value) return;
-      let m = loadMem().filter(r => r.value !== value);
-      m.unshift({ kind, value }); saveMem(m); renderMem();
-    }
+    function rememberRepo(kind, value) { if (!value) return; let m = loadMem().filter(r => r.value !== value); m.unshift({ kind, value }); saveMem(m); renderMem(); }
     function renderMem() {
-      const m = loadMem(); const ul = $('#repoMem'); ul.innerHTML = '';
-      if (!m.length) { ul.innerHTML = '<li style="cursor:default;opacity:.6">No repos yet</li>'; return; }
+      const m = loadMem(), ul = $('#repoMem'); ul.innerHTML = '';
+      if (!m.length) { ul.innerHTML = '<li style="cursor:default;opacity:.6">' + t('noRepos') + '</li>'; return; }
       m.forEach(r => {
         const li = document.createElement('li');
         const short = r.value.replace(/\.git$/, '').split(/[\/\\]/).pop() || r.value;
         li.innerHTML = '<span class="tag">' + (r.kind === 'url' ? 'URL' : 'DIR') + '</span><span class="nm" title="' + r.value + '">' + short + '</span><span class="x">&#10005;</span>';
-        li.querySelector('.nm').onclick = () => {
-          if (r.kind === 'url') { setSource('url'); $('#urlInput').value = r.value; }
-          else { setSource('local'); $('#pathInput').value = r.value; }
-        };
-        li.querySelector('.x').onclick = (e) => { e.stopPropagation(); saveMem(loadMem().filter(x => x.value !== r.value)); renderMem(); };
+        li.querySelector('.nm').onclick = () => { if (r.kind === 'url') { setSource('url'); $('#urlInput').value = r.value; } else { setSource('local'); $('#pathInput').value = r.value; } loadBranches(); };
+        li.querySelector('.x').onclick = e => { e.stopPropagation(); saveMem(loadMem().filter(x => x.value !== r.value)); renderMem(); };
         ul.appendChild(li);
       });
     }
+    function setSource(src) { state.source = src; document.querySelectorAll('.source-tab').forEach(t => t.classList.toggle('active', t.dataset.src === src)); $('#localField').style.display = src === 'local' ? '' : 'none'; $('#urlField').style.display = src === 'url' ? '' : 'none'; }
+    document.querySelectorAll('.source-tab').forEach(tb => tb.onclick = () => { setSource(tb.dataset.src); loadBranches(); });
+    function currentSource() { if (state.source === 'url') { const v = $('#urlInput').value.trim(); return v ? { url: v } : null; } const v = $('#pathInput').value.trim(); return v ? { path: v } : null; }
 
-    function setSource(src) {
-      state.source = src;
-      document.querySelectorAll('.source-tab').forEach(t => t.classList.toggle('active', t.dataset.src === src));
-      $('#localField').style.display = src === 'local' ? '' : 'none';
-      $('#urlField').style.display = src === 'url' ? '' : 'none';
-    }
-    document.querySelectorAll('.source-tab').forEach(t => t.onclick = () => setSource(t.dataset.src));
-    function currentSource() {
-      if (state.source === 'url') { const v = $('#urlInput').value.trim(); return v ? { url: v } : null; }
-      const v = $('#pathInput').value.trim(); return v ? { path: v } : null;
-    }
-
-    async function loadConfig() {
+    // ---------- providers ----------
+    async function loadProviders() {
       const provs = await api('/api/providers'); state.providers = provs;
-      $('#providerSel').innerHTML = '<option value="auto">Auto</option>' +
-        provs.map(p => '<option value="' + p.name + '" ' + (p.available ? '' : 'disabled') + '>' + p.name + (p.available ? '' : ' (offline)') + '</option>').join('') +
+      // sidebar status
+      $('#provStatus').innerHTML = provs.map(p => {
+        return '<div class="prov-line" title="' + p.detail + '"><span class="dot-s ' + (p.available ? 'on' : 'off') + '"></span><span class="pn">' + p.name + '</span><span class="pd">' + p.detail + '</span></div>';
+      }).join('');
+      // provider select
+      const psel = $('#providerSel'); const prev = psel.value;
+      psel.innerHTML = '<option value="auto">Auto</option>' +
+        provs.map(p => '<option value="' + p.name + '" ' + (p.available ? '' : 'disabled') + '>' + p.name + (p.available ? '' : ' (' + p.detail + ')') + '</option>').join('') +
         '<option value="local">Local (no model)</option>';
-      $('#providerSel').onchange = updateModels; updateModels();
+      if (prev) psel.value = prev;
+      psel.onchange = () => { updateModels(); maybeWarnCloud(); };
+      updateModels();
+    }
+    function updateModels() {
+      const prov = $('#providerSel').value, msel = $('#modelSel');
+      if (prov === 'auto' || prov === 'local') { msel.innerHTML = '<option value="">(default)</option>'; return; }
+      const p = state.providers.find(x => x.name === prov); const models = p ? p.models : [];
+      msel.innerHTML = '<option value="">(default)</option>' + models.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+    }
+    function modelArgs() { return { provider: $('#providerSel').value, model: $('#modelSel').value || null, lang: $('#langSel').value || null }; }
+    function selectedIsCloud() { const p = state.providers.find(x => x.name === $('#providerSel').value); return p && p.kind === 'cloud'; }
+
+    async function maybeWarnCloud() {
+      // only relevant for cloud providers
+      if (!selectedIsCloud() && $('#providerSel').value !== 'auto') return;
+    }
+
+    // provider manager modal
+    $('#provMgrBtn').onclick = openProvMgr;
+    $('#provClose').onclick = () => $('#provBg').classList.remove('show');
+    $('#provBg').onclick = e => { if (e.target === $('#provBg')) $('#provBg').classList.remove('show'); };
+    async function openProvMgr() {
+      $('#provBg').classList.add('show');
+      const provs = await api('/api/providers');
+      const keys = await api('/api/keys');
+      let h = '';
+      provs.forEach(p => {
+        h += '<div class="prov-card"><div class="ph"><span class="dot-s ' + (p.available ? 'on' : 'off') + '"></span><span class="name">' + p.name + '</span><span class="badge ' + p.kind + '">' + p.kind + '</span><span class="pd" style="margin-left:auto;color:var(--muted);font-size:12px">' + p.detail + '</span></div>';
+        if (p.kind === 'cloud') {
+          const k = keys[p.name] || {};
+          h += '<div class="row" style="margin-top:4px"><input type="password" id="key_' + p.name + '" placeholder="' + t('apiKey') + (k.set ? ' (' + k.masked + ')' : ' (' + t('notSet') + ')') + '"><button class="btn sm" onclick="saveKey(\'' + p.name + '\')">' + t('save') + '</button></div>';
+        } else if (p.name === 'ollama') {
+          if (!p.available) h += '<button class="btn sm" id="startOllamaBtn" style="margin-top:4px">' + t('startOllama') + '</button>';
+          else h += '<div class="pd" style="color:var(--muted);font-size:12px">' + (p.models.length ? p.models.join(', ') : '—') + '</div>';
+        }
+        h += '</div>';
+      });
+      $('#provBody').innerHTML = h;
+      const ob = $('#startOllamaBtn');
+      if (ob) ob.onclick = async () => { ob.textContent = t('ollamaStarting'); ob.disabled = true; const r = await post('/api/ollama/start', {}); if (r.error) { ob.textContent = r.error; } else { openProvMgr(); loadProviders(); } };
+    }
+    async function saveKey(prov) {
+      const v = $('#key_' + prov).value.trim(); if (!v) return;
+      await post('/api/keys', { provider: prov, key: v });
+      openProvMgr(); loadProviders();
+    }
+
+    // ---------- branches ----------
+    let branchList = { local: [], remote: [], head: null, remote_url: null };
+    async function loadBranches() {
+      const src = currentSource(); if (!src) { fillBranches(); return; }
+      try {
+        const r = await post('/api/branches', src.path ? { path: src.path } : { url: src.url, include_remote: !!src.url });
+        branchList = r; fillBranches();
+      } catch { fillBranches(); }
+    }
+    function fillBranches() {
+      const sel = document.getElementById('ctlBranch'); if (!sel) return;
+      const all = [...new Set([...(branchList.local || []), ...(branchList.remote || [])])];
+      const cur = sel.value;
+      sel.innerHTML = '<option value="">' + t('current') + '</option>' + all.map(b => '<option value="' + b + '" ' + (b === branchList.head ? 'selected' : '') + '>' + b + (b === branchList.head ? ' ●' : '') + '</option>').join('');
+      if (branchList.remote_url) sel.innerHTML += '<option value="" disabled>──</option><option value="__loadremote">' + t('loadBranches') + '</option>';
+      if (cur) sel.value = cur;
+      sel.onchange = () => { if (sel.value === '__loadremote') { sel.value = ''; loadRemoteBranches(); } };
+    }
+    async function loadRemoteBranches() {
+      const src = currentSource(); if (!src || !src.path) return;
+      const r = await post('/api/branches', { path: src.path, include_remote: true }); branchList = r; fillBranches();
+    }
+
+    // ---------- config / langs ----------
+    async function loadConfig() {
       const cfg = await api('/api/config'); state.langs = cfg.languages;
       $('#langSel').innerHTML = Object.entries(cfg.languages).map(([c, n]) => '<option value="' + c + '" ' + (c === cfg.lang ? 'selected' : '') + '>' + n + '</option>').join('');
     }
-    function updateModels() {
-      const prov = $('#providerSel').value; const msel = $('#modelSel');
-      if (prov === 'auto' || prov === 'local') { msel.innerHTML = '<option value="">(provider default)</option>'; return; }
-      const p = state.providers.find(x => x.name === prov); const models = p ? p.models : [];
-      msel.innerHTML = '<option value="">(provider default)</option>' + models.map(m => '<option value="' + m + '">' + m + '</option>').join('');
-    }
-    function modelArgs() { return { provider: $('#providerSel').value, model: $('#modelSel').value || null, lang: $('#langSel').value || null }; }
 
+    // ---------- latency ----------
+    async function checkLatency() {
+      try { state.latency = await api('/api/latency'); } catch { state.latency = null; }
+    }
+
+    // ---------- actions ----------
     const ACTIONS = {
-      summary: { when: true, branch: true, run: runSummary }, log: { when: true, branch: true, run: runLog },
-      graph: { limit: true, branch: true, run: runGraph }, compare: { period: true, periods: true, branch: true, run: runCompare },
-      standup: { run: runStandup }, dashboard: { when: true, summarize: true, run: runDashboard }, tracked: { run: runTracked },
+      summary: { when: 1, branch: 1, run: runSummary }, log: { when: 1, branch: 1, run: runLog },
+      graph: { limit: 1, branch: 1, run: runGraph }, compare: { period: 1, periods: 1, branch: 1, run: runCompare },
+      standup: { run: runStandup }, dashboard: { when: 1, summarize: 1, run: runDashboard }, tracked: { run: runTracked },
     };
-    function setAction(act) {
-      state.action = act;
-      document.querySelectorAll('.action').forEach(a => a.classList.toggle('active', a.dataset.act === act));
-      renderControls();
-    }
+    function setAction(a) { state.action = a; document.querySelectorAll('.action').forEach(x => x.classList.toggle('active', x.dataset.act === a)); renderControls(); }
     document.querySelectorAll('.action').forEach(a => a.onclick = () => setAction(a.dataset.act));
+    const WINDOWS = ['7d', '24h', '30d', 'today', 'yesterday', 'this-week', 'last-week'];
     function renderControls() {
-      const cfg = ACTIONS[state.action]; const c = $('#controls'); c.innerHTML = '';
-      const add = html => { const d = document.createElement('div'); d.innerHTML = html; c.appendChild(d.firstElementChild); };
-      if (cfg.when) add('<div class="field"><label>Time window</label><input id="ctlWhen" value="7d" placeholder="7d, yesterday, 2026-06-10.."></div>');
-      if (cfg.period) add('<div class="field"><label>Period length</label><input id="ctlPeriod" value="7d"></div>');
-      if (cfg.periods) add('<div class="field"><label>Prior periods</label><input id="ctlPeriods" type="number" value="4" min="1"></div>');
-      if (cfg.branch) add('<div class="field"><label>Branch</label><input id="ctlBranch" placeholder="(current)"></div>');
-      if (cfg.limit) add('<div class="field"><label>Max commits</label><input id="ctlLimit" type="number" value="120"></div>');
-      if (cfg.summarize) add('<div class="field"><label>AI headline per repo</label><select id="ctlSummarize"><option value="false">Off (fast, free)</option><option value="true">On</option></select></div>');
-      const label = state.action === 'tracked' ? 'Refresh' : state.action.charAt(0).toUpperCase() + state.action.slice(1);
-      add('<div class="field go"><label>&nbsp;</label><button class="btn" id="runBtn">' + label + '</button></div>');
+      const cfg = ACTIONS[state.action], c = $('#controls'); if (!c) return; c.innerHTML = '';
+      const add = h => { const d = document.createElement('div'); d.innerHTML = h; c.appendChild(d.firstElementChild); };
+      if (cfg.when) {
+        const opts = WINDOWS.map(w => '<option value="' + w + '">' + (t('windows')[w] || w) + '</option>').join('');
+        add('<div class="field"><label>' + t('timeWindow') + '</label><select id="ctlWhenSel">' + opts + '<option value="__custom">' + t('custom') + '</option></select></div>');
+        add('<div class="field" id="ctlWhenCustomWrap" style="display:none"><label>&nbsp;</label><input id="ctlWhen" value="7d" placeholder="7d, 2026-06-10.."></div>');
+      }
+      if (cfg.period) add('<div class="field"><label>' + t('periodLen') + '</label><input id="ctlPeriod" value="7d"></div>');
+      if (cfg.periods) add('<div class="field"><label>' + t('priorPeriods') + '</label><input id="ctlPeriods" type="number" value="4" min="1"></div>');
+      if (cfg.branch) add('<div class="field"><label>' + t('branch') + '</label><select id="ctlBranch"><option value="">' + t('current') + '</option></select></div>');
+      if (cfg.limit) add('<div class="field"><label>' + t('maxCommits') + '</label><input id="ctlLimit" type="number" value="120"></div>');
+      if (cfg.summarize) add('<div class="field"><label>' + t('aiHeadline') + '</label><select id="ctlSummarize"><option value="false">' + t('off') + '</option><option value="true">' + t('on') + '</option></select></div>');
+      const lbl = state.action === 'tracked' ? t('refresh') : t('run');
+      add('<div class="field go"><label>&nbsp;</label><button class="btn" id="runBtn">' + lbl + '</button></div>');
       $('#runBtn').onclick = () => cfg.run();
+      const ws = document.getElementById('ctlWhenSel');
+      if (ws) ws.onchange = () => { const cu = ws.value === '__custom'; document.getElementById('ctlWhenCustomWrap').style.display = cu ? '' : 'none'; if (!cu) document.getElementById('ctlWhen').value = ws.value; };
+      if (cfg.branch) fillBranches();
     }
+    function whenValue() { const ws = document.getElementById('ctlWhenSel'); if (!ws) return '7d'; return ws.value === '__custom' ? (document.getElementById('ctlWhen').value || '7d') : ws.value; }
 
     const out = $('#output');
-    function loading(msg) { out.innerHTML = '<div class="loading"><span class="spinner"></span> ' + msg + '</div>'; }
+    function loading(m) { out.innerHTML = '<div class="loading"><span class="spinner"></span> ' + m + '</div>'; }
     function showErr(e) { out.innerHTML = '<div class="err">' + (e.message || e) + '</div>'; }
     function esc(s) { return (s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+
+    function cloudGuard(onProceed) {
+      // warn for cloud provider on bad/limited connection
+      const isCloud = selectedIsCloud();
+      const lat = state.latency;
+      const conn = navigator.connection || {};
+      const metered = conn.saveData === true || ['slow-2g', '2g'].includes(conn.effectiveType);
+      const highLat = lat && lat.latency_ms && lat.latency_ms > 1200;
+      if (isCloud && (metered || highLat)) {
+        const msg = highLat ? t('highLatency') : t('metered');
+        out.innerHTML = '<div class="banner warn"><span>⚠ ' + msg + '</span><span class="b-act"><button class="btn sm ghost" id="gLocal">' + t('switchLocal') + '</button><button class="btn sm" id="gGo">' + t('proceedAnyway') + '</button></span></div>';
+        $('#gLocal').onclick = () => { $('#providerSel').value = 'ollama'; updateModels(); onProceed(); };
+        $('#gGo').onclick = onProceed;
+        return;
+      }
+      onProceed();
+    }
 
     function headCard(a, headline) {
       const max = Math.max(1, ...Object.values(a.hour_histogram));
       const bars = Object.keys(a.hour_histogram).map(h => '<div class="bar" style="height:' + Math.max(2, (a.hour_histogram[h] / max) * 34) + 'px" title="' + h + 'h: ' + a.hour_histogram[h] + '"></div>').join('');
       return '<div class="head-card"><div class="title">' + esc(a.repo_name) + ' &middot; ' + a.since.slice(0, 10) + ' &rarr; ' + a.until.slice(0, 10) + '</div>' +
         (headline ? '<div class="headline">' + esc(headline) + '</div>' : '') +
-        '<div class="stats"><span><span class="n">' + a.commit_count + '</span> commits</span>' +
-        '<span class="add"><span class="n">+' + a.additions + '</span></span><span class="del"><span class="n">-' + a.deletions + '</span></span>' +
-        '<span><span class="n">' + a.files_touched + '</span> files</span><span><span class="n">' + a.active_days + '</span> active days</span></div>' +
+        '<div class="stats"><span><span class="n">' + a.commit_count + '</span> ' + t('commits') + '</span><span class="add"><span class="n">+' + a.additions + '</span></span><span class="del"><span class="n">-' + a.deletions + '</span></span><span><span class="n">' + a.files_touched + '</span> ' + t('files') + '</span><span><span class="n">' + a.active_days + '</span> ' + t('activeDays') + '</span></div>' +
         '<div class="heat">' + bars + '</div><div class="heat-label">00h &rarr; 23h</div></div>';
     }
-    function baseBody(extra) {
-      const src = currentSource();
-      if (!src) throw new Error('Select a local path or a remote URL first.');
-      if (src.url) rememberRepo('url', src.url); else rememberRepo('local', src.path);
-      return Object.assign({}, src, extra);
-    }
+    function baseBody(extra) { const src = currentSource(); if (!src) throw new Error(t('selectFirst')); if (src.url) rememberRepo('url', src.url); else rememberRepo('local', src.path); return Object.assign({}, src, extra); }
 
-    async function runSummary() {
-      try {
-        loading('Reading commits and summarizing...');
-        const d = await post('/api/summary', baseBody(Object.assign({ when: $('#ctlWhen').value, branch: $('#ctlBranch').value || null }, modelArgs())));
-        renderSummary(d.activity, d.summary);
-      } catch (e) { showErr(e); }
-    }
+    function runSummary() { cloudGuard(async () => { try { loading('...'); const d = await post('/api/summary', baseBody(Object.assign({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null }, modelArgs()))); renderSummary(d.activity, d.summary); } catch (e) { showErr(e); } }); }
     function renderSummary(a, s) {
       let h = headCard(a, s.headline);
-      if (s.synthesis) h += '<div class="block"><h3>Overview</h3><div class="overview">' + esc(s.synthesis) + '</div></div>';
-      if (s.themes.length) {
-        h += '<div class="block"><h3>Themes</h3>' + s.themes.map(t => '<div class="theme"><div class="t">' + esc(t.title) + '</div><div class="narr">' + esc(t.narrative) + '</div>' + (t.commits && t.commits.length ? '<div class="shas">' + t.commits.map(esc).join(' ') + '</div>' : '') + '</div>').join('') + '</div>';
-      }
-      if (s.observations.length) {
-        h += '<div class="block"><h3>Observations</h3>' + s.observations.map(o => '<div class="obs"><span class="dot">&#9656;</span><span>' + esc(o) + '</span></div>').join('') + '</div>';
-      }
-      h += '<div class="cost">' + esc(s.cost_note) + '</div>';
-      out.innerHTML = h;
+      if (s.synthesis) h += '<div class="block"><h3>' + t('overview') + '</h3><div class="overview">' + esc(s.synthesis) + '</div></div>';
+      if (s.themes.length) h += '<div class="block"><h3>' + t('themes') + '</h3>' + s.themes.map(x => '<div class="theme"><div class="t">' + esc(x.title) + '</div><div class="narr">' + esc(x.narrative) + '</div>' + (x.commits && x.commits.length ? '<div class="shas">' + x.commits.map(esc).join(' ') + '</div>' : '') + '</div>').join('') + '</div>';
+      if (s.observations.length) h += '<div class="block"><h3>' + t('observations') + '</h3>' + s.observations.map(o => '<div class="obs"><span class="dot">&#9656;</span><span>' + esc(o) + '</span></div>').join('') + '</div>';
+      out.innerHTML = h + '<div class="cost">' + esc(s.cost_note) + '</div>';
     }
+    async function runLog() { try { loading('...'); const d = await post('/api/log', baseBody({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null })); const a = d.activity; let h = headCard(a, null) + '<div class="block"><h3>' + t('log') + '</h3>'; if (!a.commits.length) h += '<div class="placeholder" style="margin-top:20px">' + t('noCommits') + '</div>'; a.commits.forEach(c => { h += '<div class="commit"><span class="sha">' + c.sha + '</span><div class="meta">' + esc(c.author) + ' &middot; ' + c.when.replace('T', ' ').slice(0, 16) + '</div><div class="msg">' + esc(c.summary) + '</div><div class="cstat"><span class="add">+' + c.additions + '</span> / <span class="del">-' + c.deletions + '</span> &middot; ' + c.files + ' ' + t('files') + '</div></div>'; }); out.innerHTML = h + '</div>'; } catch (e) { showErr(e); } }
+    async function runGraph() { try { loading('...'); const d = await post('/api/graph', baseBody({ limit: parseInt(document.getElementById('ctlLimit').value) || 120, branch: document.getElementById('ctlBranch').value || null })); if (!d.nodes.length) { out.innerHTML = '<div class="placeholder">' + t('noCommits') + '</div>'; return; } const idx = {}; d.nodes.forEach((n, i) => idx[n.sha] = i); const rows = d.nodes.map((n, i) => { let svg = '<svg width="16" height="30">'; if (n.parents.some(p => idx[p] !== undefined)) svg += '<line x1="8" y1="15" x2="8" y2="30" stroke="var(--border)" stroke-width="2"/>'; if (i > 0) svg += '<line x1="8" y1="0" x2="8" y2="15" stroke="var(--border)" stroke-width="2"/>'; svg += '<circle cx="8" cy="15" r="4" fill="var(--accent)"/></svg>'; const refs = n.refs.map(r => '<span class="ref">' + esc(r) + '</span>').join(''); return '<div class="graph-row">' + svg + '<div class="graph-info"><span class="gsha">' + n.short + '</span>' + refs + '<span class="gmsg">' + esc(n.summary) + '</span></div></div>'; }).join(''); out.innerHTML = '<div class="block"><h3>' + t('graph') + ' &middot; ' + d.branches.length + ' branches &middot; HEAD: ' + esc(d.head || 'detached') + '</h3><div class="graph-wrap">' + rows + '</div></div>'; } catch (e) { showErr(e); } }
+    async function runCompare() { try { loading('...'); const d = await post('/api/compare', baseBody({ period: document.getElementById('ctlPeriod').value, periods: parseInt(document.getElementById('ctlPeriods').value) || 4, branch: document.getElementById('ctlBranch').value || null })); const rows = d.metrics.map(m => { const ar = m.direction === 'up' ? '&#9650;' : m.direction === 'down' ? '&#9660;' : '='; const gu = ['Commits', 'Files touched', 'Active days', 'Lines added'].includes(m.name); const cls = m.direction === 'flat' ? '' : ((m.direction === 'up') === gu ? 'add' : 'del'); const pct = m.pct === null ? (m.current ? 'new' : '-') : (m.pct >= 0 ? '+' : '') + m.pct.toFixed(0) + '%'; return '<tr><td>' + m.name + '</td><td class="num">' + Math.round(m.current) + '</td><td class="num" style="color:var(--muted)">' + m.baseline.toFixed(1) + '</td><td class="num ' + cls + '">' + pct + ' ' + ar + '</td></tr>'; }).join(''); out.innerHTML = '<div class="block"><h3>' + esc(d.repo_name) + ' &middot; ' + d.period_days + 'd vs ' + d.periods_back + '</h3><table class="grid"><thead><tr><th>Metric</th><th class="num">Now</th><th class="num">Avg</th><th class="num">Change</th></tr></thead><tbody>' + rows + '</tbody></table></div>'; } catch (e) { showErr(e); } }
+    function runStandup() { cloudGuard(async () => { try { loading('...'); const d = await post('/api/standup', baseBody(modelArgs())); let h = '<div class="head-card"><div class="title">' + t('standup') + ' &middot; ' + esc(d.repo_name) + '</div></div><div class="block"><h3>' + t('yesterday') + '</h3>'; if (d.yesterday.commit_count === 0) h += '<div class="overview">' + t('noCommits') + '</div>'; else { h += '<div class="overview">' + esc(d.summary.synthesis || d.summary.headline) + '</div>'; if (d.summary.themes.length) h += d.summary.themes.map(x => '<div class="theme"><div class="t">' + esc(x.title) + '</div><div class="narr">' + esc(x.narrative) + '</div></div>').join(''); } h += '</div><div class="block"><h3>' + t('today') + '</h3>'; const plan = []; if (d.current_branch) plan.push([t('continueBranch'), d.current_branch]); if (d.uncommitted.length) plan.push([t('wip'), d.uncommitted.slice(0, 6).join(', ') + (d.uncommitted.length > 6 ? ' (+' + (d.uncommitted.length - 6) + ')' : '')]); const others = d.recent_branches.filter(b => b !== d.current_branch); if (others.length) plan.push([t('otherBranches'), others.slice(0, 4).join(', ')]); h += plan.length ? plan.map(p => '<div class="obs"><span class="dot" style="color:var(--green)">&#9656;</span><span><b>' + esc(p[0]) + ':</b> ' + esc(p[1]) + '</span></div>').join('') : '<div class="overview">' + t('noWip') + '</div>'; out.innerHTML = h + '</div><div class="cost">' + esc(d.summary.cost_note) + '</div>'; } catch (e) { showErr(e); } }); }
+    async function runDashboard() { const go = async () => { try { loading('...'); const sum = document.getElementById('ctlSummarize').value === 'true'; const d = await post('/api/dashboard', Object.assign({ when: whenValue(), summarize: sum }, modelArgs())); if (d.error) { out.innerHTML = '<div class="placeholder">' + t('noTrackedHint') + '</div>'; return; } const head = '<tr><th>' + t('repository') + '</th><th class="num">' + t('commits') + '</th><th class="num">+</th><th class="num">&minus;</th><th class="num">' + t('files') + '</th>' + (sum ? '<th>Headline</th>' : '') + '</tr>'; const rows = d.rows.map(r => '<tr><td class="repo-name">' + esc(r.name) + '</td><td class="num">' + r.commits + '</td><td class="num add">+' + r.additions + '</td><td class="num del">-' + r.deletions + '</td><td class="num">' + r.files + '</td>' + (sum ? '<td style="color:var(--muted)">' + esc(r.headline || '') + '</td>' : '') + '</tr>').join(''); const total = d.rows.reduce((s, r) => s + r.commits, 0); out.innerHTML = '<div class="block"><h3>' + t('remoteActivity') + ' &middot; ' + esc(d.range_label) + '</h3><table class="grid"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table><div class="cost">' + d.rows.length + ' active &middot; ' + total + ' ' + t('commits') + (d.failed.length ? ' &middot; ' + d.failed.length + ' failed' : '') + '</div></div>'; } catch (e) { showErr(e); } }; const sum = document.getElementById('ctlSummarize').value === 'true'; if (sum) cloudGuard(go); else go(); }
+    async function runTracked() { try { loading('...'); const items = await api('/api/tracked'); let add = '<div class="block"><h3>' + t('addRemote') + '</h3><div class="controls" style="padding:0;border:none;background:none"><div class="field" style="flex:2"><label>' + t('gitUrl') + '</label><input id="trackUrl" placeholder="https://... or git@..."></div><div class="field"><label>' + t('label') + '</label><input id="trackLabel"></div><div class="field go"><label>&nbsp;</label><button class="btn" id="trackBtn">' + t('track') + '</button></div></div></div>'; const rows = items.length ? items.map((it, i) => { const nm = it.label || it.url.replace(/\.git$/, '').split(/[\/:]/).pop(); return '<tr><td class="num" style="color:var(--muted)">' + (i + 1) + '</td><td class="repo-name">' + esc(nm) + '</td><td style="font-family:var(--mono);font-size:12px;color:var(--muted)">' + esc(it.url) + '</td><td class="num"><button class="browse-btn untrackBtn" data-url="' + esc(it.url) + '">' + t('remove') + '</button></td></tr>'; }).join('') : '<tr><td colspan="4" style="color:var(--muted);padding:14px">' + t('noTracked') + '</td></tr>'; out.innerHTML = add + '<div class="block"><h3>' + t('tracked') + ' (' + items.length + ')</h3><table class="grid"><tbody>' + rows + '</tbody></table></div>'; $('#trackBtn').onclick = async () => { const url = $('#trackUrl').value.trim(); if (!url) return; await post('/api/tracked', { url, label: $('#trackLabel').value.trim() || null }); runTracked(); }; document.querySelectorAll('.untrackBtn').forEach(b => b.onclick = async () => { await api('/api/tracked?needle=' + encodeURIComponent(b.dataset.url), { method: 'DELETE' }); runTracked(); }); } catch (e) { showErr(e); } }
 
-    async function runLog() {
-      try {
-        loading('Reading commits...');
-        const d = await post('/api/log', baseBody({ when: $('#ctlWhen').value, branch: $('#ctlBranch').value || null }));
-        const a = d.activity; let h = headCard(a, null) + '<div class="block"><h3>Commits</h3>';
-        if (!a.commits.length) h += '<div class="placeholder" style="margin-top:20px">No commits in this window.</div>';
-        a.commits.forEach(c => {
-          h += '<div class="commit"><span class="sha">' + c.sha + '</span><div class="meta">' + esc(c.author) + ' &middot; ' + c.when.replace('T', ' ').slice(0, 16) + '</div><div class="msg">' + esc(c.summary) + '</div><div class="cstat"><span class="add">+' + c.additions + '</span> / <span class="del">-' + c.deletions + '</span> &middot; ' + c.files + ' files</div></div>';
-        });
-        out.innerHTML = h + '</div>';
-      } catch (e) { showErr(e); }
-    }
-
-    async function runGraph() {
-      try {
-        loading('Building commit graph...');
-        const d = await post('/api/graph', baseBody({ limit: parseInt($('#ctlLimit').value) || 120, branch: $('#ctlBranch').value || null }));
-        renderGraph(d);
-      } catch (e) { showErr(e); }
-    }
-    function renderGraph(g) {
-      if (!g.nodes.length) { out.innerHTML = '<div class="placeholder">No commits to graph.</div>'; return; }
-      const idx = {}; g.nodes.forEach((n, i) => idx[n.sha] = i);
-      const rows = g.nodes.map((n, i) => {
-        let svg = '<svg class="graph-svg" width="16" height="30">';
-        if (n.parents.some(p => idx[p] !== undefined)) svg += '<line x1="8" y1="15" x2="8" y2="30" stroke="var(--border)" stroke-width="2"/>';
-        if (i > 0) svg += '<line x1="8" y1="0" x2="8" y2="15" stroke="var(--border)" stroke-width="2"/>';
-        svg += '<circle cx="8" cy="15" r="4" fill="var(--accent)"/></svg>';
-        const refs = n.refs.map(r => '<span class="ref">' + esc(r) + '</span>').join('');
-        return '<div class="graph-row">' + svg + '<div class="graph-info"><span class="gsha">' + n.short + '</span>' + refs + '<span class="gmsg">' + esc(n.summary) + '</span></div></div>';
-      }).join('');
-      out.innerHTML = '<div class="block"><h3>Graph &middot; ' + g.branches.length + ' branches &middot; HEAD: ' + esc(g.head || 'detached') + '</h3><div class="graph-wrap">' + rows + '</div></div>';
-    }
-
-    async function runCompare() {
-      try {
-        loading('Comparing periods...');
-        const d = await post('/api/compare', baseBody({ period: $('#ctlPeriod').value, periods: parseInt($('#ctlPeriods').value) || 4, branch: $('#ctlBranch').value || null }));
-        const rows = d.metrics.map(m => {
-          const arrow = m.direction === 'up' ? '&#9650;' : m.direction === 'down' ? '&#9660;' : '=';
-          const goodUp = ['Commits', 'Files touched', 'Active days', 'Lines added'].includes(m.name);
-          const cls = m.direction === 'flat' ? '' : ((m.direction === 'up') === goodUp ? 'add' : 'del');
-          const pct = m.pct === null ? (m.current ? 'new' : '-') : (m.pct >= 0 ? '+' : '') + m.pct.toFixed(0) + '%';
-          return '<tr><td>' + m.name + '</td><td class="num">' + Math.round(m.current) + '</td><td class="num" style="color:var(--muted)">' + m.baseline.toFixed(1) + '</td><td class="num ' + cls + '">' + pct + ' ' + arrow + '</td></tr>';
-        }).join('');
-        out.innerHTML = '<div class="block"><h3>' + esc(d.repo_name) + ' &middot; current ' + d.period_days + '-day vs avg of prior ' + d.periods_back + '</h3><table class="grid"><thead><tr><th>Metric</th><th class="num">Now</th><th class="num">Avg</th><th class="num">Change</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
-      } catch (e) { showErr(e); }
-    }
-
-    async function runStandup() {
-      try {
-        loading('Gathering yesterday and today...');
-        const d = await post('/api/standup', baseBody(modelArgs()));
-        let h = '<div class="head-card"><div class="title">Standup &middot; ' + esc(d.repo_name) + '</div></div><div class="block"><h3>Yesterday</h3>';
-        if (d.yesterday.commit_count === 0) h += '<div class="overview">No commits.</div>';
-        else {
-          h += '<div class="overview">' + esc(d.summary.synthesis || d.summary.headline) + '</div>';
-          if (d.summary.themes.length) h += d.summary.themes.map(t => '<div class="theme"><div class="t">' + esc(t.title) + '</div><div class="narr">' + esc(t.narrative) + '</div></div>').join('');
-        }
-        h += '</div><div class="block"><h3>Today</h3>';
-        const plan = [];
-        if (d.current_branch) plan.push(['Continue on branch', d.current_branch]);
-        if (d.uncommitted.length) plan.push(['Work in progress', d.uncommitted.slice(0, 6).join(', ') + (d.uncommitted.length > 6 ? ' (+' + (d.uncommitted.length - 6) + ')' : '')]);
-        const others = d.recent_branches.filter(b => b !== d.current_branch);
-        if (others.length) plan.push(['Other active branches', others.slice(0, 4).join(', ')]);
-        h += plan.length ? plan.map(p => '<div class="obs"><span class="dot" style="color:var(--green)">&#9656;</span><span><b>' + esc(p[0]) + ':</b> ' + esc(p[1]) + '</span></div>').join('') : '<div class="overview">No work in progress detected.</div>';
-        out.innerHTML = h + '</div><div class="cost">' + esc(d.summary.cost_note) + '</div>';
-      } catch (e) { showErr(e); }
-    }
-
-    async function runDashboard() {
-      try {
-        loading('Fetching tracked remotes and analyzing...');
-        const sum = $('#ctlSummarize').value === 'true';
-        const d = await post('/api/dashboard', Object.assign({ when: $('#ctlWhen').value, summarize: sum }, modelArgs()));
-        if (d.error) { out.innerHTML = '<div class="placeholder">' + d.error + '. Add repos in the <b>Tracked</b> tab.</div>'; return; }
-        const head = '<tr><th>Repository</th><th class="num">Commits</th><th class="num">+</th><th class="num">&minus;</th><th class="num">Files</th>' + (sum ? '<th>Headline</th>' : '') + '</tr>';
-        const rows = d.rows.map(r => '<tr><td class="repo-name">' + esc(r.name) + '</td><td class="num">' + r.commits + '</td><td class="num add">+' + r.additions + '</td><td class="num del">-' + r.deletions + '</td><td class="num">' + r.files + '</td>' + (sum ? '<td style="color:var(--muted)">' + esc(r.headline || '') + '</td>' : '') + '</tr>').join('');
-        const total = d.rows.reduce((s, r) => s + r.commits, 0);
-        out.innerHTML = '<div class="block"><h3>Remote activity &middot; ' + esc(d.range_label) + '</h3><table class="grid"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table><div class="cost">' + d.rows.length + ' active &middot; ' + total + ' commits total' + (d.failed.length ? ' &middot; ' + d.failed.length + ' failed' : '') + '</div></div>';
-      } catch (e) { showErr(e); }
-    }
-
-    async function runTracked() {
-      try {
-        loading('Loading tracked repositories...');
-        const items = await api('/api/tracked');
-        let add = '<div class="block"><h3>Add a remote</h3><div class="controls" style="padding:0;border:none;background:none"><div class="field" style="flex:2"><label>Git URL</label><input id="trackUrl" placeholder="https://... or git@..."></div><div class="field"><label>Label (optional)</label><input id="trackLabel"></div><div class="field go"><label>&nbsp;</label><button class="btn" id="trackBtn">Track</button></div></div></div>';
-        const rows = items.length ? items.map((t, i) => {
-          const nm = t.label || t.url.replace(/\.git$/, '').split(/[\/:]/).pop();
-          return '<tr><td class="num" style="color:var(--muted)">' + (i + 1) + '</td><td class="repo-name">' + esc(nm) + '</td><td style="font-family:var(--mono);font-size:12px;color:var(--muted)">' + esc(t.url) + '</td><td class="num"><button class="browse-btn untrackBtn" data-url="' + esc(t.url) + '">Remove</button></td></tr>';
-        }).join('') : '<tr><td colspan="4" style="color:var(--muted);padding:14px">No tracked repositories yet.</td></tr>';
-        out.innerHTML = add + '<div class="block"><h3>Tracked (' + items.length + ')</h3><table class="grid"><tbody>' + rows + '</tbody></table></div>';
-        $('#trackBtn').onclick = async () => { const url = $('#trackUrl').value.trim(); if (!url) return; await post('/api/tracked', { url, label: $('#trackLabel').value.trim() || null }); runTracked(); };
-        document.querySelectorAll('.untrackBtn').forEach(b => b.onclick = async () => { await api('/api/tracked?needle=' + encodeURIComponent(b.dataset.url), { method: 'DELETE' }); runTracked(); });
-      } catch (e) { showErr(e); }
-    }
-
+    // folder browser
     let modalPath = null;
-    async function openBrowser() {
-      $('#modalBg').classList.add('show');
-      const drv = await api('/api/drives');
-      $('#modalDrives').innerHTML = drv.drives.map(d => '<span class="drive" data-p="' + d + '">' + d + '</span>').join('');
-      document.querySelectorAll('.drive').forEach(el => el.onclick = () => browseTo(el.dataset.p));
-      browseTo($('#pathInput').value.trim() || null);
-    }
-    async function browseTo(path) {
-      const d = await api('/api/browse' + (path ? ('?path=' + encodeURIComponent(path)) : ''));
-      modalPath = d.path;
-      $('#modalCur').textContent = d.path + (d.is_repo ? '  git repo' : '');
-      $('#modalUp').onclick = () => d.parent && browseTo(d.parent);
-      $('#modalList').innerHTML = d.error ? '<div class="err">' + d.error + '</div>' :
-        (d.entries.length ? d.entries.map(e => '<div class="dir-item ' + (e.is_repo ? 'is-repo' : '') + '" data-p="' + esc(e.path) + '"><span class="ico">' + (e.is_repo ? '&#9670;' : '&#9656;') + '</span> ' + esc(e.name) + '</div>').join('') : '<div style="color:var(--muted);padding:14px">No subfolders.</div>');
-      document.querySelectorAll('.dir-item').forEach(el => el.onclick = () => browseTo(el.dataset.p));
-    }
+    async function openBrowser() { $('#modalBg').classList.add('show'); const drv = await api('/api/drives'); $('#modalDrives').innerHTML = drv.drives.map(d => '<span class="drive" data-p="' + d + '">' + d + '</span>').join(''); document.querySelectorAll('.drive').forEach(el => el.onclick = () => browseTo(el.dataset.p)); browseTo($('#pathInput').value.trim() || null); }
+    async function browseTo(path) { const d = await api('/api/browse' + (path ? ('?path=' + encodeURIComponent(path)) : '')); modalPath = d.path; $('#modalCur').textContent = d.path + (d.is_repo ? '  ● git' : ''); $('#modalUp').onclick = () => d.parent && browseTo(d.parent); $('#modalList').innerHTML = d.error ? '<div class="err">' + d.error + '</div>' : (d.entries.length ? d.entries.map(e => '<div class="dir-item ' + (e.is_repo ? 'is-repo' : '') + '" data-p="' + esc(e.path) + '"><span class="ico">' + (e.is_repo ? '&#9670;' : '&#9656;') + '</span> ' + esc(e.name) + '</div>').join('') : '<div style="color:var(--muted);padding:14px">—</div>'); document.querySelectorAll('.dir-item').forEach(el => el.onclick = () => browseTo(el.dataset.p)); }
     $('#browseBtn').onclick = openBrowser;
     $('#modalClose').onclick = () => $('#modalBg').classList.remove('show');
     $('#modalBg').onclick = e => { if (e.target === $('#modalBg')) $('#modalBg').classList.remove('show'); };
-    $('#modalPick').onclick = () => { $('#pathInput').value = modalPath; setSource('local'); $('#modalBg').classList.remove('show'); };
+    $('#modalPick').onclick = () => { $('#pathInput').value = modalPath; setSource('local'); $('#modalBg').classList.remove('show'); loadBranches(); };
 
-    (async function () { initTheme(); renderMem(); await loadConfig(); setAction('summary'); })();
+    (async function () {
+      state.uiLang = localStorage.getItem('gp-uilang') || 'en'; $('#uiLangSel').value = state.uiLang;
+      initTheme();
+      await loadProviders(); await loadConfig(); await checkLatency();
+      setAction('summary'); applyI18n(); renderMem();
+    })();
   </script>
 </body>
 

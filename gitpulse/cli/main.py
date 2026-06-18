@@ -491,18 +491,21 @@ def config(
 def providers():
     table = Table(title="AI providers", show_lines=False)
     table.add_column("Provider", style="cyan")
-    table.add_column("Available", justify="center")
+    table.add_column("Type", style="dim")
+    table.add_column("Status", justify="center")
+    table.add_column("Detail", style="dim")
     table.add_column("Models", style="dim")
-    for name, ok, models in ai_providers.status():
-        mark = "[green]yes[/]" if ok else "[red]no[/]"
-        listed = ", ".join(models[:6]) if models else "-"
-        if len(models) > 6:
-            listed += f", +{len(models) - 6} more"
-        table.add_row(name, mark, listed)
+    for s in ai_providers.status():
+        mark = "[green]yes[/]" if s["available"] else "[red]no[/]"
+        models = s["models"]
+        listed = ", ".join(models[:5]) if models else "-"
+        if len(models) > 5:
+            listed += f", +{len(models) - 5} more"
+        table.add_row(s["name"], s["kind"], mark, s["detail"], listed)
     console.print(table)
     console.print(
         "[dim]Select with --provider <name> [--model <model>]. "
-        "auto picks the first available (claude, then ollama, then local).[/]"
+        "auto picks the first available local model, then cloud.[/]"
     )
 
 

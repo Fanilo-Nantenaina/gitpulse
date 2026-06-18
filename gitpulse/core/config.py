@@ -48,6 +48,35 @@ def list_tracked() -> list[dict]:
     return load_config().get("tracked", [])
 
 
+_KEY_FIELDS = {
+    "claude": "ANTHROPIC_API_KEY",
+    "openai": "OPENAI_API_KEY",
+    "gemini": "GEMINI_API_KEY",
+}
+
+
+def get_api_key(provider: str) -> str | None:
+    env_name = _KEY_FIELDS.get(provider)
+    if env_name and os.environ.get(env_name):
+        return os.environ[env_name]
+    return load_config().get("keys", {}).get(provider)
+
+
+def set_api_key(provider: str, key: str) -> None:
+    cfg = load_config()
+    keys = cfg.get("keys", {})
+    if key:
+        keys[provider] = key
+    else:
+        keys.pop(provider, None)
+    cfg["keys"] = keys
+    save_config(cfg)
+
+
+def has_stored_key(provider: str) -> bool:
+    return bool(load_config().get("keys", {}).get(provider))
+
+
 def add_tracked(url: str, label: str | None = None) -> tuple[bool, list[dict]]:
     cfg = load_config()
     tracked = cfg.get("tracked", [])

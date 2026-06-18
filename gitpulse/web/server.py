@@ -130,9 +130,116 @@ class DashboardReq(BaseModel):
 # ---- endpoints ----
 @app.get("/api/providers")
 def api_providers():
-    return [
-        {"name": n, "available": ok, "models": m} for n, ok, m in ai_providers.status()
-    ]
+    return ai_providers.status()
+
+
+@app.get("/api/latency")
+def api_latency():
+    return ai_providers.measure_cloud_latency()
+
+
+@app.get("/api/keys")
+def api_keys():
+    out = {}
+    for prov in ("claude", "openai", "gemini"):
+        k = gp_config.get_api_key(prov)
+        out[prov] = {
+            "set": bool(k),
+            "masked": (
+                (k[:6] + "…" + k[-4:]) if k and len(k) > 12 else ("set" if k else None)
+            ),
+        }
+    return out
+
+
+@app.post("/api/keys")
+def api_set_key(body: dict):
+    prov = body.get("provider")
+    if prov not in ("claude", "openai", "gemini"):
+        raise HTTPException(400, "Unknown provider")
+    gp_config.set_api_key(prov, body.get("key", "").strip())
+    return {"ok": True}
+
+
+@app.post("/api/ollama/start")
+def api_ollama_start():
+    import shutil, subprocess
+
+    if not shutil.which("ollama"):
+        return {
+            "started": False,
+            "error": "Ollama is not installed. See https://ollama.com/download",
+        }
+    try:
+        if OllamaProviderProbe().available():
+            return {"started": True, "already": True}
+        subprocess.Popen(
+            ["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
+        import time
+
+        for _ in range(10):
+            time.sleep(0.6)
+            if OllamaProviderProbe().available():
+                return {"started": True}
+        return {"started": False, "error": "Ollama did not become ready in time."}
+    except Exception as e:
+        return {"started": False, "error": str(e)}
+
+
+@app.post("/api/branches")
+def api_branches(body: dict):
+    """List local branches; optionally include remote branches via ls-remote."""
+    import subprocess
+
+    path = body.get("path")
+    url = body.get("url")
+    include_remote = body.get("include_remote", False)
+    result = {"local": [], "remote": [], "remote_url": None, "head": None}
+    try:
+        if path:
+            import pygit2
+
+            disc = pygit2.discover_repository(path)
+            if not disc:
+                raise HTTPException(400, "Not a git repository")
+            repo = pygit2.Repository(disc)
+            result["local"] = sorted(repo.branches.local)
+            if not repo.head_is_unborn and not repo.head_is_detached:
+                result["head"] = repo.head.shorthand
+            try:
+                origin = repo.remotes["origin"]
+                result["remote_url"] = origin.url
+            except Exception:
+                pass
+            if include_remote and result["remote_url"]:
+                url = result["remote_url"]
+        if include_remote and url:
+            tok, user, key = gp_remote.resolve_auth(None, None, None)
+            ls_url = url
+            if tok and url.startswith("http"):
+                ls_url = gp_remote._inject_token(url, tok, user)
+            proc = subprocess.run(
+                ["git", "ls-remote", "--heads", ls_url],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+            )
+            if proc.returncode == 0:
+                for line in proc.stdout.strip().splitlines():
+                    if "refs/heads/" in line:
+                        result["remote"].append(line.split("refs/heads/")[-1])
+    except HTTPException:
+        raise
+    except Exception as e:
+        result["error"] = str(e)
+    return result
+
+
+class OllamaProviderProbe:
+    def available(self):
+        return ai_providers.OllamaProvider().available()
 
 
 @app.get("/api/config")

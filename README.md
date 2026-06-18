@@ -85,6 +85,8 @@ Restart the terminal afterwards so the variable is picked up.
 | `GITPULSE_MODEL`            | Claude model                                | `claude-sonnet-4-6`      |
 | `GITPULSE_LANG`             | Default output language (code or name)      | `en`                     |
 | `GITPULSE_GIT_TOKEN`        | Access token for private HTTPS remotes      | —                        |
+| `OPENAI_API_KEY`            | Enables the OpenAI provider                 | —                        |
+| `GEMINI_API_KEY`            | Enables the Gemini provider                 | —                        |
 | `GITPULSE_GIT_USERNAME`     | Username for token auth                     | `git`                    |
 | `GITPULSE_SSH_KEY`          | Path to private SSH key for SSH remotes     | agent                    |
 | `GITPULSE_SSH_PASSPHRASE`   | Passphrase for the SSH key, if any          | —                        |
@@ -108,15 +110,19 @@ Restart the terminal afterwards so the variable is picked up.
 GitPulse can summarize with different backends, selected per command with
 `--provider` / `-p` and optionally `--model` / `-m`.
 
-| Provider         | Requires                                        | Cost                                                       |
-| ---------------- | ----------------------------------------------- | ---------------------------------------------------------- |
-| `claude`         | `ANTHROPIC_API_KEY` + `anthropic` package       | paid (per token)                                           |
-| `ollama`         | a running Ollama server with at least one model | free, local, offline                                       |
-| `local`          | nothing                                         | free; deterministic, no model                              |
-| `auto` (default) | —                                               | picks the first available: claude, then ollama, then local |
+| Provider         | Requires                                        | Cost                                                                        |
+| ---------------- | ----------------------------------------------- | --------------------------------------------------------------------------- |
+| `claude`         | `ANTHROPIC_API_KEY` + `anthropic` package       | paid (per token)                                                            |
+| `openai`         | `OPENAI_API_KEY`                                | paid (per token)                                                            |
+| `gemini`         | `GEMINI_API_KEY`                                | paid (per token)                                                            |
+| `ollama`         | a running Ollama server with at least one model | free, local, offline                                                        |
+| `local`          | nothing                                         | free; deterministic, no model                                               |
+| `auto` (default) | —                                               | picks the first available: ollama (free) first, then claude, openai, gemini |
 
-Run `gitpulse providers` to see which backends are available and, for Ollama,
-which models are installed:
+API keys can be set as environment variables, or pasted into the web UI's
+provider manager (stored in the local config file, not system-wide). The cloud
+providers (claude, openai, gemini) call their HTTP APIs directly. Run
+`gitpulse providers` to see each backend's status and why it's unavailable:
 
 ```bash
 gitpulse providers
@@ -227,10 +233,22 @@ It runs entirely on your machine (no data leaves it). The UI has:
 - a repository picker accepting a pasted path **or** a built-in folder browser,
   and a toggle for local path vs. remote URL;
 - a memory of recently used repositories;
-- provider/model/language selectors (Claude or Ollama, with the available
-  sub-models populated automatically);
-- tabs for every action — Summary, Log, Graph (commit/branch graph), Compare,
-  Standup, Dashboard (tracked remotes), and Tracked (add/remove remotes);
+- a provider manager (the "Manage" button): see each backend's live status and
+  why it's unavailable, paste API keys for Claude / OpenAI / Gemini (stored in
+  the local config, not system-wide), and start a local Ollama server in one
+  click if it isn't running;
+- provider / model / language selectors, with sub-models populated automatically
+  per provider;
+- a dynamic branch list (local branches, with an option to load the linked
+  remote's branches);
+- a time-window picker with common presets plus a custom field — you don't have
+  to remember the syntax;
+- cloud-safety prompts: on a metered connection or high API latency, the UI
+  warns about possible data charges, timeouts, and wasted tokens, and offers to
+  switch to a local model;
+- a full UI translation (English / French), separate from the summary language;
+- tabs for every action — Summary, Log, Graph, Compare, Standup, Dashboard
+  (tracked remotes), Tracked (add/remove remotes);
 - a dedicated output panel, and a dark/light theme toggle.
 
 `gitpulse serve` options: `--port` (default 8420), `--host`, `--no-open`.
