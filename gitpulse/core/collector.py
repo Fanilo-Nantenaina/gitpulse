@@ -9,7 +9,6 @@ import pygit2
 
 from .models import Commit, FileChange, RepoActivity
 
-# pygit2 delta status codes -> human labels
 _STATUS = {
     pygit2.GIT_DELTA_ADDED: "added",
     pygit2.GIT_DELTA_DELETED: "deleted",
@@ -31,7 +30,7 @@ def _file_changes(repo: pygit2.Repository, commit: pygit2.Commit) -> list[FileCh
         parent_tree = commit.parents[0].tree
         diff = repo.diff(parent_tree, commit.tree)
     else:
-        diff = commit.tree.diff_to_tree(swap=True)  # root commit vs empty
+        diff = commit.tree.diff_to_tree(swap=True)
 
     changes: list[FileChange] = []
     for patch in diff:
@@ -71,7 +70,6 @@ def collect_activity(
     if until.tzinfo is None:
         until = until.replace(tzinfo=timezone.utc)
 
-    # Resolve the starting reference
     if branch:
         target = repo.branches.get(branch)
         if target is None:
@@ -89,7 +87,7 @@ def collect_activity(
         if when > until:
             continue
         if when < since:
-            break  # SORT_TIME is descending, so we're done
+            break
         message = c.message.strip()
         first, _, rest = message.partition("\n")
         commits.append(
@@ -126,5 +124,5 @@ def discover_repos(root: str | os.PathLike, max_depth: int = 3) -> list[Path]:
             continue
         if ".git" in dirnames:
             found.append(p)
-            dirnames[:] = []  # don't descend into a repo's subdirs
+            dirnames[:] = []
     return found

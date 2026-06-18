@@ -315,7 +315,7 @@ def dashboard(
                 "[bold]gitpulse track <url>[/].[/]"
             )
             raise typer.Exit()
-        targets: list[tuple[str, str, dict]] = []  # (name, kind, meta)
+        targets: list[tuple[str, str, dict]] = []
         tok, user, key = gp_remote.resolve_auth(None, None, None)
         with progress_bar() as prog:
             task = prog.add_task(

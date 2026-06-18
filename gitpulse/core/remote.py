@@ -166,13 +166,9 @@ def sync_remote(
             return dest
         shutil.rmtree(dest, ignore_errors=True)
 
-    # Any leftover (partial/invalid) directory must be removed before cloning,
-    # otherwise git refuses with "destination path already exists".
     if dest.exists():
         shutil.rmtree(dest, ignore_errors=True)
 
-    # pygit2 can't disable SSL verification, so when insecure is requested we
-    # go straight to the git CLI which supports http.sslVerify=false.
     if not insecure and _clone_pygit2(url, dest, token, username, ssh_key):
         return dest
 

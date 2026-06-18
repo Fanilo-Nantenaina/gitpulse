@@ -12,7 +12,7 @@ class FileChange:
     path: str
     additions: int
     deletions: int
-    status: str  # "added" | "modified" | "deleted" | "renamed"
+    status: str
 
     @property
     def churn(self) -> int:
@@ -27,8 +27,8 @@ class Commit:
     author_name: str
     author_email: str
     when: datetime
-    summary: str  # first line of the message
-    body: str  # rest of the message
+    summary: str
+    body: str
     files: list[FileChange] = field(default_factory=list)
     branch: Optional[str] = None
 

@@ -83,7 +83,6 @@ def _resolve_source(req) -> tuple[object, Optional[str]]:
     return req.path, None
 
 
-# ---- request models ----
 class SummaryReq(BaseModel):
     path: Optional[str] = None
     url: Optional[str] = None
@@ -141,7 +140,6 @@ class DashboardReq(BaseModel):
     insecure: bool = False
 
 
-# ---- endpoints ----
 @app.get("/api/providers")
 def api_providers():
     return ai_providers.status()
@@ -435,7 +433,6 @@ def api_dashboard(req: DashboardReq):
     return {"rows": rows, "failed": failed, "range_label": r.label}
 
 
-# ---- static frontend ----
 @app.get("/")
 def index():
     return FileResponse(_STATIC / "index.html")
