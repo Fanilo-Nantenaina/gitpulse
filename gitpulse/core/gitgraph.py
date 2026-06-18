@@ -60,7 +60,6 @@ def _tips(repo):
         add_commit(repo.head.target)
     for coll in (repo.branches.local, repo.branches.remote):
         for bname in coll:
-            # skip symbolic refs like origin/HEAD that don't point at a commit directly
             if bname.endswith("/HEAD"):
                 continue
             try:
@@ -110,74 +109,76 @@ def graph(
         except Exception:
             continue
 
-    # ---- Git Graph-style lane algorithm ----
-    # `lanes` is the list of branch lines currently flowing downward; each entry
-    # is the sha that lane is waiting to reach next (its next expected commit),
-    # or None for a free slot. A lane is only ever created to carry a real
-    # parent link, so there are no "whisker" edges that start and go nowhere.
     lanes: list[str | None] = []
     nodes = []
 
-    def first_free():
-        for i, v in enumerate(lanes):
+    def first_free(state):
+        for i, v in enumerate(state):
             if v is None:
                 return i
-        lanes.append(None)
-        return len(lanes) - 1
+        state.append(None)
+        return len(state) - 1
 
     for c in walker:
         sha = str(c.id)
         parents = [str(p) for p in c.parent_ids]
 
-        # Every lane waiting for THIS commit converges here. The leftmost such
-        # lane becomes the commit's lane; the others are freed (they merge in).
-        waiting = [i for i, v in enumerate(lanes) if v == sha]
+        before = list(lanes)
+
+        waiting = [i for i, v in enumerate(before) if v == sha]
         if waiting:
             my_lane = waiting[0]
         else:
-            my_lane = first_free()
+            my_lane = first_free(lanes)
+            before = list(lanes)
             lanes[my_lane] = sha
+            before[my_lane] = sha
 
-        # lanes entering this row from above (everything currently active)
-        incoming = [i for i, v in enumerate(lanes) if v is not None]
-
-        # edges leaving this row downward, computed against the lane state AFTER
-        # we route parents. Each edge is {from, to, kind}.
-        edges = []
-
-        # Lanes that were waiting for this sha but aren't the chosen lane: they
-        # terminate into the commit (converging branches). Free them now.
+        after = list(before)
         for i in waiting:
-            if i != my_lane:
-                lanes[i] = None
+            after[i] = None
+        if my_lane < len(after):
+            after[my_lane] = None
 
+        first_parent_lane = my_lane
         if parents:
-            # first parent continues straight down the commit's own lane
-            lanes[my_lane] = parents[0]
-        else:
-            lanes[my_lane] = None  # root commit: lane ends
+            p0 = parents[0]
+            existing0 = next((i for i, v in enumerate(after) if v == p0), None)
+            if existing0 is not None:
+                first_parent_lane = existing0
+            else:
+                after[my_lane] = p0
+                first_parent_lane = my_lane
 
-        # extra parents (merge): reuse a lane already waiting for that parent,
-        # else open ONE new lane for it — this is a real edge with a real target
+        merge_targets = []
         for p in parents[1:]:
-            tgt = next((i for i, v in enumerate(lanes) if v == p), None)
+            tgt = next((i for i, v in enumerate(after) if v == p), None)
             if tgt is None:
-                tgt = first_free()
-                lanes[tgt] = p
+                tgt = first_free(after)
+            after[tgt] = p
+            merge_targets.append(tgt)
+
+        lanes = list(after)
+
+        incoming = [i for i, v in enumerate(before) if v is not None]
+
+        edges = []
+        for i, v in enumerate(before):
+            if v is None:
+                continue
+            if i == my_lane:
+                if parents:
+                    edges.append(
+                        {"from": my_lane, "to": first_parent_lane, "kind": "commit"}
+                    )
+            elif v == sha:
+                edges.append({"from": i, "to": my_lane, "kind": "converge"})
+            else:
+                to = next((j for j, w in enumerate(after) if w == v), None)
+                if to is not None:
+                    edges.append({"from": i, "to": to, "kind": "pass"})
+        for tgt, p in zip(merge_targets, parents[1:]):
             edges.append({"from": my_lane, "to": tgt, "kind": "merge"})
-
-        # the commit's own lane edge (if it continues)
-        if parents:
-            edges.append({"from": my_lane, "to": my_lane, "kind": "commit"})
-
-        # every other still-active lane flows straight down to itself
-        for i, v in enumerate(lanes):
-            if v is not None and i != my_lane and not any(e["to"] == i for e in edges):
-                # only if it was already active above (not a brand-new merge lane handled above)
-                if i in incoming:
-                    edges.append({"from": i, "to": i, "kind": "pass"})
-
-        merge_targets = [e["to"] for e in edges if e["kind"] == "merge"]
 
         msg = c.message.strip()
         nodes.append(
@@ -202,20 +203,22 @@ def graph(
             }
         )
 
-    max_w = max((n["width"] for n in nodes), default=1)
-    max_w = max(max_w, max((n["lane"] for n in nodes), default=0) + 1)
-
-    # Post-pass: a row's incoming lanes are exactly the destination lanes of the
-    # previous row's edges. This guarantees every top-half connects to a real
-    # bottom-half above it — no floating/dead-ending segments.
     for i, n in enumerate(nodes):
         if i == 0:
-            n["incoming"] = [n["lane"]]
+            n["incoming"] = []
         else:
             n["incoming"] = sorted(set(e["to"] for e in nodes[i - 1]["edges"]))
-        # ensure the commit's own lane is always shown entering
-        if n["lane"] not in n["incoming"]:
-            n["incoming"].append(n["lane"])
+        n["tip"] = n["lane"] not in n["incoming"]
+
+    max_w = 1
+    for n in nodes:
+        used = (
+            set(n["incoming"])
+            | {e["from"] for e in n["edges"]}
+            | {e["to"] for e in n["edges"]}
+            | {n["lane"]}
+        )
+        max_w = max(max_w, (max(used) + 1) if used else 1)
 
     return {
         "nodes": nodes,
