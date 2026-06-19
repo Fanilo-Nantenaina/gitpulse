@@ -9,9 +9,8 @@ from ._shared import app, console
 from ..service import controller, units
 
 
-service_app = typer.Typer(
-    help="Run the GitPulse web UI as a background service.", no_args_is_help=True
-)
+service_app = typer.Typer(help="Run the GitPulse web UI as a background service.",
+                          no_args_is_help=True)
 app.add_typer(service_app, name="service")
 
 
@@ -20,6 +19,7 @@ def service_start(
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8420, "--port"),
 ):
+    """Start the web UI in the background (detached)."""
     res = controller.start(host=host, port=port)
     if res.get("already"):
         console.print(f"[yellow]Already running[/] (pid {res['pid']}) — {res['url']}")
@@ -65,26 +65,21 @@ def service_restart(
 
 @service_app.command("install")
 def service_install(
-    kind: str = typer.Argument(
-        "web", help="'web' (keep UI running) or 'watch' (periodic digest)"
-    ),
+    kind: str = typer.Argument("web", help="'web' (keep UI running) or 'watch' (periodic digest)"),
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8420, "--port"),
     path: Path = typer.Option(Path("."), "--path", help="(watch) repo to digest"),
     every: str = typer.Option("24h", "--every", help="(watch) cadence"),
     when: str = typer.Option("24h", "--when", help="(watch) window each digest covers"),
     to: str = typer.Option("desktop", "--to", help="(watch) channels, comma-separated"),
-    write: Optional[Path] = typer.Option(
-        None, "--write", help="Write the unit file to this path"
-    ),
+    write: Optional[Path] = typer.Option(None, "--write", help="Write the unit file to this path"),
 ):
     """Generate an OS-native boot service (systemd / launchd / Task Scheduler)."""
     if kind not in ("web", "watch"):
         console.print("[red]kind must be 'web' or 'watch'[/]")
         raise typer.Exit(1)
     fname, contents, hint = units.for_platform(
-        kind, host=host, port=port, path=str(path), every=every, when=when, to=to
-    )
+        kind, host=host, port=port, path=str(path), every=every, when=when, to=to)
 
     if write:
         target = write if write.is_dir() is False else write / fname
@@ -104,5 +99,4 @@ def gui(
 ):
     """Launch the GitPulse desktop UI (starts the server and opens the browser)."""
     from ..gui import main as gui_main
-
     gui_main(["--host", host, "--port", str(port)])

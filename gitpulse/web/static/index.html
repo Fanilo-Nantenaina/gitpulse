@@ -1,100 +1,81 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GitPulse</title>
-  <link rel="stylesheet" href="/static/css/app.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitPulse</title>
+<link rel="stylesheet" href="/static/css/app.css">
 </head>
-
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="brand">
-        <h1>git<span class="pulse">pulse</span></h1>
-        <div class="brand-ctl">
-          <select class="uilang" id="uiLangSel">
-            <option value="en">EN</option>
-            <option value="fr">FR</option>
-          </select>
-          <button class="mini" id="themeBtn" title="Theme">&#9680;</button>
-        </div>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <h1>git<span class="pulse">pulse</span></h1>
+      <div class="brand-ctl">
+        <select class="uilang" id="uiLangSel"><option value="en">EN</option><option value="fr">FR</option></select>
+        <button class="mini" id="themeBtn" title="Theme">&#9680;</button>
       </div>
-      <div class="side-section">
-        <h2 style="justify-content:space-between"><span data-i="repository">Repository</span><span id="changesBadge"
-            class="changes-badge" style="display:none"></span></h2>
-        <div class="source-tabs">
-          <div class="source-tab active" data-src="local" data-i="local">Local</div>
-          <div class="source-tab" data-src="url" data-i="remoteUrl">Remote URL</div>
-        </div>
-        <div class="field" id="localField">
-          <div class="row">
-            <input class="path" id="pathInput" data-i-ph="pastePath" placeholder="Paste path or browse">
-            <button class="browse-btn" id="browseBtn" data-i="browse">Browse</button>
-          </div>
-        </div>
-        <div class="field" id="urlField" style="display:none">
-          <input class="path" id="urlInput" placeholder="https://... or git@...">
-          <label style="display:flex;align-items:center;gap:6px;margin-top:7px;cursor:pointer;font-size:11px">
-            <input type="checkbox" id="insecureChk" style="width:auto"> <span data-i="allowInsecure">Allow insecure SSL
-              (expired/self-signed cert)</span>
-          </label>
-        </div>
-      </div>
-      <div class="side-section" style="flex:1">
-        <h2 data-i="recentRepos">Recent repositories</h2>
-        <ul class="repo-mem" id="repoMem"></ul>
-      </div>
-      <div class="side-section">
-        <h2><span data-i="model">Model</span><button class="mini" id="provMgrBtn" data-i="manage">Manage</button></h2>
-        <div id="provStatus"></div>
-        <div class="field" style="margin-top:8px"><label data-i="provider">Provider</label><select
-            id="providerSel"></select></div>
-        <div class="field"><label data-i="modelName">Model</label><select id="modelSel">
-            <option value="">(default)</option>
-          </select></div>
-        <div class="field"><label data-i="summaryLang">Summary language</label><select id="langSel"></select></div>
-      </div>
-    </aside>
-    <main class="main">
-      <nav class="actionbar" id="actionbar">
-        <div class="action active" data-act="summary" data-i="summary">Summary</div>
-        <div class="action" data-act="log" data-i="log">Log</div>
-        <div class="action" data-act="graph" data-i="graph">Graph</div>
-        <div class="action" data-act="compare" data-i="compare">Compare</div>
-        <div class="action" data-act="standup" data-i="standup">Standup</div>
-        <div class="action" data-act="commit" data-i="commitTab">Commit</div>
-        <div class="action" data-act="dashboard" data-i="dashboard">Dashboard</div>
-        <div class="action" data-act="tracked" data-i="tracked">Tracked</div>
-      </nav>
-      <div class="controls" id="controls"></div>
-      <div class="output" id="output">
-        <div class="placeholder" data-i="welcome">Pick a repository, choose an action, and run it.</div>
-      </div>
-    </main>
-  </div>
-
-  <!-- folder browser -->
-  <div class="modal-bg" id="modalBg">
-    <div class="modal">
-      <div class="modal-head"><span class="cur" id="modalCur"></span><button class="mini"
-          id="modalClose">&#10005;</button></div>
-      <div class="drives" id="modalDrives"></div>
-      <div class="modal-list" id="modalList"></div>
-      <div class="modal-foot"><button class="btn ghost" id="modalUp" data-i="up">&#8593; Up</button><button class="btn"
-          id="modalPick" data-i="useFolder">Use this folder</button></div>
     </div>
-  </div>
-
-  <!-- provider manager -->
-  <div class="modal-bg" id="provBg">
-    <div class="modal">
-      <div class="modal-head"><span data-i="aiProviders">AI providers</span><button class="mini"
-          id="provClose">&#10005;</button></div>
-      <div class="modal-body" id="provBody"></div>
+    <div class="side-section">
+      <h2 style="justify-content:space-between"><span data-i="repository">Repository</span><span id="changesBadge" class="changes-badge" style="display:none"></span></h2>
+      <div class="source-tabs">
+        <div class="source-tab active" data-src="local" data-i="local">Local</div>
+        <div class="source-tab" data-src="url" data-i="remoteUrl">Remote URL</div>
+      </div>
+      <div class="field" id="localField">
+        <div class="row">
+          <input class="path" id="pathInput" data-i-ph="pastePath" placeholder="Paste path or browse">
+          <button class="browse-btn" id="browseBtn" data-i="browse">Browse</button>
+        </div>
+      </div>
+      <div class="field" id="urlField" style="display:none">
+        <input class="path" id="urlInput" placeholder="https://... or git@...">
+        <label style="display:flex;align-items:center;gap:6px;margin-top:7px;cursor:pointer;font-size:11px">
+          <input type="checkbox" id="insecureChk" style="width:auto"> <span data-i="allowInsecure">Allow insecure SSL (expired/self-signed cert)</span>
+        </label>
+      </div>
     </div>
-  </div>
+    <div class="side-section" style="flex:1">
+      <h2 data-i="recentRepos">Recent repositories</h2>
+      <ul class="repo-mem" id="repoMem"></ul>
+    </div>
+    <div class="side-section">
+      <h2><span data-i="model">Model</span><button class="mini" id="provMgrBtn" data-i="manage">Manage</button></h2>
+      <div id="provStatus"></div>
+      <div class="field" style="margin-top:8px"><label data-i="provider">Provider</label><select id="providerSel"></select></div>
+      <div class="field"><label data-i="modelName">Model</label><select id="modelSel"><option value="">(default)</option></select></div>
+      <div class="field"><label data-i="summaryLang">Summary language</label><select id="langSel"></select></div>
+    </div>
+  </aside>
+  <main class="main">
+    <nav class="actionbar" id="actionbar">
+      <div class="action active" data-act="summary" data-i="summary">Summary</div>
+      <div class="action" data-act="log" data-i="log">Log</div>
+      <div class="action" data-act="graph" data-i="graph">Graph</div>
+      <div class="action" data-act="compare" data-i="compare">Compare</div>
+      <div class="action" data-act="standup" data-i="standup">Standup</div>
+      <div class="action" data-act="commit" data-i="commitTab">Commit</div>
+      <div class="action" data-act="dashboard" data-i="dashboard">Dashboard</div>
+      <div class="action" data-act="tracked" data-i="tracked">Tracked</div>
+    </nav>
+    <div class="controls" id="controls"></div>
+    <div class="output" id="output"><div class="placeholder" data-i="welcome">Pick a repository, choose an action, and run it.</div></div>
+  </main>
+</div>
+
+<!-- folder browser -->
+<div class="modal-bg" id="modalBg"><div class="modal">
+  <div class="modal-head"><span class="cur" id="modalCur"></span><button class="mini" id="modalClose">&#10005;</button></div>
+  <div class="drives" id="modalDrives"></div>
+  <div class="modal-list" id="modalList"></div>
+  <div class="modal-foot"><button class="btn ghost" id="modalUp" data-i="up">&#8593; Up</button><button class="btn" id="modalPick" data-i="useFolder">Use this folder</button></div>
+</div></div>
+
+<!-- provider manager -->
+<div class="modal-bg" id="provBg"><div class="modal">
+  <div class="modal-head"><span data-i="aiProviders">AI providers</span><button class="mini" id="provClose">&#10005;</button></div>
+  <div class="modal-body" id="provBody"></div>
+</div></div>
 
 
   <script src="/static/js/core.js"></script>
@@ -107,5 +88,4 @@
   <script src="/static/js/init.js"></script>
 
 </body>
-
 </html>

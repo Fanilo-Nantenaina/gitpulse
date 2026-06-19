@@ -1,3 +1,9 @@
+"""Multi-channel digest delivery.
+
+Each notifier is best-effort and self-contained. Config comes from env vars
+so the scheduler can run headless. Add a channel by writing a function and
+registering it in NOTIFIERS.
+"""
 from __future__ import annotations
 
 import json
@@ -35,9 +41,7 @@ def notify_telegram(markdown: str) -> bool:
     if not (token and chat):
         return False
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    return _post_json(
-        url, {"chat_id": chat, "text": markdown, "parse_mode": "Markdown"}
-    )
+    return _post_json(url, {"chat_id": chat, "text": markdown, "parse_mode": "Markdown"})
 
 
 def notify_email(markdown: str) -> bool:
@@ -68,7 +72,6 @@ def notify_desktop(markdown: str) -> bool:
     """Cross-platform desktop notification via plyer if installed."""
     try:
         from plyer import notification
-
         title = markdown.splitlines()[0].lstrip("# ").strip()
         notification.notify(title="GitPulse", message=title[:200], timeout=10)
         return True

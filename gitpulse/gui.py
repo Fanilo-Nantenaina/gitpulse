@@ -1,3 +1,9 @@
+"""GUI entry point for GitPulse.
+
+This is the target of the `gitpulse-gui` script (a GUI-app entry point, so on
+Windows it launches without a console window). It starts the local web server
+and opens the default browser — the "app" is the web UI served locally.
+"""
 from __future__ import annotations
 
 import sys
@@ -18,7 +24,6 @@ def main(argv: list[str] | None = None) -> int:
             host = argv[i + 1]
 
     from .web.server import serve
-
     serve(host=host, port=port, open_browser=True)
     return 0
 

@@ -1,3 +1,8 @@
+"""Domain models for GitPulse.
+
+These are deliberately plain dataclasses (no pydantic dependency in the core)
+so the collector stays fast and importable without the AI/CLI layers.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -8,11 +13,10 @@ from typing import Optional
 @dataclass
 class FileChange:
     """A single file touched within a commit."""
-
     path: str
     additions: int
     deletions: int
-    status: str
+    status: str  # "added" | "modified" | "deleted" | "renamed"
 
     @property
     def churn(self) -> int:
@@ -22,13 +26,12 @@ class FileChange:
 @dataclass
 class Commit:
     """A normalized git commit, independent of pygit2 internals."""
-
     sha: str
     author_name: str
     author_email: str
     when: datetime
-    summary: str
-    body: str
+    summary: str          # first line of the message
+    body: str             # rest of the message
     files: list[FileChange] = field(default_factory=list)
     branch: Optional[str] = None
 
@@ -56,7 +59,6 @@ class Commit:
 @dataclass
 class RepoActivity:
     """Aggregated activity for one repository over a time window."""
-
     repo_name: str
     repo_path: str
     since: datetime

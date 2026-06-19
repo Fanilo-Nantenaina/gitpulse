@@ -94,7 +94,8 @@ def add_tracked(url: str, label: str | None = None) -> tuple[bool, list[dict]]:
 def remove_tracked(needle: str) -> tuple[bool, list[dict]]:
     cfg = load_config()
     tracked = cfg.get("tracked", [])
-    kept = [t for t in tracked if t["url"] != needle and t.get("label") != needle]
+    kept = [t for t in tracked
+            if t["url"] != needle and t.get("label") != needle]
     changed = len(kept) != len(tracked)
     if changed:
         cfg["tracked"] = kept

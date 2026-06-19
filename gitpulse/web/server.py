@@ -29,10 +29,8 @@ if _STATIC.exists():
 
 def serve(host: str = "127.0.0.1", port: int = 8420, open_browser: bool = True):
     import uvicorn
-
     if open_browser:
         import threading
         import webbrowser
-
         threading.Timer(1.0, lambda: webbrowser.open(f"http://{host}:{port}")).start()
     uvicorn.run(app, host=host, port=port, log_level="warning")

@@ -1,3 +1,4 @@
+"""Summary model, local fallback, and provider-dispatching summarize()."""
 from __future__ import annotations
 
 import json
@@ -13,8 +14,7 @@ DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", "claude-sonnet-4-6")
 
 
 def _system_prompt(lang_code: str) -> str:
-    base = textwrap.dedent(
-        """\
+    base = textwrap.dedent("""\
         You are a senior engineer writing an activity digest of a developer's recent
         git history. The goal is to SUMMARIZE the work clearly first, and only then
         note anything worth flagging. This is a recap, not a performance review.
@@ -59,16 +59,13 @@ def _system_prompt(lang_code: str) -> str:
           ],
           "observations": ["specific, evidence-backed note (optional)", ...]
         }
-        """
-    )
+        """)
     name = config.lang_name(lang_code)
     if lang_code != "en":
-        base += (
-            f"\nWrite all values (headline, synthesis, theme titles, "
-            f"narratives, and observations) in {name}. Keep commit "
-            f"identifiers, file paths, code symbols, and branch names "
-            f"unchanged."
-        )
+        base += (f"\nWrite all values (headline, synthesis, theme titles, "
+                 f"narratives, and observations) in {name}. Keep commit "
+                 f"identifiers, file paths, code symbols, and branch names "
+                 f"unchanged.")
     return base
 
 
@@ -79,7 +76,7 @@ class Summary:
     observations: list[str]
     synthesis: str = ""
     raw: str = ""
-    source: str = "local"  # "claude" | "local" | "local(truncated)"
+    source: str = "local"          # "claude" | "local" | "local(truncated)"
     input_tokens: int = 0
     output_tokens: int = 0
     cost_usd: float = 0.0
@@ -89,15 +86,12 @@ class Summary:
     def cost_note(self) -> str:
         if self.source.startswith("local"):
             if self.input_tokens or self.output_tokens:
-                return (
-                    f"{self.source} · {self.input_tokens}+{self.output_tokens} tok "
-                    f"· $0.0000"
-                )
+                return (f"{self.source} · {self.input_tokens}+{self.output_tokens} tok "
+                        f"· $0.0000")
             return "local fallback (no model call, $0.00)"
         cost = f"${self.cost_usd:.4f}" if self.cost_usd else "free"
-        return (
-            f"{self.source} · {self.input_tokens}+{self.output_tokens} tok " f"· {cost}"
-        )
+        return (f"{self.source} · {self.input_tokens}+{self.output_tokens} tok "
+                f"· {cost}")
 
     @classmethod
     def from_json(cls, text: str) -> "Summary":
@@ -153,42 +147,24 @@ def _signals(activity: RepoActivity) -> list[str]:
 
     hot = [(p, cnt) for p, cnt in activity.hotspots.items() if cnt > 1]
     for path, cnt in hot[:5]:
-        shas = [
-            c.short_sha
-            for c in activity.commits
-            if any(f.path == path for f in c.files)
-        ]
-        out.append(
-            f"File {path} changed in {cnt} of {n} commits ({' '.join(shas[:10])})."
-        )
+        shas = [c.short_sha for c in activity.commits if any(f.path == path for f in c.files)]
+        out.append(f"File {path} changed in {cnt} of {n} commits ({' '.join(shas[:10])}).")
 
     late = [c for c in activity.commits if c.hour >= 22 or c.hour < 6]
     if late:
-        out.append(
-            f"{len(late)} commit(s) outside working hours: "
-            + ", ".join(f"{c.short_sha}@{c.hour:02d}h" for c in late[:8])
-            + "."
-        )
+        out.append(f"{len(late)} commit(s) outside working hours: "
+                   + ", ".join(f"{c.short_sha}@{c.hour:02d}h" for c in late[:8]) + ".")
 
-    fixes = [
-        c
-        for c in activity.commits
-        if c.summary.lower().startswith(("fix", "hotfix", "revert"))
-    ]
+    fixes = [c for c in activity.commits if c.summary.lower().startswith(("fix", "hotfix", "revert"))]
     if fixes:
-        out.append(
-            f"{len(fixes)} fix/revert commit(s): "
-            + ", ".join(c.short_sha for c in fixes[:10])
-            + "."
-        )
+        out.append(f"{len(fixes)} fix/revert commit(s): "
+                   + ", ".join(c.short_sha for c in fixes[:10]) + ".")
 
     big = sorted(activity.commits, key=lambda c: c.churn, reverse=True)[:3]
     big = [c for c in big if c.churn > 200]
     for c in big:
-        out.append(
-            f"Large commit {c.short_sha} (+{c.additions}/-{c.deletions}, "
-            f"{len(c.files)} files): {c.summary}"
-        )
+        out.append(f"Large commit {c.short_sha} (+{c.additions}/-{c.deletions}, "
+                   f"{len(c.files)} files): {c.summary}")
 
     return out
 
@@ -201,7 +177,7 @@ _FALLBACK_STRINGS = {
         "hotspot": "Hotspot: {path} changed {n}x (possible churn).",
         "no_activity": "No activity in this window.",
         "synthesis": "{n} commits across {f} file(s), +{add}/-{dele} lines, "
-        "led by {kinds}.",
+                     "led by {kinds}.",
     },
     "fr": {
         "commits_on": "{n} commits sur {repo}.",
@@ -210,7 +186,7 @@ _FALLBACK_STRINGS = {
         "hotspot": "Point chaud : {path} modifié {n}x (possible instabilité).",
         "no_activity": "Aucune activité sur cette période.",
         "synthesis": "{n} commits sur {f} fichier(s), +{add}/-{dele} lignes, "
-        "principalement {kinds}.",
+                     "principalement {kinds}.",
     },
 }
 
@@ -236,40 +212,24 @@ def _local_fallback(activity: RepoActivity, lang: str = "en") -> Summary:
     top = next(iter(activity.hotspots.items()), None)
     if top and top[1] > 1:
         obs.append(_fb_str(lang, "hotspot", path=top[0], n=top[1]))
-    kinds = (
-        ", ".join(sorted(by_prefix, key=lambda k: len(by_prefix[k]), reverse=True)[:3])
-        or "-"
-    )
-    synthesis = _fb_str(
-        lang,
-        "synthesis",
-        n=activity.commit_count,
-        f=activity.files_touched,
-        add=activity.total_additions,
-        dele=activity.total_deletions,
-        kinds=kinds,
-    )
+    kinds = ", ".join(sorted(by_prefix, key=lambda k: len(by_prefix[k]),
+                             reverse=True)[:3]) or "-"
+    synthesis = _fb_str(lang, "synthesis", n=activity.commit_count,
+                        f=activity.files_touched, add=activity.total_additions,
+                        dele=activity.total_deletions, kinds=kinds)
     return Summary(
-        headline=_fb_str(
-            lang, "commits_on", n=activity.commit_count, repo=activity.repo_name
-        ),
+        headline=_fb_str(lang, "commits_on", n=activity.commit_count, repo=activity.repo_name),
         synthesis=synthesis,
         themes=themes,
         observations=obs,
     )
 
 
-def summarize(
-    activity: RepoActivity,
-    provider: str = "auto",
-    model: str | None = None,
-    lang: str | None = None,
-) -> Summary:
+def summarize(activity: RepoActivity, provider: str = "auto",
+              model: str | None = None, lang: str | None = None) -> Summary:
     lang = config.resolve_lang(lang)
     if activity.commit_count == 0:
-        return Summary(
-            headline=_fb_str(lang, "no_activity"), themes=[], observations=[]
-        )
+        return Summary(headline=_fb_str(lang, "no_activity"), themes=[], observations=[])
 
     prov = providers.detect(provider)
     if prov is None:
@@ -280,9 +240,7 @@ def summarize(
 
     max_tokens = min(16000, max(4000, activity.commit_count * 170))
     try:
-        result = prov.generate(
-            _system_prompt(lang), _build_payload(activity), max_tokens
-        )
+        result = prov.generate(_system_prompt(lang), _build_payload(activity), max_tokens)
     except Exception as e:
         fb = _local_fallback(activity, lang)
         fb.source = f"local({prov.name}-error)"
@@ -294,28 +252,19 @@ def summarize(
         fb.raw = result.text
         fb.source = f"local({prov.name}-truncated)"
         fb.input_tokens, fb.output_tokens, fb.cost_usd = (
-            result.input_tokens,
-            result.output_tokens,
-            result.cost_usd,
-        )
+            result.input_tokens, result.output_tokens, result.cost_usd)
         return fb
 
     try:
         summ = Summary.from_json(result.text)
         summ.source = f"{prov.name}:{result.model}"
         summ.input_tokens, summ.output_tokens, summ.cost_usd = (
-            result.input_tokens,
-            result.output_tokens,
-            result.cost_usd,
-        )
+            result.input_tokens, result.output_tokens, result.cost_usd)
         return summ
     except (json.JSONDecodeError, KeyError):
         fb = _local_fallback(activity, lang)
         fb.raw = result.text
         fb.source = f"local({prov.name}-parse-failed)"
         fb.input_tokens, fb.output_tokens, fb.cost_usd = (
-            result.input_tokens,
-            result.output_tokens,
-            result.cost_usd,
-        )
+            result.input_tokens, result.output_tokens, result.cost_usd)
         return fb

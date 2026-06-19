@@ -30,18 +30,12 @@ def test_alive_false_for_bogus_pid():
 def test_unit_generation_all_platforms(plat, kind, monkeypatch):
     monkeypatch.setattr(sys, "platform", plat)
     fname, contents, hint = units.for_platform(
-        kind,
-        host="127.0.0.1",
-        port=8420,
-        path="/repo",
-        every="24h",
-        when="24h",
-        to="desktop",
-    )
+        kind, host="127.0.0.1", port=8420,
+        path="/repo", every="24h", when="24h", to="desktop")
     assert fname and contents and hint
     # the invocation must mention gitpulse and the right verb
     assert "gitpulse" in contents.lower()
-    assert "serve" in contents if kind == "web" else "digest" in contents
+    assert ("serve" in contents if kind == "web" else "digest" in contents)
 
 
 def test_unsupported_platform(monkeypatch):
@@ -69,3 +63,17 @@ def test_windows_web_is_schtasks(monkeypatch):
     fname, contents, _ = units.for_platform("web", host="127.0.0.1", port=8420)
     assert fname.endswith(".bat")
     assert "schtasks" in contents
+
+
+# --- standup timezone regression (separate concern, kept here for brevity) ---
+
+def test_standup_day_window_uses_local_tz():
+    from datetime import datetime, timezone, timedelta
+    from gitpulse.core import standup
+    tz = timezone(timedelta(hours=3))           # UTC+3, like Toliara
+    target = datetime(2026, 6, 18, 12, 0, tzinfo=tz)
+    start, end = standup._day_window(target)
+    # boundaries must be midnight in the LOCAL tz, not UTC
+    assert start.utcoffset() == timedelta(hours=3)
+    assert start.hour == 0 and end.hour == 23
+    assert start.date() == target.date()

@@ -21,9 +21,8 @@ def test_collect_respects_since_window(linear_repo):
 
 
 def test_collect_name_override(linear_repo):
-    act = collect_activity(
-        linear_repo, datetime(2025, 1, 1, tzinfo=timezone.utc), name="custom-name"
-    )
+    act = collect_activity(linear_repo, datetime(2025, 1, 1, tzinfo=timezone.utc),
+                           name="custom-name")
     assert act.repo_name == "custom-name"
 
 

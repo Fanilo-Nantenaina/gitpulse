@@ -10,7 +10,7 @@ import pygit2
 @dataclass
 class FileDelta:
     path: str
-    status: str  # "added" | "modified" | "deleted" | "renamed" | "untracked"
+    status: str          # "added" | "modified" | "deleted" | "renamed" | "untracked"
     additions: int = 0
     deletions: int = 0
 
@@ -18,7 +18,7 @@ class FileDelta:
 @dataclass
 class WorkingChanges:
     repo_name: str
-    scope: str  # "staged" | "all"
+    scope: str                          # "staged" | "all"
     files: list[FileDelta] = field(default_factory=list)
     diff_text: str = ""
     truncated: bool = False
@@ -37,26 +37,19 @@ class WorkingChanges:
 
 
 _STATUS_MAP = {
-    "A": "added",
-    "M": "modified",
-    "D": "deleted",
-    "R": "renamed",
-    "C": "copied",
-    "T": "typechange",
-    "?": "untracked",
+    "A": "added", "M": "modified", "D": "deleted",
+    "R": "renamed", "C": "copied", "T": "typechange", "?": "untracked",
 }
 
 
 def _run(args: list[str], cwd: str) -> str:
-    proc = subprocess.run(
-        ["git", "-C", cwd, *args], capture_output=True, text=True, timeout=30
-    )
+    proc = subprocess.run(["git", "-C", cwd, *args],
+                          capture_output=True, text=True, timeout=30)
     return proc.stdout if proc.returncode == 0 else ""
 
 
-def collect_working_changes(
-    repo_path, scope: str = "all", max_diff_chars: int = 24000
-) -> WorkingChanges:
+def collect_working_changes(repo_path, scope: str = "all",
+                            max_diff_chars: int = 24000) -> WorkingChanges:
     """Gather uncommitted changes (staged only, or everything) plus the diff."""
     discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
     if discovered is None:
@@ -129,9 +122,7 @@ def collect_working_changes(
         diff_text = diff_text[:max_diff_chars] + "\n... [diff truncated] ..."
 
     return WorkingChanges(
-        repo_name=name,
-        scope=scope,
+        repo_name=name, scope=scope,
         files=sorted(files.values(), key=lambda f: f.path),
-        diff_text=diff_text,
-        truncated=truncated,
+        diff_text=diff_text, truncated=truncated,
     )

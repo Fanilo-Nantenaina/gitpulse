@@ -5,11 +5,18 @@ into a narrative, theme-grouped summary instead of a raw `git log` dump — with
 multi-repo dashboards, scheduled reports, Conventional-Commits changelogs, and
 work-pattern detection (hotspots, off-hours commits, productivity heatmaps).
 
+```
+╭──────────────── 📊 dataven-middleware ─────────────────╮
+│ Focus this week: bank reconciliation module + JWT      │
+│ cookie hardening across the FastAPI/VPS layer.         │
+╰─────────────── 2026-06-09 → 2026-06-16 ────────────────╯
+```
+
 ---
 
 ## Why it's different
 
-Most git-stat tools count commits. GitPulse _reads_ them: it sends commit
+Most git-stat tools count commits. GitPulse *reads* them: it sends commit
 messages, full bodies, per-file diff stats, and a precomputed signals block
 (churn hotspots, off-hours commits, fix/revert chains, large diffs) to a
 language model, which clusters the work into themes and writes a code-review-
@@ -25,8 +32,7 @@ testing". The signals block gives the model hard facts to ground them in.
 The model can be Anthropic's Claude API or a local Ollama model — GitPulse
 auto-detects what's available, or you pick one explicitly. With no model at all
 it still works: it falls back to a deterministic local summary (prefix grouping
-
-- pattern detection), so it's useful fully offline too.
++ pattern detection), so it's useful fully offline too.
 
 A note on local models: smaller Ollama models follow the "be specific, cite
 evidence" instructions less reliably than Claude or large coder models. For the
@@ -43,7 +49,7 @@ sharpest observations, prefer Claude or a large coder-tuned model
 the `gitpulse` command on your PATH — no virtualenv juggling, no global clutter.
 
 ```bash
-pipx install "gitpulse[all] @ git+https://github.com/Fanilo-Nantenaina/gitpulse.git"
+pipx install "gitpulse[all] @ git+https://github.com/<you>/gitpulse.git"
 # or from a local checkout:
 pipx install ".[all]"
 ```
@@ -67,14 +73,14 @@ without reinstalling.
 
 ### Optional dependency groups
 
-| Extra      | Pulls in             | Needed for                |
-| ---------- | -------------------- | ------------------------- |
-| `ai`       | `anthropic`          | Claude semantic summaries |
-| `schedule` | `apscheduler`        | `gitpulse watch`          |
-| `desktop`  | `plyer`              | desktop notifications     |
-| `web`      | `fastapi`, `uvicorn` | the web UI / service      |
-| `dev`      | `pytest`, `httpx`    | running the test suite    |
-| `all`      | runtime extras above | everything                |
+| Extra | Pulls in | Needed for |
+|-------|----------|------------|
+| `ai` | `anthropic` | Claude semantic summaries |
+| `schedule` | `apscheduler` | `gitpulse watch` |
+| `desktop` | `plyer` | desktop notifications |
+| `web` | `fastapi`, `uvicorn` | the web UI / service |
+| `dev` | `pytest`, `httpx` | running the test suite |
+| `all` | runtime extras above | everything |
 
 Install a subset, e.g. `pip install -e ".[ai]"`, if you don't need the rest.
 
@@ -158,29 +164,29 @@ Restart the terminal afterwards so the variable is picked up.
 
 ### All variables
 
-| Variable                    | Purpose                                     | Default                  |
-| --------------------------- | ------------------------------------------- | ------------------------ |
-| `ANTHROPIC_API_KEY`         | Enables the Claude provider                 | —                        |
-| `GITPULSE_MODEL`            | Claude model                                | `claude-sonnet-4-6`      |
-| `GITPULSE_LANG`             | Default output language (code or name)      | `en`                     |
-| `GITPULSE_GIT_TOKEN`        | Access token for private HTTPS remotes      | —                        |
-| `OPENAI_API_KEY`            | Enables the OpenAI provider                 | —                        |
-| `GEMINI_API_KEY`            | Enables the Gemini provider                 | —                        |
-| `GITPULSE_GIT_USERNAME`     | Username for token auth                     | `git`                    |
-| `GITPULSE_SSH_KEY`          | Path to private SSH key for SSH remotes     | agent                    |
-| `GITPULSE_SSH_PASSPHRASE`   | Passphrase for the SSH key, if any          | —                        |
-| `GITPULSE_CACHE_DIR`        | Where remote clones are cached              | `~/.gitpulse/remotes`    |
-| `OLLAMA_HOST`               | Ollama server URL                           | `http://localhost:11434` |
-| `GITPULSE_OLLAMA_MODEL`     | Default Ollama model (else first installed) | —                        |
-| `GITPULSE_SLACK_WEBHOOK`    | Slack incoming webhook URL                  | —                        |
-| `GITPULSE_TELEGRAM_TOKEN`   | Telegram bot token (via @BotFather)         | —                        |
-| `GITPULSE_TELEGRAM_CHAT_ID` | Telegram chat ID                            | —                        |
-| `GITPULSE_SMTP_HOST`        | SMTP server host                            | —                        |
-| `GITPULSE_SMTP_PORT`        | SMTP port                                   | `587`                    |
-| `GITPULSE_SMTP_USER`        | SMTP username                               | —                        |
-| `GITPULSE_SMTP_PASS`        | SMTP password (Gmail: app password)         | —                        |
-| `GITPULSE_SMTP_TO`          | Recipient address                           | —                        |
-| `GITPULSE_SMTP_FROM`        | Sender address                              | falls back to `_TO`      |
+| Variable | Purpose | Default |
+|----------|---------|---------|
+| `ANTHROPIC_API_KEY` | Enables the Claude provider | — |
+| `GITPULSE_MODEL` | Claude model | `claude-sonnet-4-6` |
+| `GITPULSE_LANG` | Default output language (code or name) | `en` |
+| `GITPULSE_GIT_TOKEN` | Access token for private HTTPS remotes | — |
+| `OPENAI_API_KEY` | Enables the OpenAI provider | — |
+| `GEMINI_API_KEY` | Enables the Gemini provider | — |
+| `GITPULSE_GIT_USERNAME` | Username for token auth | `git` |
+| `GITPULSE_SSH_KEY` | Path to private SSH key for SSH remotes | agent |
+| `GITPULSE_SSH_PASSPHRASE` | Passphrase for the SSH key, if any | — |
+| `GITPULSE_CACHE_DIR` | Where remote clones are cached | `~/.gitpulse/remotes` |
+| `OLLAMA_HOST` | Ollama server URL | `http://localhost:11434` |
+| `GITPULSE_OLLAMA_MODEL` | Default Ollama model (else first installed) | — |
+| `GITPULSE_SLACK_WEBHOOK` | Slack incoming webhook URL | — |
+| `GITPULSE_TELEGRAM_TOKEN` | Telegram bot token (via @BotFather) | — |
+| `GITPULSE_TELEGRAM_CHAT_ID` | Telegram chat ID | — |
+| `GITPULSE_SMTP_HOST` | SMTP server host | — |
+| `GITPULSE_SMTP_PORT` | SMTP port | `587` |
+| `GITPULSE_SMTP_USER` | SMTP username | — |
+| `GITPULSE_SMTP_PASS` | SMTP password (Gmail: app password) | — |
+| `GITPULSE_SMTP_TO` | Recipient address | — |
+| `GITPULSE_SMTP_FROM` | Sender address | falls back to `_TO` |
 
 ---
 
@@ -189,14 +195,14 @@ Restart the terminal afterwards so the variable is picked up.
 GitPulse can summarize with different backends, selected per command with
 `--provider` / `-p` and optionally `--model` / `-m`.
 
-| Provider         | Requires                                        | Cost                                                                        |
-| ---------------- | ----------------------------------------------- | --------------------------------------------------------------------------- |
-| `claude`         | `ANTHROPIC_API_KEY` + `anthropic` package       | paid (per token)                                                            |
-| `openai`         | `OPENAI_API_KEY`                                | paid (per token)                                                            |
-| `gemini`         | `GEMINI_API_KEY`                                | paid (per token)                                                            |
-| `ollama`         | a running Ollama server with at least one model | free, local, offline                                                        |
-| `local`          | nothing                                         | free; deterministic, no model                                               |
-| `auto` (default) | —                                               | picks the first available: ollama (free) first, then claude, openai, gemini |
+| Provider | Requires | Cost |
+|----------|----------|------|
+| `claude` | `ANTHROPIC_API_KEY` + `anthropic` package | paid (per token) |
+| `openai` | `OPENAI_API_KEY` | paid (per token) |
+| `gemini` | `GEMINI_API_KEY` | paid (per token) |
+| `ollama` | a running Ollama server with at least one model | free, local, offline |
+| `local` | nothing | free; deterministic, no model |
+| `auto` (default) | — | picks the first available: ollama (free) first, then claude, openai, gemini |
 
 API keys can be set as environment variables, or pasted into the web UI's
 provider manager (stored in the local config file, not system-wide). The cloud
@@ -275,15 +281,15 @@ its fixed phrases (the AI providers are unaffected).
 All activity commands take `--when` / `-w` (this replaces the old `--since`).
 It accepts several formats:
 
-| Type        | Example                                                   | Resolves to                            |
-| ----------- | --------------------------------------------------------- | -------------------------------------- |
-| interval    | `7d`, `24h`, `30m`                                        | rolling window ending now              |
-| single date | `2026-06-15`                                              | that whole day (00:00-23:59)           |
-| range       | `2026-06-10..2026-06-14`                                  | inclusive span                         |
-| open range  | `2026-06-12..`                                            | from that date to now                  |
-| relative    | `today`, `yesterday`, `avant-hier`                        | that whole day                         |
-| weekday     | `thursday`, `jeudi`, `"jeudi dernier"`, `"last thursday"` | most recent occurrence of that weekday |
-| week        | `this-week`, `last-week`                                  | Monday-Sunday span                     |
+| Type | Example | Resolves to |
+|------|---------|-------------|
+| interval | `7d`, `24h`, `30m` | rolling window ending now |
+| single date | `2026-06-15` | that whole day (00:00-23:59) |
+| range | `2026-06-10..2026-06-14` | inclusive span |
+| open range | `2026-06-12..` | from that date to now |
+| relative | `today`, `yesterday`, `avant-hier` | that whole day |
+| weekday | `thursday`, `jeudi`, `"jeudi dernier"`, `"last thursday"` | most recent occurrence of that weekday |
+| week | `this-week`, `last-week` | Monday-Sunday span |
 
 French and English terms are both accepted. Run `gitpulse dates` to print this
 table plus the concrete dates for the current week (e.g. `thursday (last) ->
@@ -347,14 +353,14 @@ Overview paragraph synthesizing the period, themes grouping related commits, and
 optional evidence-backed observations (neutral facts, positives, or risks, not
 just criticism). Also shows a 24-hour productivity sparkline and a cost line.
 
-| Option       | Alias | Default          | Description                               |
-| ------------ | ----- | ---------------- | ----------------------------------------- |
-| `PATH`       |       | `.`              | Repository path (quote paths with spaces) |
-| `--when`     | `-w`  | `7d`             | Time window (see above)                   |
-| `--branch`   | `-b`  | HEAD             | Specific branch to analyze                |
-| `--provider` | `-p`  | `auto`           | AI backend: auto, claude, ollama, local   |
-| `--model`    | `-m`  | provider default | Model name                                |
-| `--lang`     | `-l`  | default          | Output language (code or name)            |
+| Option | Alias | Default | Description |
+|--------|-------|---------|-------------|
+| `PATH` | | `.` | Repository path (quote paths with spaces) |
+| `--when` | `-w` | `7d` | Time window (see above) |
+| `--branch` | `-b` | HEAD | Specific branch to analyze |
+| `--provider` | `-p` | `auto` | AI backend: auto, claude, ollama, local |
+| `--model` | `-m` | provider default | Model name |
+| `--lang` | `-l` | default | Output language (code or name) |
 
 ```bash
 gitpulse summary
@@ -368,12 +374,12 @@ Plain `git log`-style listing: one entry per commit with SHA, author, date,
 message, and diff stats. No AI call, no cost. Use `--files` to list changed
 files per commit.
 
-| Option     | Alias | Default | Description                   |
-| ---------- | ----- | ------- | ----------------------------- |
-| `PATH`     |       | `.`     | Repository path               |
-| `--when`   | `-w`  | `7d`    | Time window                   |
-| `--branch` | `-b`  | HEAD    | Specific branch               |
-| `--files`  | `-f`  | off     | List changed files per commit |
+| Option | Alias | Default | Description |
+|--------|-------|---------|-------------|
+| `PATH` | | `.` | Repository path |
+| `--when` | `-w` | `7d` | Time window |
+| `--branch` | `-b` | HEAD | Specific branch |
+| `--files` | `-f` | off | List changed files per commit |
 
 ```bash
 gitpulse log --when yesterday
@@ -387,12 +393,12 @@ plus an inferred "Today" section from the repo state — the current branch, any
 uncommitted work in progress, and other recently active branches. If yesterday
 was Sunday or Monday, it looks back to the last working day (Friday) instead.
 
-| Option       | Alias | Default          | Description     |
-| ------------ | ----- | ---------------- | --------------- |
-| `PATH`       |       | `.`              | Repository path |
-| `--provider` | `-p`  | `auto`           | AI backend      |
-| `--model`    | `-m`  | provider default | Model name      |
-| `--lang`     | `-l`  | default          | Output language |
+| Option | Alias | Default | Description |
+|--------|-------|---------|-------------|
+| `PATH` | | `.` | Repository path |
+| `--provider` | `-p` | `auto` | AI backend |
+| `--model` | `-m` | provider default | Model name |
+| `--lang` | `-l` | default | Output language |
 
 ```bash
 gitpulse standup
@@ -411,13 +417,13 @@ repo has uncommitted work, a "Commit message" section appears with a staged/all
 toggle, a generate button, the editable result, a copy button, and the list of
 changed files with +/- counts.
 
-| Option       | Alias | Default          | Description                        |
-| ------------ | ----- | ---------------- | ---------------------------------- |
-| `PATH`       |       | `.`              | Repository path                    |
-| `--staged`   |       | off              | Only staged changes (default: all) |
-| `--provider` | `-p`  | `auto`           | AI backend                         |
-| `--model`    | `-m`  | provider default | Model name                         |
-| `--lang`     | `-l`  | default          | Output language                    |
+| Option | Alias | Default | Description |
+|--------|-------|---------|-------------|
+| `PATH` | | `.` | Repository path |
+| `--staged` | | off | Only staged changes (default: all) |
+| `--provider` | `-p` | `auto` | AI backend |
+| `--model` | `-m` | provider default | Model name |
+| `--lang` | `-l` | default | Output language |
 
 ```bash
 gitpulse commit-msg
@@ -431,12 +437,12 @@ whether your pace is rising or falling. Reports commits, lines added/deleted,
 files touched, and active days, each with the percentage change and an up/down
 arrow. No AI call, no cost.
 
-| Option      | Alias | Default | Description                       |
-| ----------- | ----- | ------- | --------------------------------- |
-| `PATH`      |       | `.`     | Repository path                   |
-| `--period`  | `-w`  | `7d`    | Length of each period             |
-| `--periods` | `-n`  | `4`     | How many prior periods to average |
-| `--branch`  | `-b`  | HEAD    | Specific branch                   |
+| Option | Alias | Default | Description |
+|--------|-------|---------|-------------|
+| `PATH` | | `.` | Repository path |
+| `--period` | `-w` | `7d` | Length of each period |
+| `--periods` | `-n` | `4` | How many prior periods to average |
+| `--branch` | `-b` | HEAD | Specific branch |
 
 ```bash
 gitpulse compare                       # this week vs the prior 4 weeks
@@ -451,19 +457,19 @@ self-hosted git server — because it uses the standard git protocol, not any
 host-specific API. The repo is cloned bare (history only, no working files)
 into a local cache and refreshed on each run.
 
-| Option                          | Alias | Default   | Description                                       |
-| ------------------------------- | ----- | --------- | ------------------------------------------------- |
-| `URL`                           |       | required  | Git URL, HTTPS or SSH                             |
-| `--when`                        | `-w`  | `7d`      | Time window                                       |
-| `--branch`                      | `-b`  | HEAD      | Specific branch                                   |
-| `--view`                        |       | `summary` | `summary` (AI) or `log` (plain listing)           |
-| `--files`                       | `-f`  | off       | In log view, list files per commit                |
-| `--token`                       |       | env       | Access token for private HTTPS repos              |
-| `--username`                    |       | `git`     | Username for token auth                           |
-| `--ssh-key`                     |       | agent     | Path to a private SSH key                         |
-| `--no-refresh`                  |       | off       | Use the cached clone, skip fetching               |
-| `--insecure`                    |       | off       | Disable SSL cert verification (see warning below) |
-| `--provider` `--model` `--lang` |       |           | Same as `summary`                                 |
+| Option | Alias | Default | Description |
+|--------|-------|---------|-------------|
+| `URL` | | required | Git URL, HTTPS or SSH |
+| `--when` | `-w` | `7d` | Time window |
+| `--branch` | `-b` | HEAD | Specific branch |
+| `--view` | | `summary` | `summary` (AI) or `log` (plain listing) |
+| `--files` | `-f` | off | In log view, list files per commit |
+| `--token` | | env | Access token for private HTTPS repos |
+| `--username` | | `git` | Username for token auth |
+| `--ssh-key` | | agent | Path to a private SSH key |
+| `--no-refresh` | | off | Use the cached clone, skip fetching |
+| `--insecure` | | off | Disable SSL cert verification (see warning below) |
+| `--provider` `--model` `--lang` | | | Same as `summary` |
 
 Authentication, two ways, both configurable:
 
@@ -497,11 +503,11 @@ warning is shown whenever it's enabled.
 
 Generate the AI summary as Markdown and dispatch it to notification channels.
 
-| Option   | Alias | Default   | Description         |
-| -------- | ----- | --------- | ------------------- |
-| `PATH`   |       | `.`       | Repository path     |
-| `--when` | `-w`  | `7d`      | Time window         |
-| `--to`   |       | `desktop` | Channel; repeatable |
+| Option | Alias | Default | Description |
+|--------|-------|---------|-------------|
+| `PATH` | | `.` | Repository path |
+| `--when` | `-w` | `7d` | Time window |
+| `--to` | | `desktop` | Channel; repeatable |
 
 ```bash
 gitpulse digest --to slack
@@ -524,15 +530,15 @@ By default the table shows metrics only (commits, lines, files) — fast and
 free, which matters when analyzing 10-15 repos. Add `--summarize` to include an
 AI headline per repo (one model call each, so slower and possibly billed).
 
-| Option                          | Alias | Default | Description                                   |
-| ------------------------------- | ----- | ------- | --------------------------------------------- |
-| `ROOT`                          |       | `.`     | Directory to scan (local mode)                |
-| `--when`                        | `-w`  | `7d`    | Time window                                   |
-| `--depth`                       |       | `3`     | Max search depth (local mode)                 |
-| `--remote`                      |       | off     | Use tracked remotes instead of a local folder |
-| `--summarize`                   |       | off     | Add an AI headline per repo                   |
-| `--no-refresh`                  |       | off     | (remote) use cached clones, skip fetch        |
-| `--provider` `--model` `--lang` |       |         | Used only with `--summarize`                  |
+| Option | Alias | Default | Description |
+|--------|-------|---------|-------------|
+| `ROOT` | | `.` | Directory to scan (local mode) |
+| `--when` | `-w` | `7d` | Time window |
+| `--depth` | | `3` | Max search depth (local mode) |
+| `--remote` | | off | Use tracked remotes instead of a local folder |
+| `--summarize` | | off | Add an AI headline per repo |
+| `--no-refresh` | | off | (remote) use cached clones, skip fetch |
+| `--provider` `--model` `--lang` | | | Used only with `--summarize` |
 
 ```bash
 gitpulse dashboard ~/code --when 30d              # local folder
@@ -579,11 +585,11 @@ Authentication for tracked private repos uses the same environment variables as
 Generate Conventional-Commits release notes between two refs, grouped by type
 (features, fixes, perf, breaking changes, ...).
 
-| Option   | Default | Description                                             |
-| -------- | ------- | ------------------------------------------------------- |
-| `PATH`   | `.`     | Repository path                                         |
-| `--from` | none    | Starting ref (e.g. `v1.2.0`); omit to walk full history |
-| `--to`   | `HEAD`  | Ending ref                                              |
+| Option | Default | Description |
+|--------|---------|-------------|
+| `PATH` | `.` | Repository path |
+| `--from` | none | Starting ref (e.g. `v1.2.0`); omit to walk full history |
+| `--to` | `HEAD` | Ending ref |
 
 ```bash
 gitpulse changelog --from v1.2.0
@@ -595,12 +601,12 @@ gitpulse changelog ~/proj --from v1.0.0 --to v1.1.0 > CHANGELOG.md
 Run digests on a recurring schedule. Blocks the terminal (requires
 `apscheduler`).
 
-| Option    | Alias | Default   | Description                          |
-| --------- | ----- | --------- | ------------------------------------ |
-| `PATH`    |       | `.`       | Repository path                      |
-| `--every` | `-e`  | `24h`     | Cadence between runs (interval only) |
-| `--when`  | `-w`  | `24h`     | Window each digest covers            |
-| `--to`    |       | `desktop` | Channel; repeatable                  |
+| Option | Alias | Default | Description |
+|--------|-------|---------|-------------|
+| `PATH` | | `.` | Repository path |
+| `--every` | `-e` | `24h` | Cadence between runs (interval only) |
+| `--when` | `-w` | `24h` | Window each digest covers |
+| `--to` | | `desktop` | Channel; repeatable |
 
 ```bash
 gitpulse watch --every 24h --to slack
@@ -629,10 +635,10 @@ gitpulse providers
 
 View or set persistent preferences. Currently the default output language.
 
-| Option   | Alias | Description                                         |
-| -------- | ----- | --------------------------------------------------- |
-| `--lang` | `-l`  | Set and persist the default language (code or name) |
-| `--show` |       | Show the active language and where it comes from    |
+| Option | Alias | Description |
+|--------|-------|-------------|
+| `--lang` | `-l` | Set and persist the default language (code or name) |
+| `--show` | | Show the active language and where it comes from |
 
 ```bash
 gitpulse config --lang fr
@@ -661,12 +667,12 @@ Each channel activates only when its environment variables are set; otherwise
 it is silently skipped. Configure them, then pass `--to <channel>` to `digest`
 or `watch`.
 
-| Channel    | Required variables                                           | Notes                                     |
-| ---------- | ------------------------------------------------------------ | ----------------------------------------- |
-| `desktop`  | none                                                         | Requires `plyer`. Native OS notification. |
-| `slack`    | `GITPULSE_SLACK_WEBHOOK`                                     | Slack incoming webhook URL.               |
-| `telegram` | `GITPULSE_TELEGRAM_TOKEN`, `GITPULSE_TELEGRAM_CHAT_ID`       | Bot via @BotFather.                       |
-| `email`    | `GITPULSE_SMTP_HOST` + `_PORT`/`_USER`/`_PASS`/`_TO`/`_FROM` | Gmail needs an app password.              |
+| Channel | Required variables | Notes |
+|---------|--------------------|-------|
+| `desktop` | none | Requires `plyer`. Native OS notification. |
+| `slack` | `GITPULSE_SLACK_WEBHOOK` | Slack incoming webhook URL. |
+| `telegram` | `GITPULSE_TELEGRAM_TOKEN`, `GITPULSE_TELEGRAM_CHAT_ID` | Bot via @BotFather. |
+| `email` | `GITPULSE_SMTP_HOST` + `_PORT`/`_USER`/`_PASS`/`_TO`/`_FROM` | Gmail needs an app password. |
 
 Add a channel by writing a `notify_*(markdown) -> bool` function in
 `gitpulse/notifiers/dispatch.py` and registering it in the `NOTIFIERS` dict.

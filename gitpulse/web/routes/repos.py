@@ -15,11 +15,8 @@ router = APIRouter(prefix="/api")
 @router.get("/config")
 def api_get_config():
     cfg = gp_config.load_config()
-    return {
-        "lang": gp_config.resolve_lang(),
-        "languages": gp_config.LANGUAGES,
-        "tracked": cfg.get("tracked", []),
-    }
+    return {"lang": gp_config.resolve_lang(), "languages": gp_config.LANGUAGES,
+            "tracked": cfg.get("tracked", [])}
 
 
 @router.post("/config/lang")
@@ -36,14 +33,12 @@ def api_set_lang(body: dict):
 @router.get("/browse")
 def api_browse(path: Optional[str] = None):
     from .. import browse
-
     return browse.list_dir(path)
 
 
 @router.get("/drives")
 def api_drives():
     from .. import browse
-
     return {"drives": browse.drives()}
 
 
@@ -51,7 +46,6 @@ def api_drives():
 def api_branches(body: dict):
     """List local branches; optionally include remote branches via ls-remote."""
     import subprocess
-
     path = body.get("path")
     url = body.get("url")
     include_remote = body.get("include_remote", False)
@@ -59,7 +53,6 @@ def api_branches(body: dict):
     try:
         if path:
             import pygit2
-
             disc = pygit2.discover_repository(path)
             if not disc:
                 raise HTTPException(400, "Not a git repository")
@@ -81,11 +74,8 @@ def api_branches(body: dict):
             ssl_opts = ["-c", "http.sslVerify=false"] if body.get("insecure") else []
             proc = subprocess.run(
                 ["git", *ssl_opts, "ls-remote", "--heads", ls_url],
-                capture_output=True,
-                text=True,
-                timeout=30,
-                env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
-            )
+                capture_output=True, text=True, timeout=30,
+                env={**os.environ, "GIT_TERMINAL_PROMPT": "0"})
             if proc.returncode == 0:
                 for line in proc.stdout.strip().splitlines():
                     if "refs/heads/" in line:

@@ -1,3 +1,9 @@
+"""Shared CLI primitives: the Typer app, console, help strings, and helpers.
+
+Command modules import `app` from here and register their commands onto it, so
+the command namespace stays flat (`gitpulse summary`, not `gitpulse x summary`)
+while the definitions live in small per-domain files.
+"""
 from __future__ import annotations
 
 import typer

@@ -7,9 +7,9 @@ from gitpulse.ai.commitmsg import generate_commit_message, _apply_type
 def test_collect_all_scope_includes_staged_and_untracked(dirty_repo):
     wc = collect_working_changes(dirty_repo, scope="all")
     paths = {f.path for f in wc.files}
-    assert "app.py" in paths  # staged modification
-    assert "config.py" in paths  # unstaged new file
-    assert "notes.md" in paths  # untracked
+    assert "app.py" in paths        # staged modification
+    assert "config.py" in paths     # unstaged new file
+    assert "notes.md" in paths      # untracked
     assert wc.has_changes
 
 

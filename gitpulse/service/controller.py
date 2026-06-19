@@ -1,3 +1,9 @@
+"""Cross-platform background control for the GitPulse web server.
+
+Uses a PID file under the config dir so `start` / `stop` / `status` work the
+same on Windows, Linux, and macOS without a system service manager. For a true
+boot-time service, see `units.py` (systemd / launchd / Windows Task Scheduler).
+"""
 from __future__ import annotations
 
 import os
@@ -41,11 +47,9 @@ def _alive(pid: int) -> bool:
         if os.name == "nt":
             out = subprocess.run(
                 ["tasklist", "/FI", f"PID eq {pid}", "/NH"],
-                capture_output=True,
-                text=True,
-            )
+                capture_output=True, text=True)
             return str(pid) in out.stdout
-        os.kill(pid, 0)  # signal 0 = existence check
+        os.kill(pid, 0)            # signal 0 = existence check
         return True
     except (OSError, ProcessLookupError):
         return False
@@ -62,35 +66,21 @@ def start(host: str = "127.0.0.1", port: int = 8420) -> dict:
     """Launch `gitpulse serve` detached, writing a PID file. Idempotent."""
     st = status()
     if st["running"]:
-        return {
-            "started": False,
-            "already": True,
-            "pid": st["pid"],
-            "url": f"http://{host}:{port}",
-        }
+        return {"started": False, "already": True, "pid": st["pid"],
+                "url": f"http://{host}:{port}"}
 
     log = open(log_file(), "ab")
     # Re-invoke our own CLI so the child is a normal `serve` process.
-    cmd = [
-        sys.executable,
-        "-m",
-        "gitpulse.cli.main",
-        "serve",
-        "--host",
-        host,
-        "--port",
-        str(port),
-        "--no-open",
-    ]
+    cmd = [sys.executable, "-m", "gitpulse.cli.main", "serve",
+           "--host", host, "--port", str(port), "--no-open"]
 
     kwargs: dict = {"stdout": log, "stderr": log, "stdin": subprocess.DEVNULL}
     if os.name == "nt":
         # detach into its own process group on Windows
-        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP | getattr(
-            subprocess, "DETACHED_PROCESS", 0
-        )
+        kwargs["creationflags"] = (subprocess.CREATE_NEW_PROCESS_GROUP
+                                   | getattr(subprocess, "DETACHED_PROCESS", 0))
     else:
-        kwargs["start_new_session"] = True  # detach via setsid
+        kwargs["start_new_session"] = True   # detach via setsid
 
     proc = subprocess.Popen(cmd, **kwargs)
     pid_file().write_text(str(proc.pid))
@@ -98,11 +88,8 @@ def start(host: str = "127.0.0.1", port: int = 8420) -> dict:
     # confirm it stayed up briefly
     time.sleep(1.2)
     if not _alive(proc.pid):
-        return {
-            "started": False,
-            "error": "server exited immediately; see log",
-            "log": str(log_file()),
-        }
+        return {"started": False, "error": "server exited immediately; see log",
+                "log": str(log_file())}
     return {"started": True, "pid": proc.pid, "url": f"http://{host}:{port}"}
 
 
@@ -113,9 +100,8 @@ def stop() -> dict:
         return {"stopped": False, "reason": "not running"}
     try:
         if os.name == "nt":
-            subprocess.run(
-                ["taskkill", "/PID", str(pid), "/T", "/F"], capture_output=True
-            )
+            subprocess.run(["taskkill", "/PID", str(pid), "/T", "/F"],
+                           capture_output=True)
         else:
             os.kill(pid, signal.SIGTERM)
             for _ in range(10):
