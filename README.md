@@ -320,6 +320,31 @@ gitpulse standup
 gitpulse standup "C:\Users\LEGION\Documents\Sage100 ERP\Sage100-vps" -l fr
 ```
 
+### `gitpulse commit-msg [PATH]`
+
+Generate a commit message from your uncommitted changes. Reads the diff and
+produces a Conventional Commits subject line (one line, imperative) plus a
+bullet-point body summarizing each change. By default it covers all changes
+(staged, unstaged, and untracked); `--staged` restricts it to the index.
+
+In the web UI this lives inside the **Standup** tab: whenever the selected local
+repo has uncommitted work, a "Commit message" section appears with a staged/all
+toggle, a generate button, the editable result, a copy button, and the list of
+changed files with +/- counts.
+
+| Option       | Alias | Default          | Description                        |
+| ------------ | ----- | ---------------- | ---------------------------------- |
+| `PATH`       |       | `.`              | Repository path                    |
+| `--staged`   |       | off              | Only staged changes (default: all) |
+| `--provider` | `-p`  | `auto`           | AI backend                         |
+| `--model`    | `-m`  | provider default | Model name                         |
+| `--lang`     | `-l`  | default          | Output language                    |
+
+```bash
+gitpulse commit-msg
+gitpulse commit-msg --staged -l fr
+```
+
 ### `gitpulse compare [PATH]`
 
 Compare the current period against the average of several prior periods, to see

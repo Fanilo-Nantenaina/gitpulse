@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import dataclasses
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -17,7 +15,9 @@ from ..core import remote as gp_remote
 from ..core import trends as gp_trends
 from ..core import standup as gp_standup
 from ..core import gitgraph
+from ..core.diffstage import collect_working_changes
 from ..ai.summarizer import summarize
+from ..ai.commitmsg import generate_commit_message
 from ..ai import providers as ai_providers
 
 app = FastAPI(title="GitPulse")
@@ -83,6 +83,7 @@ def _resolve_source(req) -> tuple[object, Optional[str]]:
     return req.path, None
 
 
+# ---- request models ----
 class SummaryReq(BaseModel):
     path: Optional[str] = None
     url: Optional[str] = None
@@ -140,6 +141,7 @@ class DashboardReq(BaseModel):
     insecure: bool = False
 
 
+# ---- endpoints ----
 @app.get("/api/providers")
 def api_providers():
     return ai_providers.status()
@@ -353,13 +355,59 @@ def api_standup(req: SummaryReq):
         ctx = gp_standup.gather(src, name=name)
         prov = "local" if ctx.yesterday.commit_count == 0 else req.provider
         summ = summarize(ctx.yesterday, provider=prov, model=req.model, lang=req.lang)
+        # quick check for uncommitted work (only meaningful for local repos)
+        has_uncommitted = bool(ctx.uncommitted)
         return {
             "repo_name": ctx.repo_name,
             "current_branch": ctx.current_branch,
             "uncommitted": ctx.uncommitted,
+            "has_uncommitted": has_uncommitted,
+            "is_local": bool(req.path),
             "recent_branches": ctx.recent_branches,
             "yesterday": _activity_dict(ctx.yesterday),
             "summary": _summary_dict(summ),
+        }
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e))
+
+
+class CommitMsgReq(BaseModel):
+    path: str
+    scope: str = "all"  # "all" | "staged"
+    provider: str = "auto"
+    model: Optional[str] = None
+    lang: Optional[str] = None
+
+
+@app.post("/api/commit-message")
+def api_commit_message(req: CommitMsgReq):
+    try:
+        changes = collect_working_changes(req.path, scope=req.scope)
+        if not changes.has_changes:
+            return {"has_changes": False, "scope": req.scope, "files": []}
+        msg = generate_commit_message(
+            changes, provider=req.provider, model=req.model, lang=req.lang
+        )
+        return {
+            "has_changes": True,
+            "scope": req.scope,
+            "files": [
+                {
+                    "path": f.path,
+                    "status": f.status,
+                    "additions": f.additions,
+                    "deletions": f.deletions,
+                }
+                for f in changes.files
+            ],
+            "additions": changes.total_additions,
+            "deletions": changes.total_deletions,
+            "truncated": changes.truncated,
+            "subject": msg.subject,
+            "bullets": msg.bullets,
+            "full_text": msg.full_text,
+            "source": msg.source,
+            "cost_usd": msg.cost_usd,
         }
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
@@ -433,6 +481,7 @@ def api_dashboard(req: DashboardReq):
     return {"rows": rows, "failed": failed, "range_label": r.label}
 
 
+# ---- static frontend ----
 @app.get("/")
 def index():
     return FileResponse(_STATIC / "index.html")
@@ -442,7 +491,7 @@ if _STATIC.exists():
     app.mount("/static", StaticFiles(directory=str(_STATIC)), name="static")
 
 
-def serve(host: str = "127.0.0.1", port: int = 18420, open_browser: bool = True):
+def serve(host: str = "127.0.0.1", port: int = 8420, open_browser: bool = True):
     import uvicorn
 
     if open_browser:

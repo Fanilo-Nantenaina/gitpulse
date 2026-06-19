@@ -925,6 +925,120 @@
     .prov-card .badge.local {
       color: var(--green)
     }
+
+    .cm-box {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      background: var(--panel);
+      margin-bottom: 12px
+    }
+
+    .cm-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px
+    }
+
+    .cm-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--muted)
+    }
+
+    .cm-subject {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      padding: 6px 0
+    }
+
+    .cm-bullets {
+      margin: 6px 0 0 18px;
+      line-height: 1.6
+    }
+
+    .cm-bullets li {
+      margin-bottom: 3px
+    }
+
+    .cm-full {
+      width: 100%;
+      margin-top: 12px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 10px;
+      resize: vertical
+    }
+
+    .cm-files {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      background: var(--panel)
+    }
+
+    .cm-file {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 0;
+      font-size: 12px
+    }
+
+    .cm-st {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+      width: 64px;
+      text-align: center
+    }
+
+    .cm-modified {
+      background: var(--accent-dim);
+      color: var(--accent)
+    }
+
+    .cm-added,
+    .cm-untracked {
+      background: rgba(63, 185, 80, .15);
+      color: var(--green)
+    }
+
+    .cm-deleted {
+      background: rgba(248, 81, 73, .15);
+      color: var(--red)
+    }
+
+    .cm-renamed,
+    .cm-copied,
+    .cm-typechange {
+      background: var(--panel-2);
+      color: var(--muted)
+    }
+
+    .cm-path {
+      font-family: var(--mono);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .cm-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      flex-shrink: 0
+    }
   </style>
 </head>
 
@@ -993,6 +1107,7 @@
     </main>
   </div>
 
+  <!-- folder browser -->
   <div class="modal-bg" id="modalBg">
     <div class="modal">
       <div class="modal-head"><span class="cur" id="modalCur"></span><button class="mini"
@@ -1004,6 +1119,7 @@
     </div>
   </div>
 
+  <!-- provider manager -->
   <div class="modal-bg" id="provBg">
     <div class="modal">
       <div class="modal-head"><span data-i="aiProviders">AI providers</span><button class="mini"
@@ -1033,7 +1149,7 @@
         wip: 'Work in progress', otherBranches: 'Other active branches', addRemote: 'Add a remote', gitUrl: 'Git URL', label: 'Label (optional)',
         track: 'Track', remove: 'Remove', noTracked: 'No tracked repositories yet.', remoteActivity: 'Remote activity',
         noTrackedHint: 'No tracked remotes. Add repos in the Tracked tab.', apiKey: 'API key', save: 'Save', saved: 'Saved', notSet: 'not set',
-        startOllama: 'Start Ollama', ollamaStarting: 'Starting Ollama...', custom: 'Custom...', loadingProviders: 'Checking providers...', ollamaNoModels: 'Server running, but no models pulled yet. Pull one:', loading: 'Loading...', loadMore: 'Load more', allCommits: 'All commits', commitCount: 'Commits to load', allBranches: 'All branches', selectRepoGraph: 'Select a repository to view its graph.',
+        startOllama: 'Start Ollama', ollamaStarting: 'Starting Ollama...', custom: 'Custom...', loadingProviders: 'Checking providers...', ollamaNoModels: 'Server running, but no models pulled yet. Pull one:', loading: 'Loading...', loadMore: 'Load more', allCommits: 'All commits', commitCount: 'Commits to load', allBranches: 'All branches', selectRepoGraph: 'Select a repository to view its graph.', commitMessage: 'Commit message', changesScope: 'Changes', scopeAll: 'All (staged + unstaged)', scopeStaged: 'Staged only', generateMsg: 'Generate message', generatingMsg: 'Analyzing changes...', noChanges: 'No uncommitted changes.', subject: 'Subject', changes: 'Changes', copy: 'Copy', copied: 'Copied!', diffTruncated: 'diff truncated',
         metered: 'A metered/limited connection may apply data charges for cloud models.',
         highLatency: 'High latency to cloud APIs detected. Cloud runs risk timeouts and wasted tokens.',
         switchLocal: 'Switch to local', proceedAnyway: 'Use cloud anyway', loadBranches: 'Load remote branches', allowInsecure: 'Allow insecure SSL (expired/self-signed cert)',
@@ -1052,7 +1168,7 @@
         wip: 'Travail en cours', otherBranches: 'Autres branches actives', addRemote: 'Ajouter un dépôt distant', gitUrl: 'URL Git', label: 'Étiquette (optionnel)',
         track: 'Suivre', remove: 'Retirer', noTracked: 'Aucun dépôt suivi pour l\'instant.', remoteActivity: 'Activité distante',
         noTrackedHint: 'Aucun dépôt distant suivi. Ajoutez-en dans l\'onglet Suivis.', apiKey: 'Clé API', save: 'Enregistrer', saved: 'Enregistré', notSet: 'non définie',
-        startOllama: 'Démarrer Ollama', ollamaStarting: 'Démarrage d\'Ollama...', custom: 'Personnalisé...', loadingProviders: 'Vérification des fournisseurs...', ollamaNoModels: 'Serveur démarré, mais aucun modèle installé. Installez-en un :', loading: 'Chargement...', loadMore: 'Charger plus', allCommits: 'Tous les commits', commitCount: 'Commits à charger', allBranches: 'Toutes les branches', selectRepoGraph: 'Sélectionnez un dépôt pour afficher son graphe.',
+        startOllama: 'Démarrer Ollama', ollamaStarting: 'Démarrage d\'Ollama...', custom: 'Personnalisé...', loadingProviders: 'Vérification des fournisseurs...', ollamaNoModels: 'Serveur démarré, mais aucun modèle installé. Installez-en un :', loading: 'Chargement...', loadMore: 'Charger plus', allCommits: 'Tous les commits', commitCount: 'Commits à charger', allBranches: 'Toutes les branches', selectRepoGraph: 'Sélectionnez un dépôt pour afficher son graphe.', commitMessage: 'Message de commit', changesScope: 'Changements', scopeAll: 'Tout (indexé + non indexé)', scopeStaged: 'Indexé uniquement', generateMsg: 'Générer le message', generatingMsg: 'Analyse des changements...', noChanges: 'Aucun changement non commité.', subject: 'Résumé', changes: 'Changements', copy: 'Copier', copied: 'Copié !', diffTruncated: 'diff tronqué',
         metered: 'Une connexion limitée peut entraîner des frais de données pour les modèles cloud.',
         highLatency: 'Latence élevée vers les API cloud. Risque de coupures et de gaspillage de tokens.',
         switchLocal: 'Passer en local', proceedAnyway: 'Utiliser le cloud quand même', loadBranches: 'Charger les branches distantes', allowInsecure: 'Autoriser SSL non sécurisé (certificat expiré/auto-signé)',
@@ -1418,7 +1534,49 @@
       rowEl.after(d);
     }
     async function runCompare() { try { loading('...'); const d = await post('/api/compare', baseBody({ period: document.getElementById('ctlPeriod').value, periods: parseInt(document.getElementById('ctlPeriods').value) || 4, branch: document.getElementById('ctlBranch').value || null })); const rows = d.metrics.map(m => { const ar = m.direction === 'up' ? '&#9650;' : m.direction === 'down' ? '&#9660;' : '='; const gu = ['Commits', 'Files touched', 'Active days', 'Lines added'].includes(m.name); const cls = m.direction === 'flat' ? '' : ((m.direction === 'up') === gu ? 'add' : 'del'); const pct = m.pct === null ? (m.current ? 'new' : '-') : (m.pct >= 0 ? '+' : '') + m.pct.toFixed(0) + '%'; return '<tr><td>' + m.name + '</td><td class="num">' + Math.round(m.current) + '</td><td class="num" style="color:var(--muted)">' + m.baseline.toFixed(1) + '</td><td class="num ' + cls + '">' + pct + ' ' + ar + '</td></tr>'; }).join(''); out.innerHTML = '<div class="block"><h3>' + esc(d.repo_name) + ' &middot; ' + d.period_days + 'd vs ' + d.periods_back + '</h3><table class="grid"><thead><tr><th>Metric</th><th class="num">Now</th><th class="num">Avg</th><th class="num">Change</th></tr></thead><tbody>' + rows + '</tbody></table></div>'; } catch (e) { showErr(e); } }
-    function runStandup() { cloudGuard(async () => { try { loading('...'); const d = await post('/api/standup', baseBody(modelArgs())); let h = '<div class="head-card"><div class="title">' + t('standup') + ' &middot; ' + esc(d.repo_name) + '</div></div><div class="block"><h3>' + t('yesterday') + '</h3>'; if (d.yesterday.commit_count === 0) h += '<div class="overview">' + t('noCommits') + '</div>'; else { h += '<div class="overview">' + esc(d.summary.synthesis || d.summary.headline) + '</div>'; if (d.summary.themes.length) h += d.summary.themes.map(x => '<div class="theme"><div class="t">' + esc(x.title) + '</div><div class="narr">' + esc(x.narrative) + '</div></div>').join(''); } h += '</div><div class="block"><h3>' + t('today') + '</h3>'; const plan = []; if (d.current_branch) plan.push([t('continueBranch'), d.current_branch]); if (d.uncommitted.length) plan.push([t('wip'), d.uncommitted.slice(0, 6).join(', ') + (d.uncommitted.length > 6 ? ' (+' + (d.uncommitted.length - 6) + ')' : '')]); const others = d.recent_branches.filter(b => b !== d.current_branch); if (others.length) plan.push([t('otherBranches'), others.slice(0, 4).join(', ')]); h += plan.length ? plan.map(p => '<div class="obs"><span class="dot" style="color:var(--green)">&#9656;</span><span><b>' + esc(p[0]) + ':</b> ' + esc(p[1]) + '</span></div>').join('') : '<div class="overview">' + t('noWip') + '</div>'; out.innerHTML = h + '</div><div class="cost">' + esc(d.summary.cost_note) + '</div>'; } catch (e) { showErr(e); } }); }
+    function runStandup() {
+      cloudGuard(async () => {
+        try {
+          loading('...'); const d = await post('/api/standup', baseBody(modelArgs())); let h = '<div class="head-card"><div class="title">' + t('standup') + ' &middot; ' + esc(d.repo_name) + '</div></div><div class="block"><h3>' + t('yesterday') + '</h3>'; if (d.yesterday.commit_count === 0) h += '<div class="overview">' + t('noCommits') + '</div>'; else { h += '<div class="overview">' + esc(d.summary.synthesis || d.summary.headline) + '</div>'; if (d.summary.themes.length) h += d.summary.themes.map(x => '<div class="theme"><div class="t">' + esc(x.title) + '</div><div class="narr">' + esc(x.narrative) + '</div></div>').join(''); } h += '</div><div class="block"><h3>' + t('today') + '</h3>'; const plan = []; if (d.current_branch) plan.push([t('continueBranch'), d.current_branch]); if (d.uncommitted.length) plan.push([t('wip'), d.uncommitted.slice(0, 6).join(', ') + (d.uncommitted.length > 6 ? ' (+' + (d.uncommitted.length - 6) + ')' : '')]); const others = d.recent_branches.filter(b => b !== d.current_branch); if (others.length) plan.push([t('otherBranches'), others.slice(0, 4).join(', ')]); h += plan.length ? plan.map(p => '<div class="obs"><span class="dot" style="color:var(--green)">&#9656;</span><span><b>' + esc(p[0]) + ':</b> ' + esc(p[1]) + '</span></div>').join('') : '<div class="overview">' + t('noWip') + '</div>'; h += '</div><div class="cost">' + esc(d.summary.cost_note) + '</div>';
+          // commit-message generator: only for local repos with uncommitted work
+          if (d.is_local && d.has_uncommitted) {
+            h += '<div class="block" id="commitBlock"><h3>' + t('commitMessage') + '</h3>' +
+              '<div class="controls" style="padding:0;border:none;background:none;margin-bottom:12px">' +
+              '<div class="field"><label>' + t('changesScope') + '</label><select id="cmScope"><option value="all">' + t('scopeAll') + '</option><option value="staged">' + t('scopeStaged') + '</option></select></div>' +
+              '<div class="field go"><label>&nbsp;</label><button class="btn" id="cmGenBtn">' + t('generateMsg') + '</button></div>' +
+              '</div><div id="cmResult"></div></div>';
+          }
+          out.innerHTML = h;
+          if (d.is_local && d.has_uncommitted) {
+            $('#cmGenBtn').onclick = () => generateCommitMsg();
+          }
+        } catch (e) { showErr(e); }
+      });
+    }
+    async function generateCommitMsg() {
+      const scope = document.getElementById('cmScope').value;
+      const res = document.getElementById('cmResult');
+      const src = currentSource();
+      if (!src || !src.path) { res.innerHTML = '<div class="err">' + t('selectFirst') + '</div>'; return; }
+      res.innerHTML = '<div class="loading"><span class="spinner"></span> ' + t('generatingMsg') + '</div>';
+      try {
+        const d = await post('/api/commit-message', Object.assign({ path: src.path, scope }, modelArgs()));
+        if (!d.has_changes) { res.innerHTML = '<div class="overview">' + t('noChanges') + '</div>'; return; }
+        const fileRows = d.files.map(f => '<div class="cm-file"><span class="cm-st cm-' + f.status + '">' + f.status + '</span><span class="cm-path">' + esc(f.path) + '</span><span class="cm-num"><span class="add">+' + f.additions + '</span> <span class="del">-' + f.deletions + '</span></span></div>').join('');
+        const bullets = d.bullets.map(b => '- ' + b).join('\n');
+        const full = d.subject + (d.bullets.length ? '\n\n' + bullets : '');
+        res.innerHTML = '<div class="cm-box">' +
+          '<div class="cm-head"><span class="cm-label">' + t('subject') + '</span>' +
+          '<button class="browse-btn" id="cmCopy">' + t('copy') + '</button></div>' +
+          '<div class="cm-subject">' + esc(d.subject) + '</div>' +
+          (d.bullets.length ? '<div class="cm-label" style="margin-top:10px">' + t('changes') + '</div><ul class="cm-bullets">' + d.bullets.map(b => '<li>' + esc(b) + '</li>').join('') + '</ul>' : '') +
+          '<textarea class="cm-full" id="cmFull" rows="' + Math.min(12, 3 + d.bullets.length) + '">' + esc(full) + '</textarea>' +
+          '<div class="cost">' + esc(d.source) + (d.cost_usd ? ' &middot; ~$' + d.cost_usd.toFixed(4) : '') + (d.truncated ? ' &middot; ' + t('diffTruncated') : '') + '</div>' +
+          '</div>' +
+          '<div class="cm-files"><div class="cm-label">' + d.files.length + ' ' + t('files') + ' (+' + d.additions + '/-' + d.deletions + ')</div>' + fileRows + '</div>';
+        $('#cmCopy').onclick = () => { const ta = document.getElementById('cmFull'); ta.select(); document.execCommand('copy'); $('#cmCopy').textContent = t('copied'); setTimeout(() => $('#cmCopy').textContent = t('copy'), 1500); };
+      } catch (e) { res.innerHTML = '<div class="err">' + (e.message || e) + '</div>'; }
+    }
     async function runDashboard() { const go = async () => { try { loading('...'); const sum = document.getElementById('ctlSummarize').value === 'true'; const d = await post('/api/dashboard', Object.assign({ when: whenValue(), summarize: sum }, modelArgs())); if (d.error) { out.innerHTML = '<div class="placeholder">' + t('noTrackedHint') + '</div>'; return; } const head = '<tr><th>' + t('repository') + '</th><th class="num">' + t('commits') + '</th><th class="num">+</th><th class="num">&minus;</th><th class="num">' + t('files') + '</th>' + (sum ? '<th>Headline</th>' : '') + '</tr>'; const rows = d.rows.map(r => '<tr><td class="repo-name">' + esc(r.name) + '</td><td class="num">' + r.commits + '</td><td class="num add">+' + r.additions + '</td><td class="num del">-' + r.deletions + '</td><td class="num">' + r.files + '</td>' + (sum ? '<td style="color:var(--muted)">' + esc(r.headline || '') + '</td>' : '') + '</tr>').join(''); const total = d.rows.reduce((s, r) => s + r.commits, 0); out.innerHTML = '<div class="block"><h3>' + t('remoteActivity') + ' &middot; ' + esc(d.range_label) + '</h3><table class="grid"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table><div class="cost">' + d.rows.length + ' active &middot; ' + total + ' ' + t('commits') + (d.failed.length ? ' &middot; ' + d.failed.length + ' failed' : '') + '</div></div>'; } catch (e) { showErr(e); } }; const sum = document.getElementById('ctlSummarize').value === 'true'; if (sum) cloudGuard(go); else go(); }
     async function runTracked() { try { loading('...'); const items = await api('/api/tracked'); let add = '<div class="block"><h3>' + t('addRemote') + '</h3><div class="controls" style="padding:0;border:none;background:none"><div class="field" style="flex:2"><label>' + t('gitUrl') + '</label><input id="trackUrl" placeholder="https://... or git@..."></div><div class="field"><label>' + t('label') + '</label><input id="trackLabel"></div><div class="field go"><label>&nbsp;</label><button class="btn" id="trackBtn">' + t('track') + '</button></div></div></div>'; const rows = items.length ? items.map((it, i) => { const nm = it.label || it.url.replace(/\.git$/, '').split(/[\/:]/).pop(); return '<tr><td class="num" style="color:var(--muted)">' + (i + 1) + '</td><td class="repo-name">' + esc(nm) + '</td><td style="font-family:var(--mono);font-size:12px;color:var(--muted)">' + esc(it.url) + '</td><td class="num"><button class="browse-btn untrackBtn" data-url="' + esc(it.url) + '">' + t('remove') + '</button></td></tr>'; }).join('') : '<tr><td colspan="4" style="color:var(--muted);padding:14px">' + t('noTracked') + '</td></tr>'; out.innerHTML = add + '<div class="block"><h3>' + t('tracked') + ' (' + items.length + ')</h3><table class="grid"><tbody>' + rows + '</tbody></table></div>'; $('#trackBtn').onclick = async () => { const url = $('#trackUrl').value.trim(); if (!url) return; await post('/api/tracked', { url, label: $('#trackLabel').value.trim() || null }); runTracked(); }; document.querySelectorAll('.untrackBtn').forEach(b => b.onclick = async () => { await api('/api/tracked?needle=' + encodeURIComponent(b.dataset.url), { method: 'DELETE' }); runTracked(); }); } catch (e) { showErr(e); } }
 

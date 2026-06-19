@@ -114,6 +114,40 @@ def standup(
     render_standup(ctx, summ)
 
 
+@app.command(name="commit-msg")
+def commit_msg(
+    path: Path = typer.Argument(Path("."), help="Repository path"),
+    staged: bool = typer.Option(
+        False, "--staged", help="Only staged changes (default: all)"
+    ),
+    provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
+    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
+):
+    """Generate a commit message from uncommitted changes."""
+    from ..core.diffstage import collect_working_changes
+    from ..ai.commitmsg import generate_commit_message
+
+    scope = "staged" if staged else "all"
+    changes = collect_working_changes(path, scope=scope)
+    if not changes.has_changes:
+        console.print("[yellow]No uncommitted changes to describe.[/]")
+        raise typer.Exit()
+    label = "local" if provider == "local" else provider
+    with status_spinner(f"Describing {len(changes.files)} changed file(s) via {label}"):
+        msg = generate_commit_message(
+            changes, provider=provider, model=model, lang=lang
+        )
+    console.print(f"\n[bold cyan]{msg.subject}[/]\n")
+    for b in msg.bullets:
+        console.print(f"  [dim]•[/] {b}")
+    console.print(
+        f"\n[dim]{msg.source} · {len(changes.files)} files "
+        f"(+{changes.total_additions}/-{changes.total_deletions})"
+        f"{' · cost ~$%.4f' % msg.cost_usd if msg.cost_usd else ''}[/]"
+    )
+
+
 @app.command()
 def compare(
     path: Path = typer.Argument(Path("."), help="Repository path"),
