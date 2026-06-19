@@ -225,7 +225,7 @@ covering every feature:
 
 ```bash
 pip install -e ".[web]"     # or ".[all]"
-gitpulse serve              # opens your browser at http://127.0.0.1:18420
+gitpulse serve              # opens your browser at http://127.0.0.1:8420
 ```
 
 It runs entirely on your machine (no data leaves it). The UI has:
@@ -657,13 +657,37 @@ gitpulse/
 ├── notifiers/
 │   └── dispatch.py     # slack / telegram / email / desktop
 └── web/
-    ├── server.py       # FastAPI: endpoints wrapping every module
+    ├── server.py       # thin app assembly: mounts routers, serves frontend
+    ├── schemas.py      # Pydantic request models
+    ├── serializers.py  # dataclass → dict serializers + source resolution
     ├── browse.py       # server-side folder picker
+    ├── routes/
+    │   ├── analysis.py    # summary, log, compare, standup, graph, dashboard
+    │   ├── commit.py      # changes-count, commit-message
+    │   ├── providers.py   # provider status, latency, keys, ollama control
+    │   └── repos.py       # branches, browse, drives, tracked, config
     └── static/index.html  # single-page UI (dark/light, all actions)
 ```
 
 The `core` layer has zero AI/CLI dependencies — import the collector in any
-other tool. The `ai` and `notifiers` layers are optional extras.
+other tool. The `ai` and `notifiers` layers are optional extras. The web layer
+is split into domain routers so each slice of the API stays small and testable.
+
+---
+
+## Testing
+
+GitPulse ships a pytest suite that locks the behavior of the core logic and the
+web API — including the commit-graph lane-continuity contract, which is easy to
+regress on.
+
+```bash
+pip install -e ".[dev]"
+pytest
+```
+
+The fixtures build real disposable git repositories with fixed commit dates, so
+date-window, graph, and diff assertions are deterministic.
 
 ---
 

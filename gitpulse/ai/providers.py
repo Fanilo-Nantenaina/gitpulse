@@ -23,7 +23,7 @@ class GenResult:
 @dataclass
 class Provider:
     name: str
-    kind: str = "local"
+    kind: str = "local"  # "cloud" | "local"
 
     def available(self) -> bool:
         raise NotImplementedError
@@ -315,6 +315,7 @@ _REGISTRY = {
     "gemini": GeminiProvider,
     "ollama": OllamaProvider,
 }
+# auto-detection order: local first (free), then cloud
 _AUTO_ORDER = ["ollama", "claude", "openai", "gemini"]
 
 

@@ -197,7 +197,7 @@ def remote(
     action = "Fetching" if not no_refresh else "Loading cached"
     if insecure:
         console.print(
-            "[yellow] ⚠ SSL verification disabled — use only on trusted networks.[/]"
+            "[yellow]⚠ SSL verification disabled — use only on trusted networks.[/]"
         )
     try:
         with status_spinner(f"{action} {name}"):
@@ -223,7 +223,7 @@ def remote(
 
 @app.command()
 def serve(
-    port: int = typer.Option(18420, "--port", help="Port to serve on"),
+    port: int = typer.Option(8420, "--port", help="Port to serve on"),
     host: str = typer.Option("127.0.0.1", "--host"),
     no_open: bool = typer.Option(False, "--no-open", help="Don't open the browser"),
 ):
@@ -349,7 +349,7 @@ def dashboard(
                 "[bold]gitpulse track <url>[/].[/]"
             )
             raise typer.Exit()
-        targets: list[tuple[str, str, dict]] = []
+        targets: list[tuple[str, str, dict]] = []  # (name, kind, meta)
         tok, user, key = gp_remote.resolve_auth(None, None, None)
         with progress_bar() as prog:
             task = prog.add_task(

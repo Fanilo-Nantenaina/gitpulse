@@ -1039,6 +1039,25 @@
       font-size: 11px;
       flex-shrink: 0
     }
+
+    .changes-badge {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-dim);
+      padding: 2px 7px;
+      border-radius: 10px;
+      text-transform: none;
+      letter-spacing: 0;
+      cursor: default;
+      white-space: nowrap
+    }
+
+    button.btn.sm {
+      padding: 6px 10px;
+      font-size: 12px;
+      width: auto
+    }
   </style>
 </head>
 
@@ -1056,7 +1075,8 @@
         </div>
       </div>
       <div class="side-section">
-        <h2 data-i="repository">Repository</h2>
+        <h2 style="justify-content:space-between"><span data-i="repository">Repository</span><span id="changesBadge"
+            class="changes-badge" style="display:none"></span></h2>
         <div class="source-tabs">
           <div class="source-tab active" data-src="local" data-i="local">Local</div>
           <div class="source-tab" data-src="url" data-i="remoteUrl">Remote URL</div>
@@ -1097,6 +1117,7 @@
         <div class="action" data-act="graph" data-i="graph">Graph</div>
         <div class="action" data-act="compare" data-i="compare">Compare</div>
         <div class="action" data-act="standup" data-i="standup">Standup</div>
+        <div class="action" data-act="commit" data-i="commitTab">Commit</div>
         <div class="action" data-act="dashboard" data-i="dashboard">Dashboard</div>
         <div class="action" data-act="tracked" data-i="tracked">Tracked</div>
       </nav>
@@ -1149,7 +1170,7 @@
         wip: 'Work in progress', otherBranches: 'Other active branches', addRemote: 'Add a remote', gitUrl: 'Git URL', label: 'Label (optional)',
         track: 'Track', remove: 'Remove', noTracked: 'No tracked repositories yet.', remoteActivity: 'Remote activity',
         noTrackedHint: 'No tracked remotes. Add repos in the Tracked tab.', apiKey: 'API key', save: 'Save', saved: 'Saved', notSet: 'not set',
-        startOllama: 'Start Ollama', ollamaStarting: 'Starting Ollama...', custom: 'Custom...', loadingProviders: 'Checking providers...', ollamaNoModels: 'Server running, but no models pulled yet. Pull one:', loading: 'Loading...', loadMore: 'Load more', allCommits: 'All commits', commitCount: 'Commits to load', allBranches: 'All branches', selectRepoGraph: 'Select a repository to view its graph.', commitMessage: 'Commit message', changesScope: 'Changes', scopeAll: 'All (staged + unstaged)', scopeStaged: 'Staged only', generateMsg: 'Generate message', generatingMsg: 'Analyzing changes...', noChanges: 'No uncommitted changes.', subject: 'Subject', changes: 'Changes', copy: 'Copy', copied: 'Copied!', diffTruncated: 'diff truncated',
+        startOllama: 'Start Ollama', ollamaStarting: 'Starting Ollama...', custom: 'Custom...', loadingProviders: 'Checking providers...', ollamaNoModels: 'Server running, but no models pulled yet. Pull one:', loading: 'Loading...', loadMore: 'Load more', allCommits: 'All commits', commitCount: 'Commits to load', allBranches: 'All branches', selectRepoGraph: 'Select a repository to view its graph.', commitMessage: 'Commit message', changesScope: 'Changes', scopeAll: 'All (staged + unstaged)', scopeStaged: 'Staged only', generateMsg: 'Generate message', generatingMsg: 'Analyzing changes...', noChanges: 'No uncommitted changes.', subject: 'Subject', changes: 'Changes', copy: 'Copy', copied: 'Copied!', diffTruncated: 'diff truncated', commitTab: 'Commit', selectRepoCommit: 'Select a local repository to generate a commit message.', commitType: 'Type', typeAuto: 'Auto-detect', regenerate: 'Regenerate', uncommittedShort: 'uncommitted', uncommittedFull: 'Uncommitted changes', commitHint: 'You have uncommitted changes — generate a commit message.',
         metered: 'A metered/limited connection may apply data charges for cloud models.',
         highLatency: 'High latency to cloud APIs detected. Cloud runs risk timeouts and wasted tokens.',
         switchLocal: 'Switch to local', proceedAnyway: 'Use cloud anyway', loadBranches: 'Load remote branches', allowInsecure: 'Allow insecure SSL (expired/self-signed cert)',
@@ -1168,7 +1189,7 @@
         wip: 'Travail en cours', otherBranches: 'Autres branches actives', addRemote: 'Ajouter un dépôt distant', gitUrl: 'URL Git', label: 'Étiquette (optionnel)',
         track: 'Suivre', remove: 'Retirer', noTracked: 'Aucun dépôt suivi pour l\'instant.', remoteActivity: 'Activité distante',
         noTrackedHint: 'Aucun dépôt distant suivi. Ajoutez-en dans l\'onglet Suivis.', apiKey: 'Clé API', save: 'Enregistrer', saved: 'Enregistré', notSet: 'non définie',
-        startOllama: 'Démarrer Ollama', ollamaStarting: 'Démarrage d\'Ollama...', custom: 'Personnalisé...', loadingProviders: 'Vérification des fournisseurs...', ollamaNoModels: 'Serveur démarré, mais aucun modèle installé. Installez-en un :', loading: 'Chargement...', loadMore: 'Charger plus', allCommits: 'Tous les commits', commitCount: 'Commits à charger', allBranches: 'Toutes les branches', selectRepoGraph: 'Sélectionnez un dépôt pour afficher son graphe.', commitMessage: 'Message de commit', changesScope: 'Changements', scopeAll: 'Tout (indexé + non indexé)', scopeStaged: 'Indexé uniquement', generateMsg: 'Générer le message', generatingMsg: 'Analyse des changements...', noChanges: 'Aucun changement non commité.', subject: 'Résumé', changes: 'Changements', copy: 'Copier', copied: 'Copié !', diffTruncated: 'diff tronqué',
+        startOllama: 'Démarrer Ollama', ollamaStarting: 'Démarrage d\'Ollama...', custom: 'Personnalisé...', loadingProviders: 'Vérification des fournisseurs...', ollamaNoModels: 'Serveur démarré, mais aucun modèle installé. Installez-en un :', loading: 'Chargement...', loadMore: 'Charger plus', allCommits: 'Tous les commits', commitCount: 'Commits à charger', allBranches: 'Toutes les branches', selectRepoGraph: 'Sélectionnez un dépôt pour afficher son graphe.', commitMessage: 'Message de commit', changesScope: 'Changements', scopeAll: 'Tout (indexé + non indexé)', scopeStaged: 'Indexé uniquement', generateMsg: 'Générer le message', generatingMsg: 'Analyse des changements...', noChanges: 'Aucun changement non commité.', subject: 'Résumé', changes: 'Changements', copy: 'Copier', copied: 'Copié !', diffTruncated: 'diff tronqué', commitTab: 'Commit', selectRepoCommit: 'Sélectionnez un dépôt local pour générer un message de commit.', commitType: 'Type', typeAuto: 'Détection auto', regenerate: 'Régénérer', uncommittedShort: 'non commités', uncommittedFull: 'Changements non commités', commitHint: 'Vous avez des changements non commités — générez un message de commit.',
         metered: 'Une connexion limitée peut entraîner des frais de données pour les modèles cloud.',
         highLatency: 'Latence élevée vers les API cloud. Risque de coupures et de gaspillage de tokens.',
         switchLocal: 'Passer en local', proceedAnyway: 'Utiliser le cloud quand même', loadBranches: 'Charger les branches distantes', allowInsecure: 'Autoriser SSL non sécurisé (certificat expiré/auto-signé)',
@@ -1207,7 +1228,9 @@
     function currentSource() { if (state.source === 'url') { const v = $('#urlInput').value.trim(); return v ? { url: v } : null; } const v = $('#pathInput').value.trim(); return v ? { path: v } : null; }
     function onRepoChanged() {
       loadBranches();
+      updateChangesBadge();
       if (state.action === 'graph' && currentSource()) runGraph(false);
+      if (state.action === 'commit' && currentSource()) runCommit();
     }
     // auto-trigger graph when the user finishes typing/pasting a repo
     $('#pathInput').addEventListener('change', onRepoChanged);
@@ -1331,7 +1354,7 @@
     const ACTIONS = {
       summary: { when: 1, branch: 1, run: runSummary }, log: { when: 1, branch: 1, run: runLog },
       graph: { graphmode: 1, run: runGraph }, compare: { period: 1, periods: 1, branch: 1, run: runCompare },
-      standup: { run: runStandup }, dashboard: { when: 1, summarize: 1, run: runDashboard }, tracked: { run: runTracked },
+      standup: { run: runStandup }, commit: { commitmode: 1, run: runCommit }, dashboard: { when: 1, summarize: 1, run: runDashboard }, tracked: { run: runTracked },
     };
     function setAction(a) { state.action = a; document.querySelectorAll('.action').forEach(x => x.classList.toggle('active', x.dataset.act === a)); renderControls(); }
     document.querySelectorAll('.action').forEach(a => a.onclick = () => setAction(a.dataset.act));
@@ -1355,6 +1378,17 @@
         // auto-run if a repo is already selected
         if (currentSource()) runGraph(false);
         else out.innerHTML = '<div class="placeholder">' + t('selectRepoGraph') + '</div>';
+        return;
+      }
+      if (cfg.commitmode) {
+        const types = ['', 'feat', 'fix', 'refactor', 'docs', 'style', 'test', 'chore', 'perf', 'build', 'ci'];
+        add('<div class="field"><label>' + t('changesScope') + '</label><select id="cmScope"><option value="all">' + t('scopeAll') + '</option><option value="staged">' + t('scopeStaged') + '</option></select></div>');
+        add('<div class="field"><label>' + t('commitType') + '</label><select id="cmType">' + types.map(x => '<option value="' + x + '">' + (x === '' ? t('typeAuto') : x) + '</option>').join('') + '</select></div>');
+        add('<div class="field go"><label>&nbsp;</label><button class="btn" id="cmGenBtn">' + t('generateMsg') + '</button></div>');
+        $('#cmScope').onchange = () => { if (currentSource()) runCommit(); };
+        $('#cmGenBtn').onclick = () => runCommit();
+        if (currentSource()) runCommit();
+        else out.innerHTML = '<div class="placeholder">' + t('selectRepoCommit') + '</div>';
         return;
       }
       const lbl = state.action === 'tracked' ? t('refresh') : t('run');
@@ -1538,44 +1572,52 @@
       cloudGuard(async () => {
         try {
           loading('...'); const d = await post('/api/standup', baseBody(modelArgs())); let h = '<div class="head-card"><div class="title">' + t('standup') + ' &middot; ' + esc(d.repo_name) + '</div></div><div class="block"><h3>' + t('yesterday') + '</h3>'; if (d.yesterday.commit_count === 0) h += '<div class="overview">' + t('noCommits') + '</div>'; else { h += '<div class="overview">' + esc(d.summary.synthesis || d.summary.headline) + '</div>'; if (d.summary.themes.length) h += d.summary.themes.map(x => '<div class="theme"><div class="t">' + esc(x.title) + '</div><div class="narr">' + esc(x.narrative) + '</div></div>').join(''); } h += '</div><div class="block"><h3>' + t('today') + '</h3>'; const plan = []; if (d.current_branch) plan.push([t('continueBranch'), d.current_branch]); if (d.uncommitted.length) plan.push([t('wip'), d.uncommitted.slice(0, 6).join(', ') + (d.uncommitted.length > 6 ? ' (+' + (d.uncommitted.length - 6) + ')' : '')]); const others = d.recent_branches.filter(b => b !== d.current_branch); if (others.length) plan.push([t('otherBranches'), others.slice(0, 4).join(', ')]); h += plan.length ? plan.map(p => '<div class="obs"><span class="dot" style="color:var(--green)">&#9656;</span><span><b>' + esc(p[0]) + ':</b> ' + esc(p[1]) + '</span></div>').join('') : '<div class="overview">' + t('noWip') + '</div>'; h += '</div><div class="cost">' + esc(d.summary.cost_note) + '</div>';
-          // commit-message generator: only for local repos with uncommitted work
+          // hint toward the dedicated Commit tab when there is uncommitted work
           if (d.is_local && d.has_uncommitted) {
-            h += '<div class="block" id="commitBlock"><h3>' + t('commitMessage') + '</h3>' +
-              '<div class="controls" style="padding:0;border:none;background:none;margin-bottom:12px">' +
-              '<div class="field"><label>' + t('changesScope') + '</label><select id="cmScope"><option value="all">' + t('scopeAll') + '</option><option value="staged">' + t('scopeStaged') + '</option></select></div>' +
-              '<div class="field go"><label>&nbsp;</label><button class="btn" id="cmGenBtn">' + t('generateMsg') + '</button></div>' +
-              '</div><div id="cmResult"></div></div>';
+            h += '<div class="block"><div class="overview" style="display:flex;align-items:center;gap:10px"><span>&#9998; ' + t('commitHint') + '</span><button class="btn sm" id="goCommit" style="margin-left:auto">' + t('commitTab') + ' &rarr;</button></div></div>';
           }
           out.innerHTML = h;
-          if (d.is_local && d.has_uncommitted) {
-            $('#cmGenBtn').onclick = () => generateCommitMsg();
-          }
+          const gc = $('#goCommit'); if (gc) gc.onclick = () => setAction('commit');
         } catch (e) { showErr(e); }
       });
     }
-    async function generateCommitMsg() {
-      const scope = document.getElementById('cmScope').value;
-      const res = document.getElementById('cmResult');
+    async function runCommit() {
       const src = currentSource();
-      if (!src || !src.path) { res.innerHTML = '<div class="err">' + t('selectFirst') + '</div>'; return; }
-      res.innerHTML = '<div class="loading"><span class="spinner"></span> ' + t('generatingMsg') + '</div>';
+      if (!src || !src.path) { out.innerHTML = '<div class="placeholder">' + t('selectRepoCommit') + '</div>'; return; }
+      const scope = (document.getElementById('cmScope') || {}).value || 'all';
+      const ftype = (document.getElementById('cmType') || {}).value || null;
+      out.innerHTML = '<div class="loading"><span class="spinner"></span> ' + t('generatingMsg') + '</div>';
       try {
-        const d = await post('/api/commit-message', Object.assign({ path: src.path, scope }, modelArgs()));
-        if (!d.has_changes) { res.innerHTML = '<div class="overview">' + t('noChanges') + '</div>'; return; }
+        const d = await post('/api/commit-message', Object.assign({ path: src.path, scope, force_type: ftype }, modelArgs()));
+        if (!d.has_changes) { out.innerHTML = '<div class="head-card"><div class="title">' + t('commitTab') + '</div><div class="headline" style="font-size:15px">' + t('noChanges') + '</div></div>'; updateChangesBadge(); return; }
+        const full = d.subject + (d.bullets.length ? '\n\n' + d.bullets.map(b => '- ' + b).join('\n') : '');
         const fileRows = d.files.map(f => '<div class="cm-file"><span class="cm-st cm-' + f.status + '">' + f.status + '</span><span class="cm-path">' + esc(f.path) + '</span><span class="cm-num"><span class="add">+' + f.additions + '</span> <span class="del">-' + f.deletions + '</span></span></div>').join('');
-        const bullets = d.bullets.map(b => '- ' + b).join('\n');
-        const full = d.subject + (d.bullets.length ? '\n\n' + bullets : '');
-        res.innerHTML = '<div class="cm-box">' +
-          '<div class="cm-head"><span class="cm-label">' + t('subject') + '</span>' +
-          '<button class="browse-btn" id="cmCopy">' + t('copy') + '</button></div>' +
+        out.innerHTML =
+          '<div class="cm-box"><div class="cm-head"><span class="cm-label">' + t('subject') + '</span>' +
+          '<div style="display:flex;gap:8px"><button class="browse-btn" id="cmRegen">&#8635; ' + t('regenerate') + '</button>' +
+          '<button class="browse-btn" id="cmCopy">' + t('copy') + '</button></div></div>' +
           '<div class="cm-subject">' + esc(d.subject) + '</div>' +
           (d.bullets.length ? '<div class="cm-label" style="margin-top:10px">' + t('changes') + '</div><ul class="cm-bullets">' + d.bullets.map(b => '<li>' + esc(b) + '</li>').join('') + '</ul>' : '') +
-          '<textarea class="cm-full" id="cmFull" rows="' + Math.min(12, 3 + d.bullets.length) + '">' + esc(full) + '</textarea>' +
-          '<div class="cost">' + esc(d.source) + (d.cost_usd ? ' &middot; ~$' + d.cost_usd.toFixed(4) : '') + (d.truncated ? ' &middot; ' + t('diffTruncated') : '') + '</div>' +
-          '</div>' +
+          '<textarea class="cm-full" id="cmFull" rows="' + Math.min(14, 4 + d.bullets.length) + '">' + esc(full) + '</textarea>' +
+          '<div class="cost">' + esc(d.source) + (d.cost_usd ? ' &middot; ~$' + d.cost_usd.toFixed(4) : '') + (d.truncated ? ' &middot; ' + t('diffTruncated') : '') + '</div></div>' +
           '<div class="cm-files"><div class="cm-label">' + d.files.length + ' ' + t('files') + ' (+' + d.additions + '/-' + d.deletions + ')</div>' + fileRows + '</div>';
+        $('#cmRegen').onclick = () => runCommit();
         $('#cmCopy').onclick = () => { const ta = document.getElementById('cmFull'); ta.select(); document.execCommand('copy'); $('#cmCopy').textContent = t('copied'); setTimeout(() => $('#cmCopy').textContent = t('copy'), 1500); };
-      } catch (e) { res.innerHTML = '<div class="err">' + (e.message || e) + '</div>'; }
+        updateChangesBadge();
+      } catch (e) { showErr(e); }
+    }
+    async function updateChangesBadge() {
+      const src = currentSource();
+      const badge = $('#changesBadge'); if (!badge) return;
+      if (!src || !src.path) { badge.style.display = 'none'; return; }
+      try {
+        const d = await post('/api/changes-count', { path: src.path });
+        if (d.count > 0) {
+          badge.style.display = '';
+          badge.textContent = '● ' + d.count + ' ' + t('uncommittedShort');
+          badge.title = t('uncommittedFull') + ' (+' + (d.additions || 0) + '/-' + (d.deletions || 0) + ')';
+        } else { badge.style.display = 'none'; }
+      } catch { badge.style.display = 'none'; }
     }
     async function runDashboard() { const go = async () => { try { loading('...'); const sum = document.getElementById('ctlSummarize').value === 'true'; const d = await post('/api/dashboard', Object.assign({ when: whenValue(), summarize: sum }, modelArgs())); if (d.error) { out.innerHTML = '<div class="placeholder">' + t('noTrackedHint') + '</div>'; return; } const head = '<tr><th>' + t('repository') + '</th><th class="num">' + t('commits') + '</th><th class="num">+</th><th class="num">&minus;</th><th class="num">' + t('files') + '</th>' + (sum ? '<th>Headline</th>' : '') + '</tr>'; const rows = d.rows.map(r => '<tr><td class="repo-name">' + esc(r.name) + '</td><td class="num">' + r.commits + '</td><td class="num add">+' + r.additions + '</td><td class="num del">-' + r.deletions + '</td><td class="num">' + r.files + '</td>' + (sum ? '<td style="color:var(--muted)">' + esc(r.headline || '') + '</td>' : '') + '</tr>').join(''); const total = d.rows.reduce((s, r) => s + r.commits, 0); out.innerHTML = '<div class="block"><h3>' + t('remoteActivity') + ' &middot; ' + esc(d.range_label) + '</h3><table class="grid"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table><div class="cost">' + d.rows.length + ' active &middot; ' + total + ' ' + t('commits') + (d.failed.length ? ' &middot; ' + d.failed.length + ' failed' : '') + '</div></div>'; } catch (e) { showErr(e); } }; const sum = document.getElementById('ctlSummarize').value === 'true'; if (sum) cloudGuard(go); else go(); }
     async function runTracked() { try { loading('...'); const items = await api('/api/tracked'); let add = '<div class="block"><h3>' + t('addRemote') + '</h3><div class="controls" style="padding:0;border:none;background:none"><div class="field" style="flex:2"><label>' + t('gitUrl') + '</label><input id="trackUrl" placeholder="https://... or git@..."></div><div class="field"><label>' + t('label') + '</label><input id="trackLabel"></div><div class="field go"><label>&nbsp;</label><button class="btn" id="trackBtn">' + t('track') + '</button></div></div></div>'; const rows = items.length ? items.map((it, i) => { const nm = it.label || it.url.replace(/\.git$/, '').split(/[\/:]/).pop(); return '<tr><td class="num" style="color:var(--muted)">' + (i + 1) + '</td><td class="repo-name">' + esc(nm) + '</td><td style="font-family:var(--mono);font-size:12px;color:var(--muted)">' + esc(it.url) + '</td><td class="num"><button class="browse-btn untrackBtn" data-url="' + esc(it.url) + '">' + t('remove') + '</button></td></tr>'; }).join('') : '<tr><td colspan="4" style="color:var(--muted);padding:14px">' + t('noTracked') + '</td></tr>'; out.innerHTML = add + '<div class="block"><h3>' + t('tracked') + ' (' + items.length + ')</h3><table class="grid"><tbody>' + rows + '</tbody></table></div>'; $('#trackBtn').onclick = async () => { const url = $('#trackUrl').value.trim(); if (!url) return; await post('/api/tracked', { url, label: $('#trackLabel').value.trim() || null }); runTracked(); }; document.querySelectorAll('.untrackBtn').forEach(b => b.onclick = async () => { await api('/api/tracked?needle=' + encodeURIComponent(b.dataset.url), { method: 'DELETE' }); runTracked(); }); } catch (e) { showErr(e); } }
@@ -1593,7 +1635,7 @@
       state.uiLang = localStorage.getItem('gp-uilang') || 'en'; $('#uiLangSel').value = state.uiLang;
       initTheme();
       await loadProviders(); await loadConfig(); await checkLatency();
-      setAction('summary'); applyI18n(); renderMem();
+      setAction('summary'); applyI18n(); renderMem(); updateChangesBadge();
     })();
   </script>
 </body>

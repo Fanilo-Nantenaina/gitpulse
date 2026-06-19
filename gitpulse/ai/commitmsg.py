@@ -114,6 +114,7 @@ def generate_commit_message(
     provider: str = "auto",
     model: str | None = None,
     lang: str | None = None,
+    force_type: str | None = None,
 ) -> CommitMessage:
     lang = config.resolve_lang(lang)
     if not changes.has_changes:
@@ -121,23 +122,35 @@ def generate_commit_message(
 
     prov = providers.detect(provider)
     if prov is None:
-        return _local_fallback(changes, lang)
+        msg = _local_fallback(changes, lang)
+        if force_type:
+            msg.subject = _apply_type(msg.subject, force_type)
+        return msg
     if model:
         setattr(prov, "model", model)
 
+    system = _system_prompt(lang)
+    if force_type:
+        system += (
+            f"\nThe commit type MUST be '{force_type}'. Start the subject "
+            f"with '{force_type}'."
+        )
+
     max_tokens = 1200
     try:
-        result = prov.generate(
-            _system_prompt(lang), _build_payload(changes), max_tokens
-        )
+        result = prov.generate(system, _build_payload(changes), max_tokens)
     except Exception as e:
         fb = _local_fallback(changes, lang)
+        if force_type:
+            fb.subject = _apply_type(fb.subject, force_type)
         fb.source = f"local({prov.name}-error)"
         fb.raw = str(e)
         return fb
 
     try:
         msg = _parse(result.text)
+        if force_type:
+            msg.subject = _apply_type(msg.subject, force_type)
         msg.source = f"{prov.name}:{result.model}"
         msg.input_tokens, msg.output_tokens, msg.cost_usd = (
             result.input_tokens,
@@ -147,6 +160,26 @@ def generate_commit_message(
         return msg
     except (json.JSONDecodeError, KeyError, ValueError):
         fb = _local_fallback(changes, lang)
+        if force_type:
+            fb.subject = _apply_type(fb.subject, force_type)
         fb.raw = result.text
         fb.source = f"local({prov.name}-parse-failed)"
         return fb
+
+
+def _apply_type(subject: str, force_type: str) -> str:
+    """Rewrite the subject's type prefix to force_type, preserving scope/text."""
+    rest = subject
+    # strip an existing "type(scope): " or "type: " prefix
+    if ":" in subject:
+        head, tail = subject.split(":", 1)
+        head = head.strip()
+        # head looks like a conventional type (optionally with scope)
+        base = head.split("(")[0].strip()
+        known = {t.strip() for t in _TYPES.split(",")}
+        if base in known:
+            scope = ""
+            if "(" in head and ")" in head:
+                scope = head[head.find("(") : head.find(")") + 1]
+            return f"{force_type}{scope}: {tail.strip()}"
+    return f"{force_type}: {rest.strip()}"
