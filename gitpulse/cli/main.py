@@ -13,6 +13,7 @@ from . import commands_dashboard  # noqa: F401  dashboard
 from . import (
     commands_tools,
 )  # noqa: F401  serve, changelog, watch, config, providers, dates
+from . import commands_service  # noqa: F401  service start/stop/status/install, gui
 
 
 def main():

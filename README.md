@@ -37,6 +37,25 @@ sharpest observations, prefer Claude or a large coder-tuned model
 
 ## Install
 
+### Recommended: pipx (isolated, on your PATH, all three OSes)
+
+[pipx](https://pipx.pypa.io) installs GitPulse into its own environment and puts
+the `gitpulse` command on your PATH — no virtualenv juggling, no global clutter.
+
+```bash
+pipx install "gitpulse[all] @ git+https://github.com/Fanilo-Nantenaina/gitpulse.git"
+# or from a local checkout:
+pipx install ".[all]"
+```
+
+After this, `gitpulse` works from any terminal, and `gitpulse-gui` launches the
+desktop UI. To upgrade: `pipx upgrade gitpulse`. To remove: `pipx uninstall gitpulse`.
+
+> If `gitpulse` isn't found afterwards, run `pipx ensurepath` once and reopen
+> the terminal (this adds pipx's bin dir to PATH on Windows, Linux, and macOS).
+
+### Developer install (editable)
+
 ```bash
 git clone https://github.com/<you>/gitpulse.git
 cd gitpulse
@@ -48,18 +67,78 @@ without reinstalling.
 
 ### Optional dependency groups
 
-| Extra      | Pulls in         | Needed for                |
-| ---------- | ---------------- | ------------------------- |
-| `ai`       | `anthropic`      | Claude semantic summaries |
-| `schedule` | `apscheduler`    | `gitpulse watch`          |
-| `desktop`  | `plyer`          | desktop notifications     |
-| `all`      | all of the above | everything                |
+| Extra      | Pulls in             | Needed for                |
+| ---------- | -------------------- | ------------------------- |
+| `ai`       | `anthropic`          | Claude semantic summaries |
+| `schedule` | `apscheduler`        | `gitpulse watch`          |
+| `desktop`  | `plyer`              | desktop notifications     |
+| `web`      | `fastapi`, `uvicorn` | the web UI / service      |
+| `dev`      | `pytest`, `httpx`    | running the test suite    |
+| `all`      | runtime extras above | everything                |
 
 Install a subset, e.g. `pip install -e ".[ai]"`, if you don't need the rest.
 
 > **Windows note:** `pygit2` ships prebuilt wheels for most Python versions.
 > If `pip install` fails on it, upgrade pip (`python -m pip install -U pip`)
 > and retry, or install a Python version with an available wheel.
+
+---
+
+## Two ways to run it
+
+GitPulse is one tool with two front doors — use whichever fits the moment.
+
+**CLI** — for quick, scriptable answers in the terminal:
+
+```bash
+gitpulse summary               # this week's digest for the current repo
+gitpulse commit-msg            # message for your uncommitted changes
+gitpulse dashboard --remote    # activity across all tracked repos
+```
+
+**GUI** — the same features in a local web interface:
+
+```bash
+gitpulse gui                   # starts the server and opens your browser
+# or, from a desktop shortcut, the `gitpulse-gui` app (no console window)
+```
+
+---
+
+## Running in the background (service)
+
+Two background modes, both cross-platform (Windows, Linux, macOS).
+
+### Keep the web UI running
+
+```bash
+gitpulse service start         # launch detached, survives the terminal closing
+gitpulse service status        # running / stopped + log path
+gitpulse service stop
+gitpulse service restart
+```
+
+This uses a PID file under `~/.gitpulse/` and needs no admin rights — handy for
+"always have the UI a click away."
+
+### Survive reboots (native OS service)
+
+`gitpulse service install` generates the right unit for your OS and prints the
+exact install commands — it never touches system files for you, so you stay in
+control:
+
+```bash
+gitpulse service install web                 # keep the UI up at boot/login
+gitpulse service install watch --path . --every 24h --to slack,desktop
+gitpulse service install web --write ./       # write the unit file instead of printing
+```
+
+- **Linux** → a `systemd --user` service / timer (`systemctl --user enable --now …`)
+- **macOS** → a `launchd` LaunchAgent plist (`launchctl load …`)
+- **Windows** → a Task Scheduler `.bat` (`schtasks /Create …`, run at logon)
+
+The `web` kind keeps the UI server alive; the `watch` kind sends a periodic
+digest to your chosen channels.
 
 ---
 

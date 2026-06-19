@@ -1,3 +1,8 @@
+"""Shared fixtures: disposable git repositories with controlled history.
+
+These build real repos on disk via the git CLI with fixed commit dates so that
+date-window, graph, and diff logic can be asserted deterministically.
+"""
 from __future__ import annotations
 
 import os
@@ -9,23 +14,14 @@ import pytest
 
 def _git(repo: Path, *args, env_extra=None):
     env = dict(os.environ)
-    env.update(
-        {
-            "GIT_AUTHOR_NAME": "Tester",
-            "GIT_AUTHOR_EMAIL": "t@example.com",
-            "GIT_COMMITTER_NAME": "Tester",
-            "GIT_COMMITTER_EMAIL": "t@example.com",
-        }
-    )
+    env.update({
+        "GIT_AUTHOR_NAME": "Tester", "GIT_AUTHOR_EMAIL": "t@example.com",
+        "GIT_COMMITTER_NAME": "Tester", "GIT_COMMITTER_EMAIL": "t@example.com",
+    })
     if env_extra:
         env.update(env_extra)
-    return subprocess.run(
-        ["git", "-C", str(repo), *args],
-        capture_output=True,
-        text=True,
-        env=env,
-        check=False,
-    )
+    return subprocess.run(["git", "-C", str(repo), *args],
+                          capture_output=True, text=True, env=env, check=False)
 
 
 def _commit(repo: Path, message: str, date: str):
@@ -49,6 +45,11 @@ def linear_repo(tmp_path):
 
 @pytest.fixture
 def branched_repo(tmp_path):
+    """A repo with a real branch and a merge, for graph lane tests.
+
+    master:  base -> work -> (merge feature) -> after
+    feature: a1 -> a2  (branched from base, merged into master)
+    """
     repo = tmp_path / "branched"
     repo.mkdir()
     _git(repo, "init", "-q")
@@ -65,24 +66,15 @@ def branched_repo(tmp_path):
     _git(repo, "checkout", "-q", "master")
     (repo / "f").write_text("1\n2\n3")
     _commit(repo, "more work", "2026-02-05T10:00:00")
-    _git(
-        repo,
-        "merge",
-        "-q",
-        "--no-ff",
-        "feature",
-        "-m",
-        "merge feature",
-        env_extra={
-            "GIT_AUTHOR_DATE": "2026-02-06T10:00:00",
-            "GIT_COMMITTER_DATE": "2026-02-06T10:00:00",
-        },
-    )
+    _git(repo, "merge", "-q", "--no-ff", "feature", "-m", "merge feature",
+         env_extra={"GIT_AUTHOR_DATE": "2026-02-06T10:00:00",
+                    "GIT_COMMITTER_DATE": "2026-02-06T10:00:00"})
     return repo
 
 
 @pytest.fixture
 def dirty_repo(tmp_path):
+    """A repo with one commit plus uncommitted changes (staged + unstaged + untracked)."""
     repo = tmp_path / "dirty"
     repo.mkdir()
     _git(repo, "init", "-q")

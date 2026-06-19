@@ -79,7 +79,7 @@ class Summary:
     observations: list[str]
     synthesis: str = ""
     raw: str = ""
-    source: str = "local"
+    source: str = "local"  # "claude" | "local" | "local(truncated)"
     input_tokens: int = 0
     output_tokens: int = 0
     cost_usd: float = 0.0

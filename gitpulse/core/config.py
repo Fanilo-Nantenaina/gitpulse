@@ -21,10 +21,13 @@ DEFAULT_LANG = "en"
 
 
 def _config_path() -> Path:
+    return config_dir() / "config.json"
+
+
+def config_dir() -> Path:
+    """The directory holding GitPulse state (config, pid, logs)."""
     base = os.environ.get("GITPULSE_CONFIG_DIR")
-    if base:
-        return Path(base) / "config.json"
-    return Path.home() / ".gitpulse" / "config.json"
+    return Path(base) if base else Path.home() / ".gitpulse"
 
 
 def load_config() -> dict:
