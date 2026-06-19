@@ -651,7 +651,14 @@ gitpulse/
 │   └── summarizer.py   # Summary model, local fallback, provider dispatch
 ├── cli/
 │   ├── main.py         # Typer commands
-│   └── render.py       # Rich terminal, git-log view, Markdown output
+├── cli/
+│   ├── _shared.py          # shared Typer app, console, help strings, helpers
+│   ├── main.py             # thin entry point: imports command modules
+│   ├── commands_analyze.py # summary, log, standup, commit-msg, compare, digest
+│   ├── commands_remote.py  # remote, track, untrack, tracked, cache-clear
+│   ├── commands_dashboard.py  # dashboard (local scan + remote)
+│   ├── commands_tools.py   # serve, changelog, watch, config, providers, dates
+│   └── render.py           # Rich terminal, git-log view, Markdown output
 ├── scheduler/
 │   └── runner.py       # APScheduler + systemd-timer unit generation
 ├── notifiers/
@@ -666,7 +673,11 @@ gitpulse/
     │   ├── commit.py      # changes-count, commit-message
     │   ├── providers.py   # provider status, latency, keys, ollama control
     │   └── repos.py       # branches, browse, drives, tracked, config
-    └── static/index.html  # single-page UI (dark/light, all actions)
+    └── static/
+        ├── index.html      # markup shell (loads css + js modules)
+        ├── css/app.css     # all styles
+        └── js/             # core, providers, repo, actions, summary,
+                            #   graph, commit, init (loaded in order)
 ```
 
 The `core` layer has zero AI/CLI dependencies — import the collector in any

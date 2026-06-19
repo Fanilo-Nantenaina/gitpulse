@@ -156,6 +156,7 @@ def _spark(values: list[int]) -> str:
     return "".join(_BLOCKS[min(8, round(v / hi * 8))] for v in values)
 
 
+# Cap content width so panels/text don't sprawl across ultra-wide terminals.
 _MAX_WIDTH = 100
 
 
@@ -167,9 +168,10 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     w = _width()
     console.print()
 
+    # --- Header --------------------------------------------------------------
     header = Panel(
         Text(summary.headline, style="bold cyan"),
-        title=f"{activity.repo_name}",
+        title=f"📊 {activity.repo_name}",
         title_align="left",
         subtitle=f"{activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
         subtitle_align="right",
@@ -179,6 +181,7 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     )
     console.print(header)
 
+    # --- Stats line ----------------------------------------------------------
     stats = Text()
     stats.append(f"  {activity.commit_count} commits", style="bold")
     stats.append("   ")
@@ -188,6 +191,7 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     stats.append(" lines", style="dim")
     console.print(stats)
 
+    # --- Productivity heatmap (24h sparkline) --------------------------------
     hist = activity.hour_histogram
     spark = _spark([hist[h] for h in range(24)])
     heat = Text("  hours  ", style="dim")
@@ -196,11 +200,13 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     console.print(heat)
     console.print()
 
+    # --- Synthesis (overview before the detailed themes) ---------------------
     if summary.synthesis:
         console.print(Text("  Overview", style="bold"))
         console.print(Padding(Text(summary.synthesis), (0, 2, 0, 4)), width=w)
         console.print()
 
+    # --- Themes (no per-theme box; cleaner left-aligned list) ----------------
     for i, theme in enumerate(summary.themes, 1):
         title = Text()
         title.append(f"  {i}. ", style="bold blue")
@@ -219,6 +225,7 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
             console.print(sha_line)
         console.print()
 
+    # --- Observations --------------------------------------------------------
     if summary.observations:
         console.print(Text("  ⚠ Observations", style="bold yellow"))
         for o in summary.observations:
@@ -227,11 +234,12 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
             console.print(Padding(bullet, (0, 2, 0, 3)), width=w)
         console.print()
 
+    # --- Cost footer ---------------------------------------------------------
     console.print(Text(f"  {summary.cost_note}", style="dim"))
     if summary.source == "local(truncated)":
         console.print(
             Text(
-                "Claude's reply was cut off; max_tokens was raised — retry. "
+                "  ⚠ Claude's reply was cut off; max_tokens was raised — retry. "
                 "Showed local summary instead.",
                 style="dim red",
             )
@@ -300,7 +308,7 @@ def render_log(activity: RepoActivity, show_files: bool = False) -> None:
 def render_markdown(activity: RepoActivity, summary: Summary) -> str:
     """Markdown digest for email / Slack / changelog use."""
     lines = [
-        f"# {activity.repo_name} — {activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
+        f"# 📊 {activity.repo_name} — {activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
         "",
         f"**{summary.headline}**",
         "",
@@ -321,6 +329,6 @@ def render_markdown(activity: RepoActivity, summary: Summary) -> str:
     if summary.observations:
         lines.append("## Observations")
         for o in summary.observations:
-            lines.append(f"- {o}")
+            lines.append(f"- ⚠ {o}")
         lines.append("")
     return "\n".join(lines)

@@ -29,4 +29,4 @@ build-backend = "setuptools.build_meta"
 include = ["gitpulse*"]
 
 [tool.setuptools.package-data]
-gitpulse = ["web/static/*"]
+gitpulse = ["web/static/*", "web/static/css/*", "web/static/js/*"]
