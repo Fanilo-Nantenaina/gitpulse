@@ -46,8 +46,9 @@ def _is_ssh(url: str) -> bool:
     return url.startswith("git@") or url.startswith("ssh://")
 
 
-def _callbacks(url: str, token: str | None, username: str | None,
-               ssh_key: str | None) -> pygit2.RemoteCallbacks | None:
+def _callbacks(
+    url: str, token: str | None, username: str | None, ssh_key: str | None
+) -> pygit2.RemoteCallbacks | None:
     if _is_ssh(url):
         user = "git"
         m = re.match(r"(?:ssh://)?([^@]+)@", url)
@@ -65,7 +66,8 @@ def _callbacks(url: str, token: str | None, username: str | None,
         return pygit2.RemoteCallbacks(credentials=cred)
     if token:
         return pygit2.RemoteCallbacks(
-            credentials=pygit2.UserPass(username or "git", token))
+            credentials=pygit2.UserPass(username or "git", token)
+        )
     return None
 
 
@@ -81,10 +83,16 @@ def _clone_pygit2(url: str, dest: Path, token, username, ssh_key) -> bool:
 
 
 def _run_git(args: list[str], env: dict | None = None) -> tuple[bool, str]:
+    from .procutil import run as _prun
+
     try:
-        proc = subprocess.run(
-            ["git", *args], capture_output=True, text=True, timeout=600,
-            env={**os.environ, **(env or {})})
+        proc = _prun(
+            ["git", *args],
+            capture_output=True,
+            text=True,
+            timeout=600,
+            env={**os.environ, **(env or {})},
+        )
         return proc.returncode == 0, (proc.stderr or proc.stdout)
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
         return False, str(e)
@@ -94,22 +102,38 @@ def _git_ssl_opts(insecure: bool) -> list[str]:
     return ["-c", "http.sslVerify=false"] if insecure else []
 
 
-def _clone_cli(url: str, dest: Path, token, username, insecure: bool = False) -> tuple[bool, str]:
+def _clone_cli(
+    url: str, dest: Path, token, username, insecure: bool = False
+) -> tuple[bool, str]:
     clone_url = url
     env = {"GIT_TERMINAL_PROMPT": "0"}
     if token and not _is_ssh(url):
         clone_url = _inject_token(url, token, username)
-    args = _git_ssl_opts(insecure) + ["clone", "--bare", "--quiet", clone_url, str(dest)]
+    args = _git_ssl_opts(insecure) + [
+        "clone",
+        "--bare",
+        "--quiet",
+        clone_url,
+        str(dest),
+    ]
     return _run_git(args, env)
 
 
-def _fetch_cli(dest: Path, url: str, token, username, insecure: bool = False) -> tuple[bool, str]:
+def _fetch_cli(
+    dest: Path, url: str, token, username, insecure: bool = False
+) -> tuple[bool, str]:
     env = {"GIT_TERMINAL_PROMPT": "0"}
     fetch_url = url
     if token and not _is_ssh(url):
         fetch_url = _inject_token(url, token, username)
-    args = (_git_ssl_opts(insecure) +
-            ["-C", str(dest), "fetch", "--quiet", fetch_url, "+refs/heads/*:refs/heads/*"])
+    args = _git_ssl_opts(insecure) + [
+        "-C",
+        str(dest),
+        "fetch",
+        "--quiet",
+        fetch_url,
+        "+refs/heads/*:refs/heads/*",
+    ]
     return _run_git(args, env)
 
 
@@ -122,9 +146,14 @@ def _is_valid_repo(dest: Path) -> bool:
         return False
 
 
-def sync_remote(url: str, token: str | None = None, username: str | None = None,
-                ssh_key: str | None = None, refresh: bool = True,
-                insecure: bool = False) -> Path:
+def sync_remote(
+    url: str,
+    token: str | None = None,
+    username: str | None = None,
+    ssh_key: str | None = None,
+    refresh: bool = True,
+    insecure: bool = False,
+) -> Path:
     dest = _cache_path(url)
     dest.parent.mkdir(parents=True, exist_ok=True)
 
@@ -159,18 +188,22 @@ def sync_remote(url: str, token: str | None = None, username: str | None = None,
     if dest.exists():
         shutil.rmtree(dest, ignore_errors=True)
 
-    hint = ("For private repos set GITPULSE_GIT_TOKEN (HTTPS) or use an SSH URL "
-            "with your key/agent configured.")
+    hint = (
+        "For private repos set GITPULSE_GIT_TOKEN (HTTPS) or use an SSH URL "
+        "with your key/agent configured."
+    )
     if "CERT" in msg.upper() or "sslVerify" in msg or "SEC_E_CERT" in msg:
-        hint = ("The server's SSL certificate failed verification (often expired). "
-                "Fix the certificate server-side, or — at your own risk — enable "
-                "the 'Allow insecure SSL' option for this repo.")
-    raise RuntimeError(
-        f"Could not clone {url}.\ngit said: {msg.strip()[:400]}\n{hint}")
+        hint = (
+            "The server's SSL certificate failed verification (often expired). "
+            "Fix the certificate server-side, or — at your own risk — enable "
+            "the 'Allow insecure SSL' option for this repo."
+        )
+    raise RuntimeError(f"Could not clone {url}.\ngit said: {msg.strip()[:400]}\n{hint}")
 
 
-def resolve_auth(token: str | None, username: str | None,
-                 ssh_key: str | None) -> tuple[str | None, str | None, str | None]:
+def resolve_auth(
+    token: str | None, username: str | None, ssh_key: str | None
+) -> tuple[str | None, str | None, str | None]:
     token = token or os.environ.get("GITPULSE_GIT_TOKEN")
     username = username or os.environ.get("GITPULSE_GIT_USERNAME")
     ssh_key = ssh_key or os.environ.get("GITPULSE_SSH_KEY")

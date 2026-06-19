@@ -27,9 +27,12 @@ def api_keys():
     out = {}
     for prov in ("claude", "openai", "gemini"):
         k = gp_config.get_api_key(prov)
-        out[prov] = {"set": bool(k),
-                     "masked": (k[:6] + "…" + k[-4:]) if k and len(k) > 12
-                     else ("set" if k else None)}
+        out[prov] = {
+            "set": bool(k),
+            "masked": (
+                (k[:6] + "…" + k[-4:]) if k and len(k) > 12 else ("set" if k else None)
+            ),
+        }
     return out
 
 
@@ -47,14 +50,20 @@ def api_ollama_start():
     import shutil
     import subprocess
     import time
+
     if not shutil.which("ollama"):
-        return {"started": False,
-                "error": "Ollama is not installed. See https://ollama.com/download"}
+        return {
+            "started": False,
+            "error": "Ollama is not installed. See https://ollama.com/download",
+        }
     try:
         if _ollama_available():
             return {"started": True, "already": True}
-        subprocess.Popen(["ollama", "serve"],
-                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        from ...core.procutil import popen as _ppopen
+
+        _ppopen(
+            ["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
         for _ in range(10):
             time.sleep(0.6)
             if _ollama_available():
