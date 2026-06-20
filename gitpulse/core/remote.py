@@ -83,8 +83,10 @@ def _clone_pygit2(url: str, dest: Path, token, username, ssh_key) -> bool:
 
 
 def _run_git(args: list[str], env: dict | None = None) -> tuple[bool, str]:
+    from .procutil import run as _prun
+
     try:
-        proc = subprocess.run(
+        proc = _prun(
             ["git", *args],
             capture_output=True,
             text=True,

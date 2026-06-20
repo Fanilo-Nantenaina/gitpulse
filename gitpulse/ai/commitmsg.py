@@ -10,7 +10,7 @@ from ..core.diffstage import WorkingChanges
 
 @dataclass
 class CommitMessage:
-    subject: str  # one-line Conventional Commits summary
+    subject: str
     bullets: list[str] = field(default_factory=list)
     source: str = "local"
     raw: str = ""
@@ -64,7 +64,6 @@ def _build_payload(changes: WorkingChanges) -> str:
 
 
 def _local_fallback(changes: WorkingChanges, lang: str) -> CommitMessage:
-    # Heuristic message when no model is available.
     n = len(changes.files)
     by_status: dict[str, int] = {}
     for f in changes.files:
@@ -170,11 +169,9 @@ def generate_commit_message(
 def _apply_type(subject: str, force_type: str) -> str:
     """Rewrite the subject's type prefix to force_type, preserving scope/text."""
     rest = subject
-    # strip an existing "type(scope): " or "type: " prefix
     if ":" in subject:
         head, tail = subject.split(":", 1)
         head = head.strip()
-        # head looks like a conventional type (optionally with scope)
         base = head.split("(")[0].strip()
         known = {t.strip() for t in _TYPES.split(",")}
         if base in known:

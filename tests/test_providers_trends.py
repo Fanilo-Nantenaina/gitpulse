@@ -27,7 +27,6 @@ def test_ollama_is_local():
 
 
 def test_detect_local_returns_none():
-    # 'local' means the deterministic fallback, not a model provider
     assert providers.detect("local") is None
 
 

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -10,7 +9,7 @@ import pygit2
 @dataclass
 class FileDelta:
     path: str
-    status: str  # "added" | "modified" | "deleted" | "renamed" | "untracked"
+    status: str
     additions: int = 0
     deletions: int = 0
 
@@ -18,7 +17,7 @@ class FileDelta:
 @dataclass
 class WorkingChanges:
     repo_name: str
-    scope: str  # "staged" | "all"
+    scope: str
     files: list[FileDelta] = field(default_factory=list)
     diff_text: str = ""
     truncated: bool = False
@@ -48,9 +47,9 @@ _STATUS_MAP = {
 
 
 def _run(args: list[str], cwd: str) -> str:
-    proc = subprocess.run(
-        ["git", "-C", cwd, *args], capture_output=True, text=True, timeout=30
-    )
+    from .procutil import run as _prun
+
+    proc = _prun(["git", "-C", cwd, *args], capture_output=True, text=True, timeout=30)
     return proc.stdout if proc.returncode == 0 else ""
 
 
@@ -71,9 +70,6 @@ def collect_working_changes(
     staged_only = scope == "staged"
     has_head = not repo.head_is_unborn
 
-    # numstat for per-file +/- counts.
-    # - staged scope: diff --cached (index vs HEAD)
-    # - all scope:    diff HEAD   (working tree vs HEAD = staged + unstaged)
     if staged_only:
         numstat_args = ["diff", "--cached", "--numstat"]
         name_args = ["diff", "--cached", "--name-status"]
@@ -83,7 +79,6 @@ def collect_working_changes(
         name_args = ["diff", "HEAD", "--name-status"]
         diff_args = ["diff", "HEAD"]
     else:
-        # no commits yet: compare staged index against empty tree
         numstat_args = ["diff", "--cached", "--numstat"]
         name_args = ["diff", "--cached", "--name-status"]
         diff_args = ["diff", "--cached"]
@@ -109,13 +104,11 @@ def collect_working_changes(
 
     diff_text = _run(diff_args, workdir)
 
-    # include untracked files when scope is "all"
     if not staged_only:
         untracked = _run(["ls-files", "--others", "--exclude-standard"], workdir)
         for path in untracked.splitlines():
             if path and path not in files:
                 files[path] = FileDelta(path=path, status="untracked")
-                # show a short preview of new file content in the diff
                 full = Path(workdir) / path
                 try:
                     if full.is_file() and full.stat().st_size < 8000:

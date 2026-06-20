@@ -113,7 +113,6 @@ def collect_activity(
 
 
 def discover_repos(root: str | os.PathLike, max_depth: int = 3) -> list[Path]:
-    """Find all git repos under `root` for the multi-repo dashboard."""
     root = Path(root).resolve()
     found: list[Path] = []
     root_depth = len(root.parts)

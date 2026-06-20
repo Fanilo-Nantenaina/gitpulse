@@ -7,7 +7,6 @@ def test_graph_linear_single_lane(linear_repo):
     g = graph(linear_repo)
     assert g["returned"] == 5
     assert g["lanes"] == 1
-    # all commits on lane 0
     assert all(n["lane"] == 0 for n in g["nodes"])
 
 

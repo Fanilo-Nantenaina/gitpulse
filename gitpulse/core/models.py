@@ -55,7 +55,6 @@ class Commit:
 
 @dataclass
 class RepoActivity:
-    """Aggregated activity for one repository over a time window."""
 
     repo_name: str
     repo_path: str
@@ -84,7 +83,6 @@ class RepoActivity:
 
     @property
     def hotspots(self) -> dict[str, int]:
-        """Files touched most often = likely tech-debt magnets."""
         counts: dict[str, int] = {}
         for c in self.commits:
             for f in c.files:
@@ -93,7 +91,6 @@ class RepoActivity:
 
     @property
     def hour_histogram(self) -> dict[int, int]:
-        """Commits per hour of day (0-23) for the productivity heatmap."""
         hist = {h: 0 for h in range(24)}
         for c in self.commits:
             hist[c.hour] += 1

@@ -79,7 +79,9 @@ def api_branches(body: dict):
             if tok and url.startswith("http"):
                 ls_url = gp_remote._inject_token(url, tok, user)
             ssl_opts = ["-c", "http.sslVerify=false"] if body.get("insecure") else []
-            proc = subprocess.run(
+            from ...core.procutil import run as _prun
+
+            proc = _prun(
                 ["git", *ssl_opts, "ls-remote", "--heads", ls_url],
                 capture_output=True,
                 text=True,

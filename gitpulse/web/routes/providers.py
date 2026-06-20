@@ -59,7 +59,9 @@ def api_ollama_start():
     try:
         if _ollama_available():
             return {"started": True, "already": True}
-        subprocess.Popen(
+        from ...core.procutil import popen as _ppopen
+
+        _ppopen(
             ["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
         for _ in range(10):

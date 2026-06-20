@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -169,7 +170,7 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
 
     header = Panel(
         Text(summary.headline, style="bold cyan"),
-        title=f"{activity.repo_name}",
+        title=f"📊 {activity.repo_name}",
         title_align="left",
         subtitle=f"{activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
         subtitle_align="right",
@@ -231,7 +232,7 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     if summary.source == "local(truncated)":
         console.print(
             Text(
-                "Claude's reply was cut off; max_tokens was raised — retry. "
+                "  ⚠ Claude's reply was cut off; max_tokens was raised — retry. "
                 "Showed local summary instead.",
                 style="dim red",
             )
@@ -300,7 +301,7 @@ def render_log(activity: RepoActivity, show_files: bool = False) -> None:
 def render_markdown(activity: RepoActivity, summary: Summary) -> str:
     """Markdown digest for email / Slack / changelog use."""
     lines = [
-        f"# {activity.repo_name} — {activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
+        f"#{activity.repo_name} — {activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
         "",
         f"**{summary.headline}**",
         "",
@@ -321,6 +322,6 @@ def render_markdown(activity: RepoActivity, summary: Summary) -> str:
     if summary.observations:
         lines.append("## Observations")
         for o in summary.observations:
-            lines.append(f"- {o}")
+            lines.append(f"- ⚠ {o}")
         lines.append("")
     return "\n".join(lines)

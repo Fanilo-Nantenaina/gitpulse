@@ -1,3 +1,9 @@
+"""Shared fixtures: disposable git repositories with controlled history.
+
+These build real repos on disk via the git CLI with fixed commit dates so that
+date-window, graph, and diff logic can be asserted deterministically.
+"""
+
 from __future__ import annotations
 
 import os
@@ -49,6 +55,11 @@ def linear_repo(tmp_path):
 
 @pytest.fixture
 def branched_repo(tmp_path):
+    """A repo with a real branch and a merge, for graph lane tests.
+
+    master:  base -> work -> (merge feature) -> after
+    feature: a1 -> a2  (branched from base, merged into master)
+    """
     repo = tmp_path / "branched"
     repo.mkdir()
     _git(repo, "init", "-q")
@@ -83,17 +94,15 @@ def branched_repo(tmp_path):
 
 @pytest.fixture
 def dirty_repo(tmp_path):
+    """A repo with one commit plus uncommitted changes (staged + unstaged + untracked)."""
     repo = tmp_path / "dirty"
     repo.mkdir()
     _git(repo, "init", "-q")
     _git(repo, "branch", "-M", "master")
     (repo / "app.py").write_text("def hello():\n    pass\n")
     _commit(repo, "init", "2026-03-01T10:00:00")
-    # modify + stage
     (repo / "app.py").write_text("def hello():\n    return 'world'\n")
     _git(repo, "add", "app.py")
-    # unstaged new file
     (repo / "config.py").write_text("KEY = None\n")
-    # untracked
     (repo / "notes.md").write_text("# notes\n")
     return repo

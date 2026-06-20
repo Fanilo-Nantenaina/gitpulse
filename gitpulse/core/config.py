@@ -21,10 +21,13 @@ DEFAULT_LANG = "en"
 
 
 def _config_path() -> Path:
+    return config_dir() / "config.json"
+
+
+def config_dir() -> Path:
+    """The directory holding GitPulse state (config, pid, logs)."""
     base = os.environ.get("GITPULSE_CONFIG_DIR")
-    if base:
-        return Path(base) / "config.json"
-    return Path.home() / ".gitpulse" / "config.json"
+    return Path(base) if base else Path.home() / ".gitpulse"
 
 
 def load_config() -> dict:
@@ -91,7 +94,8 @@ def add_tracked(url: str, label: str | None = None) -> tuple[bool, list[dict]]:
 def remove_tracked(needle: str) -> tuple[bool, list[dict]]:
     cfg = load_config()
     tracked = cfg.get("tracked", [])
-    kept = [t for t in tracked if t["url"] != needle and t.get("label") != needle]
+    kept = [t for t in tracked
+            if t["url"] != needle and t.get("label") != needle]
     changed = len(kept) != len(tracked)
     if changed:
         cfg["tracked"] = kept

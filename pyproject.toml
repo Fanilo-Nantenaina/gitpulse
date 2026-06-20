@@ -21,6 +21,9 @@ all = ["anthropic>=0.40", "apscheduler>=3.10", "plyer>=2.1", "fastapi>=0.110", "
 [project.scripts]
 gitpulse = "gitpulse.cli.main:main"
 
+[project.gui-scripts]
+gitpulse-gui = "gitpulse.gui:main"
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
@@ -29,4 +32,4 @@ build-backend = "setuptools.build_meta"
 include = ["gitpulse*"]
 
 [tool.setuptools.package-data]
-gitpulse = ["web/static/*"]
+gitpulse = ["web/static/*", "web/static/css/*", "web/static/js/*"]

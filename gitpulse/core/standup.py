@@ -20,14 +20,16 @@ class StandupContext:
 
 
 def _day_window(target: datetime) -> tuple[datetime, datetime]:
-    start = datetime.combine(target.date(), time.min, tzinfo=timezone.utc)
-    end = datetime.combine(target.date(), time.max, tzinfo=timezone.utc)
+    tz = target.tzinfo or timezone.utc
+    start = datetime.combine(target.date(), time.min, tzinfo=tz)
+    end = datetime.combine(target.date(), time.max, tzinfo=tz)
     return start, end
 
 
-def gather(repo_path, name: str | None = None,
-           now: datetime | None = None) -> StandupContext:
-    now = now or datetime.now(timezone.utc)
+def gather(
+    repo_path, name: str | None = None, now: datetime | None = None
+) -> StandupContext:
+    now = now or datetime.now().astimezone()
     repo_path = Path(repo_path).resolve()
     repo_name = name or repo_path.name
 

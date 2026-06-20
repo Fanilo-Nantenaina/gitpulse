@@ -22,14 +22,9 @@ def api_summary(req: SummaryReq):
         r = parse_range(req.when)
         src, name = resolve_source(req)
         activity = collect_activity(src, r.since, r.until, branch=req.branch, name=name)
-        summ = summarize(
-            activity, provider=req.provider, model=req.model, lang=req.lang
-        )
-        return {
-            "activity": activity_dict(activity),
-            "summary": summary_dict(summ),
-            "range_label": r.label,
-        }
+        summ = summarize(activity, provider=req.provider, model=req.model, lang=req.lang)
+        return {"activity": activity_dict(activity), "summary": summary_dict(summ),
+                "range_label": r.label}
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
 
@@ -50,21 +45,15 @@ def api_compare(req: CompareReq):
     try:
         src, name = resolve_source(req)
         p = parse_interval(req.period)
-        cmp = gp_trends.compare(
-            src, p, periods_back=req.periods, branch=req.branch, name=name
-        )
+        cmp = gp_trends.compare(src, p, periods_back=req.periods,
+                                branch=req.branch, name=name)
         return {
             "repo_name": cmp.repo_name,
             "period_days": cmp.period_len.days,
             "periods_back": cmp.periods_back,
             "metrics": [
-                {
-                    "name": m.name,
-                    "current": m.current,
-                    "baseline": m.baseline,
-                    "pct": m.pct,
-                    "direction": m.direction,
-                }
+                {"name": m.name, "current": m.current, "baseline": m.baseline,
+                 "pct": m.pct, "direction": m.direction}
                 for m in cmp.metrics
             ],
         }
@@ -114,27 +103,14 @@ def api_dashboard(req: DashboardReq):
         url = t["url"]
         name = t.get("label") or gp_remote.repo_name_from_url(url)
         try:
-            dest = gp_remote.sync_remote(
-                url,
-                tok,
-                user,
-                key,
-                refresh=req.refresh,
-                insecure=getattr(req, "insecure", False),
-            )
+            dest = gp_remote.sync_remote(url, tok, user, key, refresh=req.refresh,
+                                         insecure=getattr(req, "insecure", False))
             act = collect_activity(dest, r.since, r.until, name=name)
-            row = {
-                "name": name,
-                "commits": act.commit_count,
-                "additions": act.total_additions,
-                "deletions": act.total_deletions,
-                "files": act.files_touched,
-                "headline": None,
-            }
+            row = {"name": name, "commits": act.commit_count,
+                   "additions": act.total_additions, "deletions": act.total_deletions,
+                   "files": act.files_touched, "headline": None}
             if req.summarize and act.commit_count:
-                summ = summarize(
-                    act, provider=req.provider, model=req.model, lang=req.lang
-                )
+                summ = summarize(act, provider=req.provider, model=req.model, lang=req.lang)
                 row["headline"] = summ.headline
             rows.append(row)
         except Exception as e:

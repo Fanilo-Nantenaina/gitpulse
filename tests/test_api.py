@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from gitpulse.web.server import app
@@ -99,12 +100,9 @@ def test_compare_endpoint(branched_repo):
 
 
 def test_tracked_crud():
-    # add
     r = client.post("/api/tracked", json={"url": "file:///tmp/x", "label": "x"})
     assert r.status_code == 200
-    # list
     assert any(t["url"] == "file:///tmp/x" for t in client.get("/api/tracked").json())
-    # remove
     r = client.request("DELETE", "/api/tracked", params={"needle": "file:///tmp/x"})
     assert r.json()["removed"] is True
 
