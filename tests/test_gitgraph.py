@@ -7,7 +7,6 @@ def test_graph_linear_single_lane(linear_repo):
     g = graph(linear_repo)
     assert g["returned"] == 5
     assert g["lanes"] == 1
-    # all commits on lane 0
     assert all(n["lane"] == 0 for n in g["nodes"])
 
 
@@ -43,13 +42,15 @@ def test_graph_continuity_no_dead_edges(branched_repo):
             for e in n["edges"]:
                 assert e["to"] in next_incoming, (
                     f"row {i} edge to lane {e['to']} dead-ends "
-                    f"(next incoming={sorted(next_incoming)})")
+                    f"(next incoming={sorted(next_incoming)})"
+                )
         if i > 0:
             prev_tos = {e["to"] for e in nodes[i - 1]["edges"]}
             for lane in n["incoming"]:
                 assert lane in prev_tos, (
                     f"row {i} incoming lane {lane} is unfed "
-                    f"(prev edges to={sorted(prev_tos)})")
+                    f"(prev edges to={sorted(prev_tos)})"
+                )
 
 
 def test_graph_merge_commit_flagged(branched_repo):
@@ -61,6 +62,7 @@ def test_graph_merge_commit_flagged(branched_repo):
 
 def test_graph_empty_on_unborn(tmp_path):
     import subprocess
+
     repo = tmp_path / "empty"
     repo.mkdir()
     subprocess.run(["git", "-C", str(repo), "init", "-q"], check=True)

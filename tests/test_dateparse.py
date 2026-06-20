@@ -37,7 +37,6 @@ def test_parse_interval_returns_timedelta():
 
 
 def test_parse_interval_weeks_or_days():
-    # a 30d interval should be about a month
     d = parse_interval("30d")
     assert d.days == 30
 

@@ -20,18 +20,15 @@ class StandupContext:
 
 
 def _day_window(target: datetime) -> tuple[datetime, datetime]:
-    # Build the day window in the target's own timezone so "yesterday" matches
-    # the user's local calendar day, not UTC (which would shift the boundary by
-    # the UTC offset — e.g. 3h off for UTC+3, pulling in the wrong commits).
     tz = target.tzinfo or timezone.utc
     start = datetime.combine(target.date(), time.min, tzinfo=tz)
     end = datetime.combine(target.date(), time.max, tzinfo=tz)
     return start, end
 
 
-def gather(repo_path, name: str | None = None,
-           now: datetime | None = None) -> StandupContext:
-    # Use LOCAL time so "yesterday"/"today" follow the user's calendar day.
+def gather(
+    repo_path, name: str | None = None, now: datetime | None = None
+) -> StandupContext:
     now = now or datetime.now().astimezone()
     repo_path = Path(repo_path).resolve()
     repo_name = name or repo_path.name

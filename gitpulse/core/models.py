@@ -1,8 +1,3 @@
-"""Domain models for GitPulse.
-
-These are deliberately plain dataclasses (no pydantic dependency in the core)
-so the collector stays fast and importable without the AI/CLI layers.
-"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -13,10 +8,11 @@ from typing import Optional
 @dataclass
 class FileChange:
     """A single file touched within a commit."""
+
     path: str
     additions: int
     deletions: int
-    status: str  # "added" | "modified" | "deleted" | "renamed"
+    status: str
 
     @property
     def churn(self) -> int:
@@ -26,12 +22,13 @@ class FileChange:
 @dataclass
 class Commit:
     """A normalized git commit, independent of pygit2 internals."""
+
     sha: str
     author_name: str
     author_email: str
     when: datetime
-    summary: str          # first line of the message
-    body: str             # rest of the message
+    summary: str
+    body: str
     files: list[FileChange] = field(default_factory=list)
     branch: Optional[str] = None
 
@@ -58,7 +55,7 @@ class Commit:
 
 @dataclass
 class RepoActivity:
-    """Aggregated activity for one repository over a time window."""
+
     repo_name: str
     repo_path: str
     since: datetime
@@ -86,7 +83,6 @@ class RepoActivity:
 
     @property
     def hotspots(self) -> dict[str, int]:
-        """Files touched most often = likely tech-debt magnets."""
         counts: dict[str, int] = {}
         for c in self.commits:
             for f in c.files:
@@ -95,7 +91,6 @@ class RepoActivity:
 
     @property
     def hour_histogram(self) -> dict[int, int]:
-        """Commits per hour of day (0-23) for the productivity heatmap."""
         hist = {h: 0 for h in range(24)}
         for c in self.commits:
             hist[c.hour] += 1

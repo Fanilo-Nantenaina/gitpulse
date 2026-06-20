@@ -6,8 +6,15 @@ from typing import Optional
 import typer
 from rich.table import Table
 
-from ._shared import (app, console, _range,
-                      WHEN_HELP, PROVIDER_HELP, MODEL_HELP, LANG_HELP)
+from ._shared import (
+    app,
+    console,
+    _range,
+    WHEN_HELP,
+    PROVIDER_HELP,
+    MODEL_HELP,
+    LANG_HELP,
+)
 from ..core.collector import collect_activity, discover_repos
 from ..core import config as gp_config
 from ..core import remote as gp_remote
@@ -20,9 +27,15 @@ def dashboard(
     root: Path = typer.Argument(Path("."), help="Directory to scan (local mode)"),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
     depth: int = typer.Option(3, "--depth"),
-    remote: bool = typer.Option(False, "--remote", help="Use tracked remote repos instead of a local folder"),
-    summarize_rows: bool = typer.Option(False, "--summarize", help="Add an AI headline per repo (slower, may cost)"),
-    no_refresh: bool = typer.Option(False, "--no-refresh", help="(remote) use cached clones, skip fetch"),
+    remote: bool = typer.Option(
+        False, "--remote", help="Use tracked remote repos instead of a local folder"
+    ),
+    summarize_rows: bool = typer.Option(
+        False, "--summarize", help="Add an AI headline per repo (slower, may cost)"
+    ),
+    no_refresh: bool = typer.Option(
+        False, "--no-refresh", help="(remote) use cached clones, skip fetch"
+    ),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
@@ -32,19 +45,25 @@ def dashboard(
     if remote:
         tracked = gp_config.list_tracked()
         if not tracked:
-            console.print("[yellow]No tracked remotes. Add one with "
-                          "[bold]gitpulse track <url>[/].[/]")
+            console.print(
+                "[yellow]No tracked remotes. Add one with "
+                "[bold]gitpulse track <url>[/].[/]"
+            )
             raise typer.Exit()
-        targets: list[tuple[str, str, dict]] = []  # (name, kind, meta)
+        targets: list[tuple[str, str, dict]] = []
         tok, user, key = gp_remote.resolve_auth(None, None, None)
         with progress_bar() as prog:
-            task = prog.add_task("Fetching tracked remotes", total=len(tracked), detail="")
+            task = prog.add_task(
+                "Fetching tracked remotes", total=len(tracked), detail=""
+            )
             for t in tracked:
                 url = t["url"]
                 name = t.get("label") or gp_remote.repo_name_from_url(url)
                 prog.update(task, detail=name)
                 try:
-                    dest = gp_remote.sync_remote(url, tok, user, key, refresh=not no_refresh)
+                    dest = gp_remote.sync_remote(
+                        url, tok, user, key, refresh=not no_refresh
+                    )
                     targets.append((name, "ok", {"path": dest}))
                 except Exception as e:
                     targets.append((name, "fail", {"error": str(e)}))
@@ -54,7 +73,9 @@ def dashboard(
         title = f"Remote activity: {r.label}"
     else:
         with progress_bar() as prog:
-            scan = prog.add_task("Scanning for repositories", total=None, detail=str(root))
+            scan = prog.add_task(
+                "Scanning for repositories", total=None, detail=str(root)
+            )
             repos = discover_repos(root, max_depth=depth)
             prog.update(scan, total=1, completed=1, detail=f"found {len(repos)}")
         if not repos:
@@ -100,9 +121,13 @@ def dashboard(
 
     rows.sort(key=lambda x: x[0].commit_count, reverse=True)
     for act, summ in rows:
-        cells = [act.repo_name, str(act.commit_count),
-                 f"+{act.total_additions}", f"-{act.total_deletions}",
-                 str(act.files_touched)]
+        cells = [
+            act.repo_name,
+            str(act.commit_count),
+            f"+{act.total_additions}",
+            f"-{act.total_deletions}",
+            str(act.files_touched),
+        ]
         if summarize_rows:
             cells.append(summ.headline if summ else "")
         table.add_row(*cells)
@@ -114,7 +139,11 @@ def dashboard(
         footer += f" · {skipped} idle"
     if failed:
         footer += f" · {failed} failed"
-    footer += f" · {len(sources) + prefetch_failed} tracked" if remote else f" · {len(sources)} scanned"
+    footer += (
+        f" · {len(sources) + prefetch_failed} tracked"
+        if remote
+        else f" · {len(sources)} scanned"
+    )
     console.print(f"[dim]{footer}[/]")
     if not summarize_rows:
         console.print("[dim]Tip: add --summarize for an AI headline per repo.[/]")

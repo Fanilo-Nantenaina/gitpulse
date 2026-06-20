@@ -39,7 +39,6 @@ def test_unit_generation_all_platforms(plat, kind, monkeypatch):
         to="desktop",
     )
     assert fname and contents and hint
-    # the invocation must mention gitpulse and the right verb
     assert "gitpulse" in contents.lower()
     assert "serve" in contents if kind == "web" else "digest" in contents
 
@@ -71,24 +70,19 @@ def test_windows_web_is_schtasks(monkeypatch):
     assert "schtasks" in contents
 
 
-# --- standup timezone regression (separate concern, kept here for brevity) ---
-
-
 def test_standup_day_window_uses_local_tz():
     from datetime import datetime, timezone, timedelta
     from gitpulse.core import standup
 
-    tz = timezone(timedelta(hours=3))  # UTC+3, like Toliara
+    tz = timezone(timedelta(hours=3))
     target = datetime(2026, 6, 18, 12, 0, tzinfo=tz)
     start, end = standup._day_window(target)
-    # boundaries must be midnight in the LOCAL tz, not UTC
     assert start.utcoffset() == timedelta(hours=3)
     assert start.hour == 0 and end.hour == 23
     assert start.date() == target.date()
 
 
 def test_procutil_run_works():
-    # the no-window wrapper must behave like subprocess.run on any OS
     from gitpulse.core import procutil
 
     r = procutil.run(["git", "--version"], capture_output=True, text=True)

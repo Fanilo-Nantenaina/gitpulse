@@ -64,8 +64,8 @@ class DashboardReq(BaseModel):
 
 class CommitMsgReq(BaseModel):
     path: str
-    scope: str = "all"                   # "all" | "staged"
-    force_type: Optional[str] = None     # feat | fix | refactor | ...
+    scope: str = "all"
+    force_type: Optional[str] = None
     provider: str = "auto"
     model: Optional[str] = None
     lang: Optional[str] = None

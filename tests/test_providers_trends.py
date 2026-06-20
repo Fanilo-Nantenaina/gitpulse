@@ -27,19 +27,23 @@ def test_ollama_is_local():
 
 
 def test_detect_local_returns_none():
-    # 'local' means the deterministic fallback, not a model provider
     assert providers.detect("local") is None
 
 
 def test_unknown_provider_raises():
     import pytest
+
     with pytest.raises(ValueError):
         providers.get_provider("nope")
 
 
 def test_compare_returns_metrics(branched_repo):
-    cmp = compare(branched_repo, timedelta(days=7), periods_back=2,
-                  now=datetime(2026, 2, 7, tzinfo=timezone.utc))
+    cmp = compare(
+        branched_repo,
+        timedelta(days=7),
+        periods_back=2,
+        now=datetime(2026, 2, 7, tzinfo=timezone.utc),
+    )
     assert cmp.metrics
     names = {m.name for m in cmp.metrics}
     assert "Commits" in names

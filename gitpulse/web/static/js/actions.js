@@ -14,10 +14,8 @@ function renderControls() {
   if (cfg.branch) add('<div class="field"><label>' + t('branch') + '</label><select id="ctlBranch"><option value="">' + t('current') + '</option></select></div>');
   if (cfg.summarize) add('<div class="field"><label>' + t('aiHeadline') + '</label><select id="ctlSummarize"><option value="false">' + t('off') + '</option><option value="true">' + t('on') + '</option></select></div>');
   if (cfg.graphmode) {
-    // graph auto-loads all branches; only a refresh control is shown
     add('<div class="field go"><label>&nbsp;</label><button class="btn ghost" id="refreshBtn">&#8635; ' + t('refresh') + '</button></div>');
     $('#refreshBtn').onclick = () => runGraph(true);
-    // auto-run if a repo is already selected
     if (currentSource()) runGraph(false);
     else out.innerHTML = '<div class="placeholder">' + t('selectRepoGraph') + '</div>';
     return;
@@ -48,7 +46,6 @@ function showErr(e) { out.innerHTML = '<div class="err">' + (e.message || e) + '
 function esc(s) { return (s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
 
 function cloudGuard(onProceed) {
-  // warn for cloud provider on bad/limited connection
   const isCloud = selectedIsCloud();
   const lat = state.latency;
   const conn = navigator.connection || {};

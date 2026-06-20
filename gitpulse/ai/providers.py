@@ -23,7 +23,7 @@ class GenResult:
 @dataclass
 class Provider:
     name: str
-    kind: str = "local"          # "cloud" | "local"
+    kind: str = "local"
 
     def available(self) -> bool:
         raise NotImplementedError
@@ -60,7 +60,9 @@ _GEMINI_PRICES = {
 class ClaudeProvider(Provider):
     name: str = "claude"
     kind: str = "cloud"
-    model: str = field(default_factory=lambda: os.environ.get("GITPULSE_MODEL", "claude-sonnet-4-6"))
+    model: str = field(
+        default_factory=lambda: os.environ.get("GITPULSE_MODEL", "claude-sonnet-4-6")
+    )
 
     def _key(self):
         return _config.get_api_key("claude")
@@ -94,23 +96,34 @@ class ClaudeProvider(Provider):
 
     def generate(self, system, prompt, max_tokens):
         import anthropic
+
         client = anthropic.Anthropic(api_key=self._key())
         msg = client.messages.create(
-            model=self.model, max_tokens=max_tokens, system=system,
+            model=self.model,
+            max_tokens=max_tokens,
+            system=system,
             messages=[{"role": "user", "content": prompt}],
         )
         text = "".join(b.text for b in msg.content if b.type == "text")
         pin, pout = self._price()
         cost = msg.usage.input_tokens * pin / 1e6 + msg.usage.output_tokens * pout / 1e6
-        return GenResult(text, msg.usage.input_tokens, msg.usage.output_tokens,
-                         cost, msg.stop_reason == "max_tokens", self.model)
+        return GenResult(
+            text,
+            msg.usage.input_tokens,
+            msg.usage.output_tokens,
+            cost,
+            msg.stop_reason == "max_tokens",
+            self.model,
+        )
 
 
 @dataclass
 class OpenAIProvider(Provider):
     name: str = "openai"
     kind: str = "cloud"
-    model: str = field(default_factory=lambda: os.environ.get("GITPULSE_OPENAI_MODEL", "gpt-4o-mini"))
+    model: str = field(
+        default_factory=lambda: os.environ.get("GITPULSE_OPENAI_MODEL", "gpt-4o-mini")
+    )
 
     def _key(self):
         return _config.get_api_key("openai")
@@ -131,17 +144,25 @@ class OpenAIProvider(Provider):
         return _OPENAI_PRICES["gpt-4o-mini"]
 
     def generate(self, system, prompt, max_tokens):
-        body = json.dumps({
-            "model": self.model,
-            "messages": [{"role": "system", "content": system},
-                         {"role": "user", "content": prompt}],
-            "max_tokens": max_tokens,
-            "response_format": {"type": "json_object"},
-        }).encode()
+        body = json.dumps(
+            {
+                "model": self.model,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": prompt},
+                ],
+                "max_tokens": max_tokens,
+                "response_format": {"type": "json_object"},
+            }
+        ).encode()
         req = urllib.request.Request(
-            "https://api.openai.com/v1/chat/completions", data=body,
-            headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {self._key()}"})
+            "https://api.openai.com/v1/chat/completions",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._key()}",
+            },
+        )
         with urllib.request.urlopen(req, timeout=120) as r:
             data = json.loads(r.read())
         choice = data["choices"][0]
@@ -150,15 +171,20 @@ class OpenAIProvider(Provider):
         pin, pout = self._price()
         it, ot = usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0)
         cost = it * pin / 1e6 + ot * pout / 1e6
-        return GenResult(text, it, ot, cost,
-                         choice.get("finish_reason") == "length", self.model)
+        return GenResult(
+            text, it, ot, cost, choice.get("finish_reason") == "length", self.model
+        )
 
 
 @dataclass
 class GeminiProvider(Provider):
     name: str = "gemini"
     kind: str = "cloud"
-    model: str = field(default_factory=lambda: os.environ.get("GITPULSE_GEMINI_MODEL", "gemini-2.5-flash"))
+    model: str = field(
+        default_factory=lambda: os.environ.get(
+            "GITPULSE_GEMINI_MODEL", "gemini-2.5-flash"
+        )
+    )
 
     def _key(self):
         return _config.get_api_key("gemini")
@@ -179,16 +205,23 @@ class GeminiProvider(Provider):
         return _GEMINI_PRICES["gemini-2.5-flash"]
 
     def generate(self, system, prompt, max_tokens):
-        url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-               f"{self.model}:generateContent?key={self._key()}")
-        body = json.dumps({
-            "systemInstruction": {"parts": [{"text": system}]},
-            "contents": [{"parts": [{"text": prompt}]}],
-            "generationConfig": {"maxOutputTokens": max_tokens,
-                                 "responseMimeType": "application/json"},
-        }).encode()
-        req = urllib.request.Request(url, data=body,
-                                     headers={"Content-Type": "application/json"})
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{self.model}:generateContent?key={self._key()}"
+        )
+        body = json.dumps(
+            {
+                "systemInstruction": {"parts": [{"text": system}]},
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {
+                    "maxOutputTokens": max_tokens,
+                    "responseMimeType": "application/json",
+                },
+            }
+        ).encode()
+        req = urllib.request.Request(
+            url, data=body, headers={"Content-Type": "application/json"}
+        )
         with urllib.request.urlopen(req, timeout=120) as r:
             data = json.loads(r.read())
         cand = data["candidates"][0]
@@ -198,20 +231,27 @@ class GeminiProvider(Provider):
         it = usage.get("promptTokenCount", 0)
         ot = usage.get("candidatesTokenCount", 0)
         cost = it * pin / 1e6 + ot * pout / 1e6
-        return GenResult(text, it, ot, cost,
-                         cand.get("finishReason") == "MAX_TOKENS", self.model)
+        return GenResult(
+            text, it, ot, cost, cand.get("finishReason") == "MAX_TOKENS", self.model
+        )
 
 
 @dataclass
 class OllamaProvider(Provider):
     name: str = "ollama"
     kind: str = "local"
-    host: str = field(default_factory=lambda: os.environ.get("OLLAMA_HOST", "http://localhost:11434"))
-    model: str = field(default_factory=lambda: os.environ.get("GITPULSE_OLLAMA_MODEL", ""))
+    host: str = field(
+        default_factory=lambda: os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+    )
+    model: str = field(
+        default_factory=lambda: os.environ.get("GITPULSE_OLLAMA_MODEL", "")
+    )
 
     def _get(self, path, timeout=2.0):
         try:
-            with urllib.request.urlopen(self.host.rstrip("/") + path, timeout=timeout) as r:
+            with urllib.request.urlopen(
+                self.host.rstrip("/") + path, timeout=timeout
+            ) as r:
                 return json.loads(r.read())
         except (urllib.error.URLError, OSError, json.JSONDecodeError):
             return None
@@ -239,18 +279,34 @@ class OllamaProvider(Provider):
     def generate(self, system, prompt, max_tokens):
         model = self.resolve_model()
         if not model:
-            raise RuntimeError("No Ollama model installed. Run `ollama pull qwen2.5-coder:7b`.")
-        body = json.dumps({
-            "model": model, "system": system, "prompt": prompt, "stream": False,
-            "format": "json", "options": {"num_predict": max_tokens, "temperature": 0.2},
-        }).encode()
-        req = urllib.request.Request(self.host.rstrip("/") + "/api/generate", data=body,
-                                     headers={"Content-Type": "application/json"})
+            raise RuntimeError(
+                "No Ollama model installed. Run `ollama pull qwen2.5-coder:7b`."
+            )
+        body = json.dumps(
+            {
+                "model": model,
+                "system": system,
+                "prompt": prompt,
+                "stream": False,
+                "format": "json",
+                "options": {"num_predict": max_tokens, "temperature": 0.2},
+            }
+        ).encode()
+        req = urllib.request.Request(
+            self.host.rstrip("/") + "/api/generate",
+            data=body,
+            headers={"Content-Type": "application/json"},
+        )
         with urllib.request.urlopen(req, timeout=600) as r:
             data = json.loads(r.read())
-        return GenResult(data.get("response", ""), data.get("prompt_eval_count", 0),
-                         data.get("eval_count", 0), 0.0,
-                         data.get("done_reason") == "length", model)
+        return GenResult(
+            data.get("response", ""),
+            data.get("prompt_eval_count", 0),
+            data.get("eval_count", 0),
+            0.0,
+            data.get("done_reason") == "length",
+            model,
+        )
 
 
 _REGISTRY = {
@@ -259,7 +315,6 @@ _REGISTRY = {
     "gemini": GeminiProvider,
     "ollama": OllamaProvider,
 }
-# auto-detection order: local first (free), then cloud
 _AUTO_ORDER = ["ollama", "claude", "openai", "gemini"]
 
 
@@ -287,11 +342,16 @@ def status() -> list[dict]:
     for name, cls in _REGISTRY.items():
         p = cls()
         ok = p.available()
-        out.append({
-            "name": name, "kind": p.kind, "available": ok,
-            "detail": p.detail(), "models": p.list_models() if ok else [],
-            "has_key": _config.has_stored_key(name) if p.kind == "cloud" else None,
-        })
+        out.append(
+            {
+                "name": name,
+                "kind": p.kind,
+                "available": ok,
+                "detail": p.detail(),
+                "models": p.list_models() if ok else [],
+                "has_key": _config.has_stored_key(name) if p.kind == "cloud" else None,
+            }
+        )
     return out
 
 

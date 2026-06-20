@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import subprocess
 
-# Flags that suppress a new console window on Windows; no-op elsewhere.
 _NO_WINDOW = 0
 if os.name == "nt":
     _NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
@@ -29,5 +28,5 @@ def popen(args, **kwargs):
 def _startupinfo():
     si = subprocess.STARTUPINFO()
     si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-    si.wShowWindow = 0  # SW_HIDE
+    si.wShowWindow = 0
     return si

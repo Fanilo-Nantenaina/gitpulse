@@ -1,4 +1,4 @@
-"""Terminal rendering of summaries using Rich."""
+
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -7,8 +7,13 @@ from rich.console import Console
 from rich.padding import Padding
 from rich.panel import Panel
 from rich.progress import (
-    Progress, SpinnerColumn, BarColumn, TextColumn,
-    TimeElapsedColumn, MofNCompleteColumn, TaskProgressColumn,
+    Progress,
+    SpinnerColumn,
+    BarColumn,
+    TextColumn,
+    TimeElapsedColumn,
+    MofNCompleteColumn,
+    TaskProgressColumn,
 )
 from rich.table import Table
 from rich.text import Text
@@ -26,8 +31,9 @@ def render_comparison(cmp: Comparison) -> None:
     days = cmp.period_len.days or round(cmp.period_len.total_seconds() / 86400, 1)
     header = Text()
     header.append(f"  {cmp.repo_name}  ", style="bold")
-    header.append(f"current {days}-day period vs avg of prior {cmp.periods_back}",
-                  style="dim")
+    header.append(
+        f"current {days}-day period vs avg of prior {cmp.periods_back}", style="dim"
+    )
     console.print()
     console.print(header)
     console.print()
@@ -54,8 +60,12 @@ def render_comparison(cmp: Comparison) -> None:
             change = f"{m.pct:+.0f}%"
         avg_str = f"{m.baseline:.1f}".rstrip("0").rstrip(".")
         table.add_row(
-            m.name, str(int(m.current)), avg_str,
-            f"[{color}]{change}[/]", f"[{color}]{arrow}[/]")
+            m.name,
+            str(int(m.current)),
+            avg_str,
+            f"[{color}]{change}[/]",
+            f"[{color}]{arrow}[/]",
+        )
     console.print(table)
     console.print()
 
@@ -63,9 +73,14 @@ def render_comparison(cmp: Comparison) -> None:
 def render_standup(ctx: StandupContext, summary: Summary) -> None:
     w = _width()
     console.print()
-    console.print(Panel(
-        Text(f"Standup — {ctx.repo_name}", style="bold cyan"),
-        border_style="cyan", width=w, padding=(0, 1)))
+    console.print(
+        Panel(
+            Text(f"Standup — {ctx.repo_name}", style="bold cyan"),
+            border_style="cyan",
+            width=w,
+            padding=(0, 1),
+        )
+    )
 
     console.print(Text("  Yesterday", style="bold"))
     if ctx.yesterday.commit_count == 0:
@@ -77,8 +92,10 @@ def render_standup(ctx: StandupContext, summary: Summary) -> None:
             line = Text("• ", style="blue")
             line.append(theme.get("title", ""), style="bold")
             console.print(Padding(line, (0, 0, 0, 4)))
-            console.print(Padding(Text(theme.get("narrative", ""), style="dim"),
-                                  (0, 2, 0, 6)), width=w)
+            console.print(
+                Padding(Text(theme.get("narrative", ""), style="dim"), (0, 2, 0, 6)),
+                width=w,
+            )
     console.print()
 
     console.print(Text("  Today", style="bold"))
@@ -93,8 +110,9 @@ def render_standup(ctx: StandupContext, summary: Summary) -> None:
     if others:
         plan.append(("Other recently active branches", ", ".join(others[:4])))
     if not plan:
-        console.print(Padding(Text("No work in progress detected.", style="dim"),
-                              (0, 0, 0, 4)))
+        console.print(
+            Padding(Text("No work in progress detected.", style="dim"), (0, 0, 0, 4))
+        )
     else:
         for label, detail in plan:
             line = Text("• ", style="green")
@@ -128,6 +146,7 @@ def status_spinner(message: str):
     with console.status(f"[bold]{message}", spinner="dots") as st:
         yield st
 
+
 _BLOCKS = " ▁▂▃▄▅▆▇█"
 
 
@@ -138,7 +157,6 @@ def _spark(values: list[int]) -> str:
     return "".join(_BLOCKS[min(8, round(v / hi * 8))] for v in values)
 
 
-# Cap content width so panels/text don't sprawl across ultra-wide terminals.
 _MAX_WIDTH = 100
 
 
@@ -150,7 +168,6 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     w = _width()
     console.print()
 
-    # --- Header --------------------------------------------------------------
     header = Panel(
         Text(summary.headline, style="bold cyan"),
         title=f"📊 {activity.repo_name}",
@@ -163,7 +180,6 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     )
     console.print(header)
 
-    # --- Stats line ----------------------------------------------------------
     stats = Text()
     stats.append(f"  {activity.commit_count} commits", style="bold")
     stats.append("   ")
@@ -173,7 +189,6 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     stats.append(" lines", style="dim")
     console.print(stats)
 
-    # --- Productivity heatmap (24h sparkline) --------------------------------
     hist = activity.hour_histogram
     spark = _spark([hist[h] for h in range(24)])
     heat = Text("  hours  ", style="dim")
@@ -182,13 +197,11 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     console.print(heat)
     console.print()
 
-    # --- Synthesis (overview before the detailed themes) ---------------------
     if summary.synthesis:
         console.print(Text("  Overview", style="bold"))
         console.print(Padding(Text(summary.synthesis), (0, 2, 0, 4)), width=w)
         console.print()
 
-    # --- Themes (no per-theme box; cleaner left-aligned list) ----------------
     for i, theme in enumerate(summary.themes, 1):
         title = Text()
         title.append(f"  {i}. ", style="bold blue")
@@ -207,7 +220,6 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
             console.print(sha_line)
         console.print()
 
-    # --- Observations --------------------------------------------------------
     if summary.observations:
         console.print(Text("  ⚠ Observations", style="bold yellow"))
         for o in summary.observations:
@@ -216,12 +228,15 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
             console.print(Padding(bullet, (0, 2, 0, 3)), width=w)
         console.print()
 
-    # --- Cost footer ---------------------------------------------------------
     console.print(Text(f"  {summary.cost_note}", style="dim"))
     if summary.source == "local(truncated)":
-        console.print(Text(
-            "  ⚠ Claude's reply was cut off; max_tokens was raised — retry. "
-            "Showed local summary instead.", style="dim red"))
+        console.print(
+            Text(
+                "  ⚠ Claude's reply was cut off; max_tokens was raised — retry. "
+                "Showed local summary instead.",
+                style="dim red",
+            )
+        )
     console.print()
 
 
@@ -233,7 +248,9 @@ def render_log(activity: RepoActivity, show_files: bool = False) -> None:
 
     header = Text()
     header.append(f"  {activity.repo_name}  ", style="bold")
-    header.append(f"{activity.since:%Y-%m-%d} .. {activity.until:%Y-%m-%d}  ", style="dim")
+    header.append(
+        f"{activity.since:%Y-%m-%d} .. {activity.until:%Y-%m-%d}  ", style="dim"
+    )
     header.append(f"{activity.commit_count} commits", style="dim")
     console.print(header)
     console.print()
@@ -266,7 +283,9 @@ def render_log(activity: RepoActivity, show_files: bool = False) -> None:
         stat.append(f"+{c.additions}", style="green")
         stat.append(" / ", style="dim")
         stat.append(f"-{c.deletions}", style="red")
-        stat.append(f"  {len(c.files)} file{'s' if len(c.files) != 1 else ''}", style="dim")
+        stat.append(
+            f"  {len(c.files)} file{'s' if len(c.files) != 1 else ''}", style="dim"
+        )
         console.print(stat)
 
         if show_files:
@@ -282,7 +301,7 @@ def render_log(activity: RepoActivity, show_files: bool = False) -> None:
 def render_markdown(activity: RepoActivity, summary: Summary) -> str:
     """Markdown digest for email / Slack / changelog use."""
     lines = [
-        f"# 📊 {activity.repo_name} — {activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
+        f"#{activity.repo_name} — {activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
         "",
         f"**{summary.headline}**",
         "",
