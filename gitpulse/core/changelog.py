@@ -1,8 +1,3 @@
-"""Release-notes / changelog generation from Conventional Commits.
-
-Groups commits by type prefix (feat, fix, perf, refactor, docs, ...) between
-two refs. Used by `gitpulse changelog`.
-"""
 from __future__ import annotations
 
 import re
@@ -10,7 +5,9 @@ from datetime import datetime, timezone
 
 import pygit2
 
-_CONV = re.compile(r"^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<bang>!)?:\s*(?P<desc>.+)")
+_CONV = re.compile(
+    r"^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<bang>!)?:\s*(?P<desc>.+)"
+)
 
 _SECTION = {
     "feat": "🚀 Features",
@@ -25,7 +22,9 @@ _SECTION = {
 }
 
 
-def generate_changelog(repo_path: str, from_ref: str | None, to_ref: str = "HEAD") -> str:
+def generate_changelog(
+    repo_path: str, from_ref: str | None, to_ref: str = "HEAD"
+) -> str:
     repo = pygit2.Repository(pygit2.discover_repository(repo_path))
     to_oid = repo.revparse_single(to_ref).id
     from_oid = repo.revparse_single(from_ref).id if from_ref else None
@@ -40,8 +39,12 @@ def generate_changelog(repo_path: str, from_ref: str | None, to_ref: str = "HEAD
         m = _CONV.match(first)
         if not m:
             continue
-        typ, scope, bang, desc = (m.group("type"), m.group("scope"),
-                                  m.group("bang"), m.group("desc"))
+        typ, scope, bang, desc = (
+            m.group("type"),
+            m.group("scope"),
+            m.group("bang"),
+            m.group("desc"),
+        )
         entry = f"- {f'**{scope}:** ' if scope else ''}{desc} (`{str(c.id)[:7]}`)"
         if bang or "BREAKING CHANGE" in c.message:
             breaking.append(entry)

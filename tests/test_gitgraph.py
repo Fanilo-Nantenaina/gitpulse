@@ -32,8 +32,7 @@ def test_graph_nodes_have_required_fields(branched_repo):
 
 
 def test_graph_continuity_no_dead_edges(branched_repo):
-    """The contract that broke six times: every edge.to must land on the next
-    row's incoming lanes, and every incoming lane must be fed by a prior edge."""
+
     g = graph(branched_repo)
     nodes = g["nodes"]
     for i, n in enumerate(nodes):

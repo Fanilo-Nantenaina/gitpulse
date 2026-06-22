@@ -10,6 +10,7 @@ class SummaryReq(BaseModel):
     url: Optional[str] = None
     when: str = "7d"
     branch: Optional[str] = None
+    authors: Optional[list[str]] = None
     provider: str = "auto"
     model: Optional[str] = None
     lang: Optional[str] = None
@@ -22,6 +23,7 @@ class LogReq(BaseModel):
     url: Optional[str] = None
     when: str = "7d"
     branch: Optional[str] = None
+    authors: Optional[list[str]] = None
     refresh: bool = True
     insecure: bool = False
 

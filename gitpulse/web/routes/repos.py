@@ -64,7 +64,16 @@ def api_branches(body: dict):
             if not disc:
                 raise HTTPException(400, "Not a git repository")
             repo = pygit2.Repository(disc)
-            result["local"] = sorted(repo.branches.local)
+
+            def _branch_time(bn):
+                try:
+                    return repo.branches.get(bn).peel().commit_time
+                except Exception:
+                    return 0
+
+            result["local"] = sorted(
+                repo.branches.local, key=_branch_time, reverse=True
+            )
             if not repo.head_is_unborn and not repo.head_is_detached:
                 result["head"] = repo.head.shorthand
             try:

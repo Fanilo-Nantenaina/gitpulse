@@ -76,6 +76,7 @@ def graph(
     branch: str | None = None,
     all_commits: bool = True,
 ) -> dict:
+
     discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
     if discovered is None:
         raise ValueError("No git repository found")

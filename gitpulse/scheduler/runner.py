@@ -1,4 +1,3 @@
-"""Periodic scheduling and OS timer-unit generation."""
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -12,8 +11,12 @@ def run_scheduler(job: Callable[[], None], every: str) -> None:
 
     delta = parse_interval(every)
     sched = BlockingScheduler(timezone="UTC")
-    sched.add_job(job, "interval", seconds=delta.total_seconds(),
-                  next_run_time=datetime.now(timezone.utc))
+    sched.add_job(
+        job,
+        "interval",
+        seconds=delta.total_seconds(),
+        next_run_time=datetime.now(timezone.utc),
+    )
     sched.start()
 
 

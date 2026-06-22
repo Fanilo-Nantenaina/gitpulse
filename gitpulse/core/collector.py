@@ -9,6 +9,8 @@ import pygit2
 
 from .models import Commit, FileChange, RepoActivity
 
+ALL_BRANCHES = "__all__"
+
 _STATUS = {
     pygit2.GIT_DELTA_ADDED: "added",
     pygit2.GIT_DELTA_DELETED: "deleted",
@@ -19,13 +21,11 @@ _STATUS = {
 
 
 def _commit_datetime(c: pygit2.Commit) -> datetime:
-    """pygit2 stores commit time as epoch + tz offset (minutes)."""
     tz = timezone(timedelta(minutes=c.commit_time_offset))
     return datetime.fromtimestamp(c.commit_time, tz)
 
 
 def _file_changes(repo: pygit2.Repository, commit: pygit2.Commit) -> list[FileChange]:
-    """Diff a commit against its first parent (or empty tree for root commit)."""
     if commit.parents:
         parent_tree = commit.parents[0].tree
         diff = repo.diff(parent_tree, commit.tree)
@@ -52,11 +52,8 @@ def collect_activity(
     until: Optional[datetime] = None,
     branch: Optional[str] = None,
     name: Optional[str] = None,
+    authors: Optional[list[str]] = None,
 ) -> RepoActivity:
-    """Walk a repo's history and return commits within [since, until].
-
-    `branch` defaults to the currently checked-out HEAD.
-    """
     repo_path = Path(repo_path).resolve()
     repo_name = name or repo_path.name
     discovered = pygit2.discover_repository(str(repo_path))
@@ -70,24 +67,50 @@ def collect_activity(
     if until.tzinfo is None:
         until = until.replace(tzinfo=timezone.utc)
 
-    if branch:
+    author_set = {a.lower() for a in authors} if authors else None
+
+    all_branches = branch == ALL_BRANCHES
+    if all_branches:
+        if repo.head_is_unborn:
+            return RepoActivity(repo_name, str(repo_path), since, until, [])
+        tips = []
+        for bname in repo.branches.local:
+            b = repo.branches.get(bname)
+            if b is not None:
+                tips.append(b.target)
+        if not tips:
+            tips = [repo.head.target]
+        branch_label = None
+    elif branch:
         target = repo.branches.get(branch)
         if target is None:
             raise ValueError(f"Branch '{branch}' not found")
-        head = target.target
+        tips = [target.target]
+        branch_label = branch
     else:
         if repo.head_is_unborn:
             return RepoActivity(repo_name, str(repo_path), since, until, [])
-        head = repo.head.target
-        branch = repo.head.shorthand if not repo.head_is_detached else None
+        tips = [repo.head.target]
+        branch_label = repo.head.shorthand if not repo.head_is_detached else None
+
+    walker = repo.walk(tips[0], pygit2.GIT_SORT_TIME)
+    for extra in tips[1:]:
+        walker.push(extra)
 
     commits: list[Commit] = []
-    for c in repo.walk(head, pygit2.GIT_SORT_TIME):
+    for c in walker:
         when = _commit_datetime(c)
         if when > until:
             continue
         if when < since:
+            if all_branches:
+                continue
             break
+        if author_set is not None:
+            name_l = (c.author.name or "").lower()
+            email_l = (c.author.email or "").lower()
+            if name_l not in author_set and email_l not in author_set:
+                continue
         message = c.message.strip()
         first, _, rest = message.partition("\n")
         commits.append(
@@ -99,7 +122,7 @@ def collect_activity(
                 summary=first,
                 body=rest.strip(),
                 files=_file_changes(repo, c),
-                branch=branch,
+                branch=branch_label,
             )
         )
 
@@ -110,6 +133,19 @@ def collect_activity(
         until=until,
         commits=commits,
     )
+
+
+def list_authors(
+    repo_path: str | os.PathLike, since: datetime, until: Optional[datetime] = None
+) -> list[dict]:
+    act = collect_activity(repo_path, since, until, branch=ALL_BRANCHES)
+    counts: dict[str, dict] = {}
+    for c in act.commits:
+        key = c.author_email or c.author_name
+        if key not in counts:
+            counts[key] = {"name": c.author_name, "email": c.author_email, "commits": 0}
+        counts[key]["commits"] += 1
+    return sorted(counts.values(), key=lambda a: a["commits"], reverse=True)
 
 
 def discover_repos(root: str | os.PathLike, max_depth: int = 3) -> list[Path]:

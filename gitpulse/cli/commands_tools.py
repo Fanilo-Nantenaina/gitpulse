@@ -27,6 +27,7 @@ def serve(
 ):
     """Launch the GitPulse web interface."""
     from ..web.server import serve as run_server
+
     console.print(f"[cyan]GitPulse UI on http://{host}:{port}[/]  (Ctrl+C to stop)")
     run_server(host=host, port=port, open_browser=not no_open)
 
@@ -59,7 +60,10 @@ def watch(
         md = render_markdown(activity, summ)
         dispatch(to, md)
         from datetime import datetime
-        console.print(f"[dim]{datetime.now():%H:%M}[/] digest sent ({activity.commit_count} commits)")
+
+        console.print(
+            f"[dim]{datetime.now():%H:%M}[/] digest sent ({activity.commit_count} commits)"
+        )
 
     console.print(f"[cyan]Watching {path} every {every}...[/]")
     run_scheduler(job, every)
@@ -67,8 +71,9 @@ def watch(
 
 @app.command()
 def config(
-    lang: Optional[str] = typer.Option(None, "--lang", "-l",
-        help="Set the default output language (code or name)."),
+    lang: Optional[str] = typer.Option(
+        None, "--lang", "-l", help="Set the default output language (code or name)."
+    ),
     show: bool = typer.Option(False, "--show", help="Show current settings."),
 ):
     cfg = gp_config.load_config()
@@ -76,12 +81,16 @@ def config(
         code = gp_config.normalize_lang(lang)
         if code is None:
             console.print(f"[red]Unknown language: {lang!r}[/]")
-            console.print("Supported: " + ", ".join(
-                f"{c} ({n})" for c, n in gp_config.LANGUAGES.items()))
+            console.print(
+                "Supported: "
+                + ", ".join(f"{c} ({n})" for c, n in gp_config.LANGUAGES.items())
+            )
             raise typer.Exit(1)
         cfg["lang"] = code
         path = gp_config.save_config(cfg)
-        console.print(f"[green]Default language set to {gp_config.lang_name(code)} ({code}).[/]")
+        console.print(
+            f"[green]Default language set to {gp_config.lang_name(code)} ({code}).[/]"
+        )
         console.print(f"[dim]Saved to {path}[/]")
         return
 
@@ -99,8 +108,10 @@ def config(
     table.add_row("language", f"{gp_config.lang_name(active)} ({active})", src)
     console.print(table)
     console.print("[dim]Supported: " + ", ".join(gp_config.LANGUAGES) + "[/]")
-    console.print("[dim]Set default: gitpulse config --lang fr · "
-                  "override once: any command with --lang fr[/]")
+    console.print(
+        "[dim]Set default: gitpulse config --lang fr · "
+        "override once: any command with --lang fr[/]"
+    )
 
 
 @app.command()
@@ -119,8 +130,10 @@ def providers():
             listed += f", +{len(models) - 5} more"
         table.add_row(s["name"], s["kind"], mark, s["detail"], listed)
     console.print(table)
-    console.print("[dim]Select with --provider <name> [--model <model>]. "
-                  "auto picks the first available local model, then cloud.[/]")
+    console.print(
+        "[dim]Select with --provider <name> [--model <model>]. "
+        "auto picks the first available local model, then cloud.[/]"
+    )
 
 
 @app.command()

@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from contextlib import contextmanager
@@ -170,7 +169,7 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
 
     header = Panel(
         Text(summary.headline, style="bold cyan"),
-        title=f"📊 {activity.repo_name}",
+        title=f"{activity.repo_name}",
         title_align="left",
         subtitle=f"{activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
         subtitle_align="right",
@@ -301,7 +300,7 @@ def render_log(activity: RepoActivity, show_files: bool = False) -> None:
 def render_markdown(activity: RepoActivity, summary: Summary) -> str:
     """Markdown digest for email / Slack / changelog use."""
     lines = [
-        f"#{activity.repo_name} — {activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
+        f"# {activity.repo_name} — {activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
         "",
         f"**{summary.headline}**",
         "",

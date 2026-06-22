@@ -1,9 +1,3 @@
-"""Shared fixtures: disposable git repositories with controlled history.
-
-These build real repos on disk via the git CLI with fixed commit dates so that
-date-window, graph, and diff logic can be asserted deterministically.
-"""
-
 from __future__ import annotations
 
 import os

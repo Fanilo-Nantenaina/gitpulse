@@ -14,8 +14,12 @@ def list_dir(path: str | None) -> dict:
     target = target.resolve()
 
     if not target.exists() or not target.is_dir():
-        return {"error": f"Not a directory: {target}", "path": str(target),
-                "parent": str(target.parent), "entries": []}
+        return {
+            "error": f"Not a directory: {target}",
+            "path": str(target),
+            "parent": str(target.parent),
+            "entries": [],
+        }
 
     entries = []
     try:
@@ -24,14 +28,20 @@ def list_dir(path: str | None) -> dict:
                 continue
             if not child.is_dir():
                 continue
-            entries.append({
-                "name": child.name,
-                "path": str(child),
-                "is_repo": _is_repo(child),
-            })
+            entries.append(
+                {
+                    "name": child.name,
+                    "path": str(child),
+                    "is_repo": _is_repo(child),
+                }
+            )
     except PermissionError:
-        return {"error": "Permission denied", "path": str(target),
-                "parent": str(target.parent), "entries": []}
+        return {
+            "error": "Permission denied",
+            "path": str(target),
+            "parent": str(target.parent),
+            "entries": [],
+        }
 
     return {
         "path": str(target),

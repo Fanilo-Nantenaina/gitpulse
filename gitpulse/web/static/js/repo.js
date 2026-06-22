@@ -9,11 +9,14 @@ function fillBranches() {
   const sel = document.getElementById('ctlBranch'); if (!sel) return;
   const all = [...new Set([...(branchList.local || []), ...(branchList.remote || [])])];
   const cur = sel.value;
-  const allLabel = state.action === 'graph' ? t('allBranches') : t('current');
-  sel.innerHTML = '<option value="">' + allLabel + '</option>' + all.map(b => '<option value="' + b + '">' + b + (b === branchList.head ? ' ●' : '') + '</option>').join('');
+  if (state.action === 'graph') {
+    sel.innerHTML = '<option value="">' + t('allBranches') + '</option>' + all.map(b => '<option value="' + b + '">' + b + (b === branchList.head ? ' ●' : '') + '</option>').join('');
+  } else {
+    sel.innerHTML = '<option value="__all__">' + t('allBranches') + '</option>' + all.map(b => '<option value="' + b + '">' + b + (b === branchList.head ? ' ● (actuelle)' : '') + '</option>').join('');
+  }
   if (branchList.remote_url) sel.innerHTML += '<option value="" disabled>──</option><option value="__loadremote">' + t('loadBranches') + '</option>';
   if (cur) sel.value = cur;
-  sel.onchange = () => { if (sel.value === '__loadremote') { sel.value = ''; loadRemoteBranches(); } };
+  sel.onchange = () => { if (sel.value === '__loadremote') { sel.value = ''; loadRemoteBranches(); } else { loadAuthorsFilter(); } };
 }
 async function loadRemoteBranches() {
   const src = currentSource(); if (!src || !src.path) return;
@@ -30,7 +33,7 @@ async function checkLatency() {
 }
 
 const ACTIONS = {
-  summary: { when: 1, branch: 1, run: 'runSummary' }, log: { when: 1, branch: 1, run: 'runLog' },
+  summary: { when: 1, branch: 1, author: 1, run: 'runSummary' }, log: { when: 1, branch: 1, author: 1, run: 'runLog' },
   graph: { graphmode: 1, run: 'runGraph' }, compare: { period: 1, periods: 1, branch: 1, run: 'runCompare' },
   standup: { run: 'runStandup' }, commit: { commitmode: 1, run: 'runCommit' }, dashboard: { when: 1, summarize: 1, run: 'runDashboard' }, tracked: { run: 'runTracked' },
 };
