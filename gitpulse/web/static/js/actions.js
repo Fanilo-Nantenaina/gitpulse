@@ -12,7 +12,9 @@ function renderControls() {
   if (cfg.period) add('<div class="field"><label>' + t('periodLen') + '</label><input id="ctlPeriod" value="7d"></div>');
   if (cfg.periods) add('<div class="field"><label>' + t('priorPeriods') + '</label><input id="ctlPeriods" type="number" value="4" min="1"></div>');
   if (cfg.branch) add('<div class="field"><label>' + t('branch') + '</label><select id="ctlBranch"><option value="__all__">' + t('allBranches') + '</option></select></div>');
-  if (cfg.author) add('<div class="field" id="authorWrap"><label>' + t('authorFilter') + '</label><select id="ctlAuthor" multiple size="1" style="min-height:32px"><option value="" disabled>' + t('authorLoading') + '</option></select></div>');
+  if (cfg.author) {
+    add('<div class="field" id="authorWrap"><label>' + t('authorFilter') + '</label><select id="ctlAuthor" multiple size="1" style="min-height:32px"><option value="" disabled>' + t('authorSelectRepo') + '</option></select></div>');
+  }
   if (cfg.summarize) add('<div class="field"><label>' + t('aiHeadline') + '</label><select id="ctlSummarize"><option value="false">' + t('off') + '</option><option value="true">' + t('on') + '</option></select></div>');
   if (cfg.graphmode) {
     add('<div class="field go"><label>&nbsp;</label><button class="btn ghost" id="refreshBtn">&#8635; ' + t('refresh') + '</button></div>');
@@ -36,22 +38,38 @@ function renderControls() {
   add('<div class="field go"><label>&nbsp;</label><button class="btn" id="runBtn">' + lbl + '</button></div>');
   $('#runBtn').onclick = () => runAction();
   const ws = document.getElementById('ctlWhenSel');
-  if (ws) ws.onchange = () => { const cu = ws.value === '__custom'; document.getElementById('ctlWhenCustomWrap').style.display = cu ? '' : 'none'; if (!cu) document.getElementById('ctlWhen').value = ws.value; if (cfg.author) loadAuthorsFilter(); };
+  if (ws) ws.onchange = () => { const cu = ws.value === '__custom'; document.getElementById('ctlWhenCustomWrap').style.display = cu ? '' : 'none'; if (!cu) document.getElementById('ctlWhen').value = ws.value; if (cfg.author) { const a = document.getElementById('ctlAuthor'); if (a) a.dataset.loaded = '0'; loadAuthorsFilter(); } };
   if (cfg.branch) fillBranches();
-  if (cfg.author) loadAuthorsFilter();
+  if (cfg.author) {
+    loadAuthorsFilter();
+    const asel = document.getElementById('ctlAuthor');
+    if (asel) asel.addEventListener('mousedown', () => {
+      if (asel.dataset.loaded !== '1' && currentSource()) loadAuthorsFilter();
+    });
+  }
 }
 
 async function loadAuthorsFilter() {
   const sel = document.getElementById('ctlAuthor'); if (!sel) return;
-  const src = currentSource(); if (!src) { return; }
+  const src = currentSource();
+  if (!src) {
+    sel.innerHTML = '<option value="" disabled>' + t('authorSelectRepo') + '</option>';
+    sel.dataset.loaded = '0';
+    return;
+  }
+  sel.innerHTML = '<option value="" disabled>' + t('authorLoading') + '</option>';
   try {
     const body = Object.assign({ when: whenValue() }, src);
     const r = await post('/api/authors', body);
     const list = r.authors || [];
-    if (!list.length) { sel.innerHTML = '<option value="" disabled>' + t('authorNone') + '</option>'; return; }
+    if (!list.length) { sel.innerHTML = '<option value="" disabled>' + t('authorNone') + '</option>'; sel.dataset.loaded = '1'; return; }
     sel.innerHTML = list.map(a => '<option value="' + esc(a.email || a.name) + '">' + esc(a.name) + ' (' + a.commits + ')</option>').join('');
     sel.size = Math.min(6, Math.max(2, list.length));
-  } catch { sel.innerHTML = '<option value="" disabled>' + t('authorNone') + '</option>'; }
+    sel.dataset.loaded = '1';
+  } catch (e) {
+    sel.innerHTML = '<option value="" disabled>' + t('authorError') + '</option>';
+    sel.dataset.loaded = '0';
+  }
 }
 
 function selectedAuthors() {
