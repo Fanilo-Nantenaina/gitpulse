@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import hashlib
+import re
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
 from .routes import analysis, commit, providers as providers_routes, repos
@@ -17,9 +19,43 @@ app.include_router(analysis.router)
 app.include_router(commit.router)
 
 
+def _asset_version() -> str:
+    try:
+        from importlib.metadata import version
+
+        ver = version("gitpulse")
+    except Exception:
+        ver = "dev"
+    h = hashlib.sha1()
+    for sub in ("css", "js"):
+        d = _STATIC / sub
+        if not d.exists():
+            continue
+        for f in sorted(d.glob("*")):
+            try:
+                h.update(f.read_bytes())
+            except OSError:
+                pass
+    return f"{ver}.{h.hexdigest()[:8]}"
+
+
+_VERSION = _asset_version()
+
+
 @app.get("/")
 def index():
-    return FileResponse(_STATIC / "index.html")
+    html = (_STATIC / "index.html").read_text(encoding="utf-8")
+    html = re.sub(
+        r'(/static/[^"\']+\.(?:js|css))', lambda m: f"{m.group(1)}?v={_VERSION}", html
+    )
+    return HTMLResponse(
+        html,
+        headers={
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        },
+    )
 
 
 if _STATIC.exists():

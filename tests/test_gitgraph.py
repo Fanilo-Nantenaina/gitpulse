@@ -32,6 +32,7 @@ def test_graph_nodes_have_required_fields(branched_repo):
 
 
 def test_graph_continuity_no_dead_edges(branched_repo):
+
     g = graph(branched_repo)
     nodes = g["nodes"]
     for i, n in enumerate(nodes):

@@ -110,3 +110,25 @@ def test_tracked_crud():
 def test_summary_bad_path_returns_400():
     r = client.post("/api/summary", json={"path": "/nonexistent/repo", "when": "7d"})
     assert r.status_code == 400
+
+
+def test_index_has_cache_busting_and_no_cache_header():
+    from fastapi.testclient import TestClient
+    from gitpulse.web.server import app, _VERSION
+
+    c = TestClient(app)
+    r = c.get("/")
+    assert r.status_code == 200
+    assert "no-cache" in r.headers.get("cache-control", "")
+    import re
+
+    assets = re.findall(r'/static/[^"\']+\.(?:js|css)\?v=([^"\']+)', r.text)
+    assert len(assets) >= 9
+    assert all(v == _VERSION for v in assets)
+
+
+def test_asset_version_changes_with_content(tmp_path, monkeypatch):
+    import gitpulse.web.server as s
+
+    v1 = s._asset_version()
+    assert s._asset_version() == v1

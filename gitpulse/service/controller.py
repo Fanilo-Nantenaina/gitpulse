@@ -266,6 +266,7 @@ def _kill(pid: int) -> bool:
 
 
 def shutdown_all(port: int = 8420) -> dict:
+
     targets = set(_find_gitpulse_pids()) | set(_pids_on_port(port))
     targets.discard(os.getpid())
     killed, failed = [], []
