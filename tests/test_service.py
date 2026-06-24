@@ -88,3 +88,46 @@ def test_procutil_run_works():
     r = procutil.run(["git", "--version"], capture_output=True, text=True)
     assert r.returncode == 0
     assert "git version" in r.stdout
+
+
+import pytest
+from gitpulse.service.controller import _is_gitpulse_server as _isgp
+
+
+@pytest.mark.parametrize(
+    "name,cmd",
+    [
+        ("sh", ["/bin/sh", "-c", "cd /home/me/gitpulse && ls"]),
+        ("vim", ["vim", "gitpulse/core/collector.py"]),
+        ("python3", ["python3", "-c", "import gitpulse"]),
+        ("grep", ["grep", "gitpulse", "file.txt"]),
+        ("bash", ["bash"]),
+        ("code", ["code", "/home/me/projects/gitpulse"]),
+    ],
+)
+def test_matcher_rejects_unrelated(name, cmd):
+    assert _isgp(name, cmd) is False
+
+
+@pytest.mark.parametrize(
+    "name,cmd",
+    [
+        ("gitpulse.exe", ["C:\\Users\\x\\.local\\bin\\gitpulse.exe", "serve"]),
+        ("gitpulse-gui.exe", ["gitpulse-gui.exe"]),
+        ("python", ["python", "-m", "gitpulse.cli.main", "serve", "--port", "8420"]),
+        ("python", ["/usr/bin/gitpulse", "serve"]),
+        ("gitpulse", ["gitpulse"]),
+    ],
+)
+def test_matcher_accepts_real_servers(name, cmd):
+    assert _isgp(name, cmd) is True
+
+
+def test_shutdown_all_no_processes(tmp_path, monkeypatch):
+    monkeypatch.setenv("GITPULSE_CONFIG_DIR", str(tmp_path))
+    from gitpulse.service import controller
+
+    monkeypatch.setattr(controller, "_find_gitpulse_pids", lambda: [])
+    monkeypatch.setattr(controller, "_pids_on_port", lambda port: [])
+    res = controller.shutdown_all(port=8420)
+    assert res["count"] == 0 and res["failed"] == []

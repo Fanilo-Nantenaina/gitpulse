@@ -7,7 +7,6 @@ from typing import Optional
 
 @dataclass
 class FileChange:
-    """A single file touched within a commit."""
 
     path: str
     additions: int
@@ -21,7 +20,6 @@ class FileChange:
 
 @dataclass
 class Commit:
-    """A normalized git commit, independent of pygit2 internals."""
 
     sha: str
     author_name: str

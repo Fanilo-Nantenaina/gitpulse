@@ -51,6 +51,13 @@ pipx install ".[all]"
 After this, `gitpulse` works from any terminal, and `gitpulse-gui` launches the
 desktop UI. To upgrade: `pipx upgrade gitpulse`. To remove: `pipx uninstall gitpulse`.
 
+> **If `pipx uninstall gitpulse` fails with "file in use" / "WinError 32":** a
+> running GitPulse server is holding `gitpulse.exe` locked. Run
+> `gitpulse shutdown` first — it terminates every GitPulse server process
+> (managed, orphaned, or whatever is holding the port) and frees the port, so
+> the uninstall then succeeds. The command uses a precise match and never
+> touches unrelated processes that merely mention "gitpulse".
+
 > If `gitpulse` isn't found afterwards, run `pipx ensurepath` once and reopen
 > the terminal (this adds pipx's bin dir to PATH on Windows, Linux, and macOS).
 

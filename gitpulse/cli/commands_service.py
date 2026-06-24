@@ -99,11 +99,32 @@ def service_install(
 
 
 @app.command()
+def shutdown(
+    port: int = typer.Option(8420, "--port", help="Port to also free if held"),
+):
+    res = controller.shutdown_all(port=port)
+    if res["count"] == 0 and not res["failed"]:
+        console.print("[dim]No running GitPulse processes found.[/]")
+    else:
+        if res["killed"]:
+            console.print(
+                f"[green]Stopped {res['count']} process(es):[/] "
+                + ", ".join(str(p) for p in res["killed"])
+            )
+        if res["failed"]:
+            console.print(
+                f"[yellow]Could not stop:[/] "
+                + ", ".join(str(p) for p in res["failed"])
+                + " — close this terminal and retry, or stop them in Task Manager."
+            )
+    console.print("[dim]You can now run: pipx uninstall gitpulse[/]")
+
+
+@app.command()
 def gui(
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8420, "--port"),
 ):
-    """Launch the GitPulse desktop UI (starts the server and opens the browser)."""
     from ..gui import main as gui_main
 
     gui_main(["--host", host, "--port", str(port)])
