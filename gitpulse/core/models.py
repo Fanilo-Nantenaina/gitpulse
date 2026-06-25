@@ -7,7 +7,6 @@ from typing import Optional
 
 @dataclass
 class FileChange:
-
     path: str
     additions: int
     deletions: int
@@ -20,7 +19,6 @@ class FileChange:
 
 @dataclass
 class Commit:
-
     sha: str
     author_name: str
     author_email: str
@@ -53,7 +51,6 @@ class Commit:
 
 @dataclass
 class RepoActivity:
-
     repo_name: str
     repo_path: str
     since: datetime

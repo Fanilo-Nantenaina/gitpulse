@@ -13,7 +13,13 @@ function renderControls() {
   if (cfg.periods) add('<div class="field"><label>' + t('priorPeriods') + '</label><input id="ctlPeriods" type="number" value="4" min="1"></div>');
   if (cfg.branch) add('<div class="field"><label>' + t('branch') + '</label><select id="ctlBranch"><option value="__all__">' + t('allBranches') + '</option></select></div>');
   if (cfg.author) {
-    add('<div class="field" id="authorWrap"><label>' + t('authorFilter') + '</label><select id="ctlAuthor" multiple size="1" style="min-height:32px"><option value="" disabled>' + t('authorSelectRepo') + '</option></select></div>');
+    add('<div class="field" id="authorWrap"><label>' + t('authorFilter') + '</label>'
+      + '<div class="author-dd" id="authorDD">'
+      + '<button type="button" class="author-toggle" id="authorToggle">' + t('authorAll') + '</button>'
+      + '<div class="author-panel" id="authorPanel" style="display:none">'
+      + '<input type="text" id="authorSearch" placeholder="' + t('authorSearchPh') + '" autocomplete="off">'
+      + '<div class="author-list" id="authorList"></div>'
+      + '</div></div></div>');
   }
   if (cfg.summarize) add('<div class="field"><label>' + t('aiHeadline') + '</label><select id="ctlSummarize"><option value="false">' + t('off') + '</option><option value="true">' + t('on') + '</option></select></div>');
   if (cfg.graphmode) {
@@ -38,43 +44,77 @@ function renderControls() {
   add('<div class="field go"><label>&nbsp;</label><button class="btn" id="runBtn">' + lbl + '</button></div>');
   $('#runBtn').onclick = () => runAction();
   const ws = document.getElementById('ctlWhenSel');
-  if (ws) ws.onchange = () => { const cu = ws.value === '__custom'; document.getElementById('ctlWhenCustomWrap').style.display = cu ? '' : 'none'; if (!cu) document.getElementById('ctlWhen').value = ws.value; if (cfg.author) { const a = document.getElementById('ctlAuthor'); if (a) a.dataset.loaded = '0'; loadAuthorsFilter(); } };
+  if (ws) ws.onchange = () => { const cu = ws.value === '__custom'; document.getElementById('ctlWhenCustomWrap').style.display = cu ? '' : 'none'; if (!cu) document.getElementById('ctlWhen').value = ws.value; if (cfg.author) loadAuthorsFilter(); };
   if (cfg.branch) fillBranches();
   if (cfg.author) {
-    loadAuthorsFilter();
-    const asel = document.getElementById('ctlAuthor');
-    if (asel) asel.addEventListener('mousedown', () => {
-      if (asel.dataset.loaded !== '1' && currentSource()) loadAuthorsFilter();
+    authorState = { all: [], selected: new Set() };
+    const tog = document.getElementById('authorToggle');
+    const panel = document.getElementById('authorPanel');
+    const search = document.getElementById('authorSearch');
+    tog.onclick = () => {
+      const open = panel.style.display !== 'none';
+      panel.style.display = open ? 'none' : '';
+      if (!open) { if (authorState.all.length === 0 && currentSource()) loadAuthorsFilter(); if (search) search.focus(); }
+    };
+    if (search) search.oninput = () => renderAuthorList(search.value);
+    document.addEventListener('mousedown', (e) => {
+      const dd = document.getElementById('authorDD');
+      if (dd && !dd.contains(e.target)) panel.style.display = 'none';
     });
+    loadAuthorsFilter();
   }
 }
 
+let authorState = { all: [], selected: new Set() };
+
 async function loadAuthorsFilter() {
-  const sel = document.getElementById('ctlAuthor'); if (!sel) return;
+  const list = document.getElementById('authorList'); if (!list) return;
   const src = currentSource();
-  if (!src) {
-    sel.innerHTML = '<option value="" disabled>' + t('authorSelectRepo') + '</option>';
-    sel.dataset.loaded = '0';
-    return;
-  }
-  sel.innerHTML = '<option value="" disabled>' + t('authorLoading') + '</option>';
+  if (!src) { list.innerHTML = '<div class="author-msg">' + t('authorSelectRepo') + '</div>'; updateAuthorToggle(); return; }
+  list.innerHTML = '<div class="author-msg">' + t('authorLoading') + '</div>';
   try {
     const body = Object.assign({ when: whenValue() }, src);
     const r = await post('/api/authors', body);
-    const list = r.authors || [];
-    if (!list.length) { sel.innerHTML = '<option value="" disabled>' + t('authorNone') + '</option>'; sel.dataset.loaded = '1'; return; }
-    sel.innerHTML = list.map(a => '<option value="' + esc(a.email || a.name) + '">' + esc(a.name) + ' (' + a.commits + ')</option>').join('');
-    sel.size = Math.min(6, Math.max(2, list.length));
-    sel.dataset.loaded = '1';
+    authorState.all = r.authors || [];
+    const present = new Set(authorState.all.map(a => a.email || a.name));
+    authorState.selected = new Set([...authorState.selected].filter(v => present.has(v)));
+    renderAuthorList('');
   } catch (e) {
-    sel.innerHTML = '<option value="" disabled>' + t('authorError') + '</option>';
-    sel.dataset.loaded = '0';
+    list.innerHTML = '<div class="author-msg">' + t('authorError') + '</div>';
   }
+  updateAuthorToggle();
+}
+
+function renderAuthorList(filter) {
+  const list = document.getElementById('authorList'); if (!list) return;
+  if (!authorState.all.length) { list.innerHTML = '<div class="author-msg">' + t('authorNone') + '</div>'; return; }
+  const f = (filter || '').toLowerCase();
+  const rows = authorState.all.filter(a => !f || (a.name || '').toLowerCase().includes(f) || (a.email || '').toLowerCase().includes(f));
+  if (!rows.length) { list.innerHTML = '<div class="author-msg">' + t('authorNoMatch') + '</div>'; return; }
+  list.innerHTML = rows.map(a => {
+    const v = a.email || a.name; const on = authorState.selected.has(v);
+    return '<label class="author-item"><input type="checkbox" data-v="' + esc(v) + '"' + (on ? ' checked' : '') + '> '
+      + '<span class="author-nm">' + esc(a.name) + '</span> <span class="author-ct">(' + a.commits + ')</span>'
+      + '<span class="author-em">' + esc(a.email || '') + '</span></label>';
+  }).join('');
+  list.querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.onchange = () => { const v = cb.dataset.v; if (cb.checked) authorState.selected.add(v); else authorState.selected.delete(v); updateAuthorToggle(); };
+  });
+}
+
+function updateAuthorToggle() {
+  const tog = document.getElementById('authorToggle'); if (!tog) return;
+  const n = authorState.selected.size;
+  if (n === 0) tog.textContent = t('authorAll');
+  else if (n === 1) {
+    const v = [...authorState.selected][0];
+    const a = authorState.all.find(x => (x.email || x.name) === v);
+    tog.textContent = a ? a.name : v;
+  } else tog.textContent = n + ' ' + t('authorSelectedN');
 }
 
 function selectedAuthors() {
-  const sel = document.getElementById('ctlAuthor'); if (!sel) return null;
-  const vals = [...sel.selectedOptions].map(o => o.value).filter(Boolean);
+  const vals = [...(authorState.selected || [])];
   return vals.length ? vals : null;
 }
 function whenValue() { const ws = document.getElementById('ctlWhenSel'); if (!ws) return '7d'; return ws.value === '__custom' ? (document.getElementById('ctlWhen').value || '7d') : ws.value; }

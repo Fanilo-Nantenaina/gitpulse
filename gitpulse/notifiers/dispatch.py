@@ -21,7 +21,6 @@ def _post_json(url: str, payload: dict) -> bool:
 
 
 def notify_slack(markdown: str) -> bool:
-    """Posts to a Slack incoming webhook. Env: GITPULSE_SLACK_WEBHOOK"""
     url = os.environ.get("GITPULSE_SLACK_WEBHOOK")
     if not url:
         return False
@@ -29,7 +28,6 @@ def notify_slack(markdown: str) -> bool:
 
 
 def notify_telegram(markdown: str) -> bool:
-    """Env: GITPULSE_TELEGRAM_TOKEN, GITPULSE_TELEGRAM_CHAT_ID"""
     token = os.environ.get("GITPULSE_TELEGRAM_TOKEN")
     chat = os.environ.get("GITPULSE_TELEGRAM_CHAT_ID")
     if not (token and chat):
@@ -41,7 +39,6 @@ def notify_telegram(markdown: str) -> bool:
 
 
 def notify_email(markdown: str) -> bool:
-    """Env: GITPULSE_SMTP_HOST, _PORT, _USER, _PASS, _TO, _FROM"""
     host = os.environ.get("GITPULSE_SMTP_HOST")
     to = os.environ.get("GITPULSE_SMTP_TO")
     if not (host and to):
@@ -65,7 +62,6 @@ def notify_email(markdown: str) -> bool:
 
 
 def notify_desktop(markdown: str) -> bool:
-    """Cross-platform desktop notification via plyer if installed."""
     try:
         from plyer import notification
 
@@ -85,5 +81,4 @@ NOTIFIERS: dict[str, Callable[[str], bool]] = {
 
 
 def dispatch(channels: list[str], markdown: str) -> dict[str, bool]:
-    """Send to each requested channel; returns per-channel success."""
     return {ch: NOTIFIERS[ch](markdown) for ch in channels if ch in NOTIFIERS}

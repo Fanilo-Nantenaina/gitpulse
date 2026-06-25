@@ -49,7 +49,6 @@ def summary_dict(s) -> dict:
 
 
 def resolve_source(req) -> tuple[object, Optional[str]]:
-    """Return (path-or-cache-dir, display_name). Handles local or remote URLs."""
     if getattr(req, "url", None):
         tok, user, key = gp_remote.resolve_auth(None, None, None)
         dest = gp_remote.sync_remote(

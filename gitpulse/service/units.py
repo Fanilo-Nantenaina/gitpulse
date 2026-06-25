@@ -154,7 +154,6 @@ echo Task "GitPulse Digest" created (every {n} {sc.lower()}).
 
 
 def for_platform(kind: str, **kw) -> tuple[str, str, str]:
-    """kind = 'web' or 'watch'. Returns (filename, contents, install_hint)."""
     plat = sys.platform
     if plat.startswith("linux"):
         return (

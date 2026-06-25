@@ -10,15 +10,15 @@ _CONV = re.compile(
 )
 
 _SECTION = {
-    "feat": "🚀 Features",
-    "fix": "🐛 Bug Fixes",
-    "perf": "⚡ Performance",
-    "refactor": "♻️ Refactoring",
-    "docs": "📝 Documentation",
-    "test": "✅ Tests",
-    "build": "📦 Build",
-    "ci": "🔧 CI",
-    "chore": "🧹 Chores",
+    "feat": "Features",
+    "fix": "Bug Fixes",
+    "perf": "Performance",
+    "refactor": "Refactoring",
+    "docs": "Documentation",
+    "test": "Tests",
+    "build": "Build",
+    "ci": "CI",
+    "chore": "Chores",
 }
 
 

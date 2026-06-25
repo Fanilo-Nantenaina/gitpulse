@@ -21,7 +21,6 @@ def run_scheduler(job: Callable[[], None], every: str) -> None:
 
 
 def systemd_timer_unit(interval: str, command: str) -> tuple[str, str]:
-    """Return (service_unit, timer_unit) text for `gitpulse install-timer`."""
     service = f"""[Unit]
 Description=GitPulse digest
 

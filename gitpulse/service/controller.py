@@ -61,7 +61,6 @@ def status() -> dict:
 
 
 def start(host: str = "127.0.0.1", port: int = 8420) -> dict:
-    """Launch `gitpulse serve` detached, writing a PID file. Idempotent."""
     st = status()
     if st["running"]:
         return {
@@ -132,7 +131,6 @@ def stop() -> dict:
 
 
 def _is_gitpulse_server(name: str, cmdline: list[str]) -> bool:
-
     name = (name or "").lower()
     if name in ("gitpulse", "gitpulse.exe", "gitpulse-gui", "gitpulse-gui.exe"):
         return True
@@ -166,9 +164,6 @@ def _is_gitpulse_server(name: str, cmdline: list[str]) -> bool:
 
 
 def _find_gitpulse_pids() -> list[int]:
-    """Discover running GitPulse *server* processes, excluding the current one
-    (and its parent shell), using a precise match so unrelated processes that
-    merely mention 'gitpulse' are never touched."""
     me = os.getpid()
     parent = os.getppid()
     pids: set[int] = set()
@@ -266,7 +261,6 @@ def _kill(pid: int) -> bool:
 
 
 def shutdown_all(port: int = 8420) -> dict:
-
     targets = set(_find_gitpulse_pids()) | set(_pids_on_port(port))
     targets.discard(os.getpid())
     killed, failed = [], []

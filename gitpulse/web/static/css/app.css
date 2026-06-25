@@ -1049,3 +1049,96 @@ button.btn.sm {
   font-size: 12px;
   width: auto
 }
+
+.author-dd {
+  position: relative;
+  min-width: 200px
+}
+
+.author-toggle {
+  width: 100%;
+  text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--input-bg, #fff);
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis
+}
+
+.author-toggle:hover {
+  border-color: var(--accent)
+}
+
+.author-panel {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: var(--panel-bg, #fff);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
+  padding: 8px;
+  min-width: 260px
+}
+
+.author-panel input#authorSearch {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  background: var(--input-bg, #fff);
+  color: var(--text)
+}
+
+.author-list {
+  max-height: 220px;
+  overflow-y: auto
+}
+
+.author-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer
+}
+
+.author-item:hover {
+  background: var(--hover-bg, rgba(127, 127, 127, .12))
+}
+
+.author-item input {
+  margin: 0
+}
+
+.author-nm {
+  font-weight: 500
+}
+
+.author-ct {
+  color: var(--muted);
+  font-size: .85em
+}
+
+.author-em {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: .8em;
+  opacity: .8
+}
+
+.author-msg {
+  padding: 10px;
+  color: var(--muted);
+  font-size: .9em;
+  text-align: center
+}

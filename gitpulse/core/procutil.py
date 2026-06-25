@@ -9,7 +9,6 @@ if os.name == "nt":
 
 
 def run(args, **kwargs):
-    """subprocess.run with the no-window flag applied on Windows."""
     if os.name == "nt":
         kwargs.setdefault("creationflags", 0)
         kwargs["creationflags"] |= _NO_WINDOW
@@ -18,7 +17,6 @@ def run(args, **kwargs):
 
 
 def popen(args, **kwargs):
-    """subprocess.Popen with the no-window flag applied on Windows."""
     if os.name == "nt":
         kwargs.setdefault("creationflags", 0)
         kwargs["creationflags"] |= _NO_WINDOW

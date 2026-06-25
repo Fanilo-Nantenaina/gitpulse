@@ -167,7 +167,6 @@ def generate_commit_message(
 
 
 def _apply_type(subject: str, force_type: str) -> str:
-    """Rewrite the subject's type prefix to force_type, preserving scope/text."""
     rest = subject
     if ":" in subject:
         head, tail = subject.split(":", 1)

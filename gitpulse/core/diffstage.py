@@ -57,7 +57,6 @@ def _run(args: list[str], cwd: str) -> str:
 def collect_working_changes(
     repo_path, scope: str = "all", max_diff_chars: int = 24000
 ) -> WorkingChanges:
-    """Gather uncommitted changes (staged only, or everything) plus the diff."""
     discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
     if discovered is None:
         raise ValueError("No git repository found")

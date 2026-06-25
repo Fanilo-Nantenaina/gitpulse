@@ -49,7 +49,6 @@ def api_drives():
 
 @router.post("/branches")
 def api_branches(body: dict):
-    """List local branches; optionally include remote branches via ls-remote."""
     import subprocess
 
     path = body.get("path")

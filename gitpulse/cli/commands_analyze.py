@@ -95,7 +95,6 @@ def commit_msg(
     model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
-    """Generate a commit message from uncommitted changes."""
     from ..core.diffstage import collect_working_changes
     from ..ai.commitmsg import generate_commit_message
 

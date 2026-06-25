@@ -25,7 +25,6 @@ def _config_path() -> Path:
 
 
 def config_dir() -> Path:
-    """The directory holding GitPulse state (config, pid, logs)."""
     base = os.environ.get("GITPULSE_CONFIG_DIR")
     return Path(base) if base else Path.home() / ".gitpulse"
 

@@ -298,7 +298,6 @@ def render_log(activity: RepoActivity, show_files: bool = False) -> None:
 
 
 def render_markdown(activity: RepoActivity, summary: Summary) -> str:
-    """Markdown digest for email / Slack / changelog use."""
     lines = [
         f"# {activity.repo_name} — {activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
         "",

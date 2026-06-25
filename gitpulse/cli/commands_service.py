@@ -20,7 +20,6 @@ def service_start(
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8420, "--port"),
 ):
-    """Start the web UI in the background (detached)."""
     res = controller.start(host=host, port=port)
     if res.get("already"):
         console.print(f"[yellow]Already running[/] (pid {res['pid']}) — {res['url']}")
@@ -35,7 +34,6 @@ def service_start(
 
 @service_app.command("stop")
 def service_stop():
-    """Stop the background web UI."""
     res = controller.stop()
     if res.get("stopped"):
         console.print(f"[green]Stopped[/] (pid {res['pid']})")
@@ -45,7 +43,6 @@ def service_stop():
 
 @service_app.command("status")
 def service_status():
-    """Show whether the background web UI is running."""
     st = controller.status()
     if st["running"]:
         console.print(f"[green]running[/] — pid {st['pid']}")
@@ -59,7 +56,6 @@ def service_restart(
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8420, "--port"),
 ):
-    """Restart the background web UI."""
     controller.stop()
     service_start(host=host, port=port)
 
@@ -79,7 +75,6 @@ def service_install(
         None, "--write", help="Write the unit file to this path"
     ),
 ):
-    """Generate an OS-native boot service (systemd / launchd / Task Scheduler)."""
     if kind not in ("web", "watch"):
         console.print("[red]kind must be 'web' or 'watch'[/]")
         raise typer.Exit(1)

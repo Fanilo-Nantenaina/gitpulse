@@ -356,7 +356,6 @@ def status() -> list[dict]:
 
 
 def measure_cloud_latency(timeout: float = 3.0) -> dict:
-    """Ping a lightweight cloud endpoint to gauge connectivity/latency."""
     targets = {
         "claude": "https://api.anthropic.com",
         "openai": "https://api.openai.com",
