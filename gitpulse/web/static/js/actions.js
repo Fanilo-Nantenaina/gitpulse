@@ -93,9 +93,11 @@ function renderAuthorList(filter) {
   if (!rows.length) { list.innerHTML = '<div class="author-msg">' + t('authorNoMatch') + '</div>'; return; }
   list.innerHTML = rows.map(a => {
     const v = a.email || a.name; const on = authorState.selected.has(v);
-    return '<label class="author-item"><input type="checkbox" data-v="' + esc(v) + '"' + (on ? ' checked' : '') + '> '
-      + '<span class="author-nm">' + esc(a.name) + '</span> <span class="author-ct">(' + a.commits + ')</span>'
-      + '<span class="author-em">' + esc(a.email || '') + '</span></label>';
+    return '<label class="author-item">'
+      + '<input type="checkbox" data-v="' + esc(v) + '"' + (on ? ' checked' : '') + '>'
+      + '<span class="author-info"><span class="author-nm">' + esc(a.name) + '</span>'
+      + '<span class="author-em">' + esc(a.email || '') + '</span></span>'
+      + '<span class="author-ct">' + a.commits + '</span></label>';
   }).join('');
   list.querySelectorAll('input[type=checkbox]').forEach(cb => {
     cb.onchange = () => { const v = cb.dataset.v; if (cb.checked) authorState.selected.add(v); else authorState.selected.delete(v); updateAuthorToggle(); };

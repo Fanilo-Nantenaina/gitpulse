@@ -12,7 +12,7 @@ function fillBranches() {
   if (state.action === 'graph') {
     sel.innerHTML = '<option value="">' + t('allBranches') + '</option>' + all.map(b => '<option value="' + b + '">' + b + (b === branchList.head ? ' ●' : '') + '</option>').join('');
   } else {
-    sel.innerHTML = '<option value="__all__">' + t('allBranches') + '</option>' + all.map(b => '<option value="' + b + '">' + b + (b === branchList.head ? ' ● (actuelle)' : '') + '</option>').join('');
+    sel.innerHTML = '<option value="__all__">' + t('allBranches') + '</option>' + all.map(b => '<option value="' + b + '">' + b + (b === branchList.head ? ' \u25cf (' + t('currentBranch') + ')' : '') + '</option>').join('');
   }
   if (branchList.remote_url) sel.innerHTML += '<option value="" disabled>──</option><option value="__loadremote">' + t('loadBranches') + '</option>';
   if (cur) sel.value = cur;

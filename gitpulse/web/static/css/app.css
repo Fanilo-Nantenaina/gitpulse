@@ -1058,12 +1058,13 @@ button.btn.sm {
 .author-toggle {
   width: 100%;
   text-align: left;
-  padding: 8px 12px;
+  padding: 7px 9px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: var(--input-bg, #fff);
+  background: var(--bg);
   color: var(--text);
   cursor: pointer;
+  font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis
@@ -1073,18 +1074,24 @@ button.btn.sm {
   border-color: var(--accent)
 }
 
+.author-toggle::after {
+  content: "\25be";
+  float: right;
+  color: var(--muted);
+  margin-left: 8px
+}
+
 .author-panel {
   position: absolute;
-  z-index: 50;
+  z-index: 60;
   top: calc(100% + 4px);
   left: 0;
-  right: 0;
-  background: var(--panel-bg, #fff);
+  min-width: 280px;
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, .18);
-  padding: 8px;
-  min-width: 260px
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+  padding: 8px
 }
 
 .author-panel input#authorSearch {
@@ -1094,51 +1101,86 @@ button.btn.sm {
   border: 1px solid var(--border);
   border-radius: 6px;
   margin-bottom: 6px;
-  background: var(--input-bg, #fff);
-  color: var(--text)
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px
+}
+
+.author-panel input#authorSearch:focus {
+  outline: none;
+  border-color: var(--accent)
 }
 
 .author-list {
-  max-height: 220px;
-  overflow-y: auto
+  max-height: 240px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px
 }
 
 .author-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
+  gap: 10px;
+  padding: 7px 8px;
   border-radius: 6px;
-  cursor: pointer
+  cursor: pointer;
+  color: var(--text)
 }
 
 .author-item:hover {
-  background: var(--hover-bg, rgba(127, 127, 127, .12))
+  background: var(--panel-2)
 }
 
-.author-item input {
-  margin: 0
+.author-item input[type=checkbox] {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer
+}
+
+.author-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1
 }
 
 .author-nm {
-  font-weight: 500
-}
-
-.author-ct {
-  color: var(--muted);
-  font-size: .85em
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis
 }
 
 .author-em {
-  margin-left: auto;
+  font-size: 11px;
   color: var(--muted);
-  font-size: .8em;
-  opacity: .8
+  font-family: var(--mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis
+}
+
+.author-ct {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border-radius: 10px;
+  padding: 1px 8px;
+  min-width: 18px;
+  text-align: center
 }
 
 .author-msg {
-  padding: 10px;
+  padding: 14px 10px;
   color: var(--muted);
-  font-size: .9em;
+  font-size: 12px;
   text-align: center
 }
