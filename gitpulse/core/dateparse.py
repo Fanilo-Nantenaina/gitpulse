@@ -13,13 +13,20 @@ class DateRange:
 
 
 _WEEKDAYS = {
-    "monday": 0, "lundi": 0,
-    "tuesday": 1, "mardi": 1,
-    "wednesday": 2, "mercredi": 2,
-    "thursday": 3, "jeudi": 3,
-    "friday": 4, "vendredi": 4,
-    "saturday": 5, "samedi": 5,
-    "sunday": 6, "dimanche": 6,
+    "monday": 0,
+    "lundi": 0,
+    "tuesday": 1,
+    "mardi": 1,
+    "wednesday": 2,
+    "mercredi": 2,
+    "thursday": 3,
+    "jeudi": 3,
+    "friday": 4,
+    "vendredi": 4,
+    "saturday": 5,
+    "samedi": 5,
+    "sunday": 6,
+    "dimanche": 6,
 }
 
 _INTERVAL = re.compile(r"^(\d+)\s*([dhm])$")
@@ -41,14 +48,19 @@ def parse_interval(s: str) -> timedelta:
     if not m:
         raise ValueError(f"Invalid interval: {s!r}")
     n, unit = int(m.group(1)), m.group(2)
-    return {"d": timedelta(days=n), "h": timedelta(hours=n),
-            "m": timedelta(minutes=n)}[unit]
+    return {"d": timedelta(days=n), "h": timedelta(hours=n), "m": timedelta(minutes=n)}[
+        unit
+    ]
 
 
 def parse_range(spec: str, now: datetime | None = None) -> DateRange:
     now = now or _now()
     today = now.date()
     s = spec.strip().lower()
+
+    if s in ("all", "all-time", "alltime", "tout", "tout-l'historique", "__all"):
+        epoch = datetime(1970, 1, 1, tzinfo=now.tzinfo)
+        return DateRange(epoch, now, "all time")
 
     if ".." in s:
         left, right = (p.strip() for p in s.split("..", 1))
@@ -64,8 +76,11 @@ def parse_range(spec: str, now: datetime | None = None) -> DateRange:
         return DateRange(now - delta, now, f"last {s}")
 
     relative = {
-        "today": 0, "aujourd'hui": 0, "aujourdhui": 0,
-        "yesterday": 1, "hier": 1,
+        "today": 0,
+        "aujourd'hui": 0,
+        "aujourdhui": 0,
+        "yesterday": 1,
+        "hier": 1,
     }
     if s in relative:
         d = today - timedelta(days=relative[s])
@@ -88,14 +103,15 @@ def parse_range(spec: str, now: datetime | None = None) -> DateRange:
         last_sunday = this_monday - timedelta(days=1)
         start, _ = _day_bounds(last_monday)
         _, end = _day_bounds(last_sunday)
-        return DateRange(start, end,
-                         f"{last_monday.isoformat()} -> {last_sunday.isoformat()}")
+        return DateRange(
+            start, end, f"{last_monday.isoformat()} -> {last_sunday.isoformat()}"
+        )
 
     base = s
     last = False
     for prefix in ("last ", "last-", "dernier ", "derniere "):
         if base.startswith(prefix):
-            base, last = base[len(prefix):], True
+            base, last = base[len(prefix) :], True
     for suffix in (" dernier", " derniere", "-dernier", "-derniere"):
         if base.endswith(suffix):
             base, last = base[: -len(suffix)], True
@@ -139,11 +155,20 @@ def suggestions(now: datetime | None = None) -> list[tuple[str, str]]:
         ("yesterday", (today - timedelta(days=1)).isoformat()),
         ("avant-hier", (today - timedelta(days=2)).isoformat()),
     ]
-    names = ["monday", "tuesday", "wednesday", "thursday",
-             "friday", "saturday", "sunday"]
+    names = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
+    ]
     for i in range(3, 7):
         d = today - timedelta(days=i)
         out.append((f"{names[d.weekday()]} (last)", d.isoformat()))
-    out.append(("this-week", f"since {(today - timedelta(days=today.weekday())).isoformat()}"))
+    out.append(
+        ("this-week", f"since {(today - timedelta(days=today.weekday())).isoformat()}")
+    )
     out.append(("last-week", "previous Mon-Sun"))
     return out

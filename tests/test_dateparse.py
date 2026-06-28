@@ -45,3 +45,15 @@ def test_parse_interval_weeks_or_days():
 def test_common_windows_do_not_raise(expr):
     r = parse_range(expr)
     assert r.since is not None and r.until is not None
+
+
+def test_all_time_range():
+    from gitpulse.core.dateparse import parse_range
+    from datetime import datetime, timezone
+
+    r = parse_range("all")
+    assert r.label == "all time"
+    assert r.since.year == 1970
+    assert parse_range("all-time").label == "all time"
+    assert parse_range("tout").label == "all time"
+    assert "7" in parse_range("7d").label

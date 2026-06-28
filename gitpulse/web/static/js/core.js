@@ -21,7 +21,7 @@ const I18N = {
     metered: 'A metered/limited connection may apply data charges for cloud models.',
     highLatency: 'High latency to cloud APIs detected. Cloud runs risk timeouts and wasted tokens.',
     switchLocal: 'Switch to local', proceedAnyway: 'Use cloud anyway', loadBranches: 'Load remote branches', allowInsecure: 'Allow insecure SSL (expired/self-signed cert)',
-    windows: { '7d': 'Last 7 days', '24h': 'Last 24 hours', '30d': 'Last 30 days', 'today': 'Today', 'yesterday': 'Yesterday', 'this-week': 'This week', 'last-week': 'Last week' }
+    windows: { 'all': 'All time', '7d': 'Last 7 days', '24h': 'Last 24 hours', '30d': 'Last 30 days', 'today': 'Today', 'yesterday': 'Yesterday', 'this-week': 'This week', 'last-week': 'Last week' }
   },
   fr: {
     repository: 'Dépôt', local: 'Local', remoteUrl: 'URL distante', browse: 'Parcourir', pastePath: 'Coller un chemin ou parcourir',
@@ -40,7 +40,7 @@ const I18N = {
     metered: 'Une connexion limitée peut entraîner des frais de données pour les modèles cloud.',
     highLatency: 'Latence élevée vers les API cloud. Risque de coupures et de gaspillage de tokens.',
     switchLocal: 'Passer en local', proceedAnyway: 'Utiliser le cloud quand même', loadBranches: 'Charger les branches distantes', allowInsecure: 'Autoriser SSL non sécurisé (certificat expiré/auto-signé)',
-    windows: { '7d': '7 derniers jours', '24h': '24 dernières heures', '30d': '30 derniers jours', 'today': 'Aujourd\'hui', 'yesterday': 'Hier', 'this-week': 'Cette semaine', 'last-week': 'Semaine dernière' }
+    windows: { 'all': 'Tout l\'historique', '7d': '7 derniers jours', '24h': '24 dernières heures', '30d': '30 derniers jours', 'today': 'Aujourd\'hui', 'yesterday': 'Hier', 'this-week': 'Cette semaine', 'last-week': 'Semaine dernière' }
   }
 };
 function t(k) { return (I18N[state.uiLang] && I18N[state.uiLang][k]) || I18N.en[k] || k; }

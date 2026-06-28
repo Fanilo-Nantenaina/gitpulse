@@ -1,6 +1,6 @@
 function setAction(a) { state.action = a; document.querySelectorAll('.action').forEach(x => x.classList.toggle('active', x.dataset.act === a)); renderControls(); }
 document.querySelectorAll('.action').forEach(a => a.onclick = () => setAction(a.dataset.act));
-const WINDOWS = ['7d', '24h', '30d', 'today', 'yesterday', 'this-week', 'last-week'];
+const WINDOWS = ['all', '7d', '24h', '30d', 'today', 'yesterday', 'this-week', 'last-week'];
 function renderControls() {
   const cfg = ACTIONS[state.action], c = $('#controls'); if (!c) return; c.innerHTML = '';
   const add = h => { const d = document.createElement('div'); d.innerHTML = h; c.appendChild(d.firstElementChild); };
@@ -8,6 +8,9 @@ function renderControls() {
     const opts = WINDOWS.map(w => '<option value="' + w + '">' + (t('windows')[w] || w) + '</option>').join('');
     add('<div class="field"><label>' + t('timeWindow') + '</label><select id="ctlWhenSel">' + opts + '<option value="__custom">' + t('custom') + '</option></select></div>');
     add('<div class="field" id="ctlWhenCustomWrap" style="display:none"><label>&nbsp;</label><input id="ctlWhen" value="7d" placeholder="7d, 2026-06-10.."></div>');
+    const def = cfg.defaultWhen || '7d';
+    const wsel = document.getElementById('ctlWhenSel');
+    if (wsel) wsel.value = def;
   }
   if (cfg.period) add('<div class="field"><label>' + t('periodLen') + '</label><input id="ctlPeriod" value="7d"></div>');
   if (cfg.periods) add('<div class="field"><label>' + t('priorPeriods') + '</label><input id="ctlPeriods" type="number" value="4" min="1"></div>');
