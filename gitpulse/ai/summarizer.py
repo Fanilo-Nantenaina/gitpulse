@@ -15,46 +15,56 @@ DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", "claude-sonnet-4-6")
 def _system_prompt(lang_code: str) -> str:
     base = textwrap.dedent(
         """\
-        You are a senior engineer writing an activity digest of a developer's recent
-        git history. The goal is to SUMMARIZE the work clearly first, and only then
-        note anything worth flagging. This is a recap, not a performance review.
+        You are a senior engineer writing an activity digest of recent git history.
+        The goal is to SUMMARIZE the work clearly first, and only then note anything
+        worth flagging. This is a recap, not a performance review.
+
+        NARRATIVE ORDER (important):
+        - Tell the story in CHRONOLOGICAL order: oldest first, ending with the most
+          recent work. Never narrate backwards. The commit list is given oldest
+          first; follow that order.
+        - Anchor the story in TIME, not in commit IDs. Refer to days and dates
+          ("On the 12th", "early in the week", "the next day", "by Friday") rather
+          than to commit SHAs. Do NOT say "commit abc1234 did X" in the prose.
+
+        ATTRIBUTION:
+        - Refer to the people by their actual author NAME (given per commit and in
+          "Author(s) in this window"). When one author dominates, use their name.
+          When several contributed, attribute work to the right person by name.
+        - NEVER use generic placeholders like "the developer", "the author", "he",
+          "she", or "they" as a stand-in for a named person. Use the real name(s).
 
         Rules for THEMES:
         - Group related commits into themes by what they actually change.
         - In each narrative, name the concrete artifacts involved: file paths,
           functions, classes, endpoints, dependencies, config keys. Cite the work,
-          do not paraphrase it generically.
-        - Explain WHY, not just what: the apparent intent and the engineering effect
-          (what got built, safer, faster, simpler).
+          do not paraphrase it generically. Attribute by author name where relevant.
+        - Explain WHY, not just what: the apparent intent and the engineering effect.
 
         Rules for SYNTHESIS:
-        - A thorough, detailed prose overview of the period: what the developer was
-          working on, how the pieces connect, the sequence and shape of the effort,
-          and where the bulk of the work went. Use as many sentences as the activity
-          warrants - do not artificially shorten it. For a busy period this can be a
-          full paragraph or more. Name concrete areas (modules, features, files)
-          where it helps the reader follow the story. Neutral and descriptive: this
-          is the narrative recap, not a place for risks or critique.
+        - A thorough, detailed prose overview of the period told as a chronological
+          story: what was worked on first, how it progressed day by day, how the
+          pieces connect, and where the bulk of the work went. Use author names and
+          dates/days. Use as many sentences as the activity warrants. Name concrete
+          areas (modules, features, files). Neutral and descriptive.
 
         Rules for OBSERVATIONS:
         - Optional and secondary. Include only genuinely useful, evidence-backed
-          notes, each tied to concrete data: a named file, a commit sha, a count,
-          a sequence. These may be neutral facts ("most work landed in two files"),
-          positives ("rate-limit query rewritten from row-fetch to COUNT()"), or
-          risks ("role rename is breaking for old tokens") - not only criticism.
-        - BANNED: vague filler with no specifics, e.g. "may require additional
-          testing", "could introduce issues if not tested", "consider reviewing".
-          If you cannot tie a note to specific evidence, omit it. Zero observations
-          is fine if nothing concrete stands out.
+          notes, each tied to concrete data: a named file, a count, a sequence, a
+          date. (A short_sha may be cited here as evidence, but not in the prose.)
+          Neutral facts, positives, or risks - not only criticism.
+        - BANNED: vague filler like "may require additional testing", "could
+          introduce issues", "consider reviewing". If you cannot tie a note to
+          specific evidence, omit it. Zero observations is fine.
         - At most 5 observations.
 
         Respond ONLY with valid JSON, no markdown fences, in this exact shape:
         {
           "headline": "one sentence naming the main thrust of the period",
-          "synthesis": "detailed neutral prose overview, as long as warranted",
+          "synthesis": "detailed neutral chronological prose, naming authors and dates",
           "themes": [
             {"title": "Theme name",
-             "narrative": "3-5 sentences citing concrete files/symbols and intent",
+             "narrative": "3-5 sentences citing concrete files/symbols, dates, and author names",
              "commits": ["short_sha", ...]}
           ],
           "observations": ["specific, evidence-backed note (optional)", ...]
@@ -66,8 +76,8 @@ def _system_prompt(lang_code: str) -> str:
         base += (
             f"\nWrite all values (headline, synthesis, theme titles, "
             f"narratives, and observations) in {name}. Keep commit "
-            f"identifiers, file paths, code symbols, and branch names "
-            f"unchanged."
+            f"identifiers, file paths, code symbols, author names, and branch "
+            f"names unchanged."
         )
     return base
 
@@ -117,16 +127,27 @@ class Summary:
 
 
 def _build_payload(activity: RepoActivity) -> str:
+    seen = []
+    for c in activity.commits:
+        if c.author_name and c.author_name not in seen:
+            seen.append(c.author_name)
+    who = ", ".join(seen) if seen else "unknown"
+
     lines = [
         f"Repository: {activity.repo_name}",
         f"Window: {activity.since:%Y-%m-%d} to {activity.until:%Y-%m-%d}",
         f"Commits: {activity.commit_count}  "
         f"(+{activity.total_additions} / -{activity.total_deletions} lines)",
+        f"Author(s) in this window: {who}",
         "",
-        "Commits (newest first):",
+        "Commits (OLDEST first — narrate the story in THIS order, "
+        "from the start of the period to the end):",
     ]
-    for c in activity.commits:
-        lines.append(f"- [{c.short_sha}] {c.when:%Y-%m-%d %H:%M} {c.summary}")
+    for c in reversed(activity.commits):
+        lines.append(
+            f"- [{c.short_sha}] {c.when:%Y-%m-%d %H:%M} "
+            f"by {c.author_name}: {c.summary}"
+        )
         if c.body:
             for bl in c.body.splitlines():
                 bl = bl.strip()

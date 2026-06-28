@@ -6,15 +6,8 @@ from typing import Optional
 import typer
 from rich.table import Table
 
-from ._shared import (
-    app,
-    console,
-    _range,
-    WHEN_HELP,
-    PROVIDER_HELP,
-    MODEL_HELP,
-    LANG_HELP,
-)
+from ._shared import (app, console, _range,
+                      WHEN_HELP, PROVIDER_HELP, MODEL_HELP, LANG_HELP)
 from ..core.collector import collect_activity
 from ..core import config as gp_config
 from ..core import remote as gp_remote
@@ -29,21 +22,11 @@ def remote(
     branch: Optional[str] = typer.Option(None, "--branch", "-b"),
     view: str = typer.Option("summary", "--view", help="summary or log"),
     files: bool = typer.Option(False, "--files", "-f", help="(log view) list files"),
-    token: Optional[str] = typer.Option(
-        None, "--token", help="Access token for private HTTPS repos"
-    ),
-    username: Optional[str] = typer.Option(
-        None, "--username", help="Username for token auth"
-    ),
-    ssh_key: Optional[str] = typer.Option(
-        None, "--ssh-key", help="Path to private SSH key"
-    ),
-    no_refresh: bool = typer.Option(
-        False, "--no-refresh", help="Use cached clone, skip fetch"
-    ),
-    insecure: bool = typer.Option(
-        False, "--insecure", help="Disable SSL cert verification (use at your own risk)"
-    ),
+    token: Optional[str] = typer.Option(None, "--token", help="Access token for private HTTPS repos"),
+    username: Optional[str] = typer.Option(None, "--username", help="Username for token auth"),
+    ssh_key: Optional[str] = typer.Option(None, "--ssh-key", help="Path to private SSH key"),
+    no_refresh: bool = typer.Option(False, "--no-refresh", help="Use cached clone, skip fetch"),
+    insecure: bool = typer.Option(False, "--insecure", help="Disable SSL cert verification (use at your own risk)"),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
@@ -53,14 +36,10 @@ def remote(
     name = gp_remote.repo_name_from_url(url)
     action = "Fetching" if not no_refresh else "Loading cached"
     if insecure:
-        console.print(
-            "[yellow]⚠ SSL verification disabled — use only on trusted networks.[/]"
-        )
+        console.print("[yellow]⚠ SSL verification disabled — use only on trusted networks.[/]")
     try:
         with status_spinner(f"{action} {name}"):
-            dest = gp_remote.sync_remote(
-                url, tok, user, key, refresh=not no_refresh, insecure=insecure
-            )
+            dest = gp_remote.sync_remote(url, tok, user, key, refresh=not no_refresh, insecure=insecure)
     except RuntimeError as e:
         console.print(f"[red]{e}[/]")
         raise typer.Exit(1)
@@ -87,18 +66,14 @@ def cache_clear():
 @app.command()
 def track(
     url: str = typer.Argument(..., help="Git URL to track for the remote dashboard"),
-    label: Optional[str] = typer.Option(
-        None, "--label", help="Friendly name shown in the dashboard"
-    ),
+    label: Optional[str] = typer.Option(None, "--label", help="Friendly name shown in the dashboard"),
 ):
     added, tracked = gp_config.add_tracked(url, label)
     name = label or gp_remote.repo_name_from_url(url)
     if added:
         console.print(f"[green]Tracking {name}[/] [dim]({url})[/]")
-        console.print(
-            f"[dim]{len(tracked)} repo(s) tracked. "
-            f"View with gitpulse dashboard --remote.[/]"
-        )
+        console.print(f"[dim]{len(tracked)} repo(s) tracked. "
+                      f"View with gitpulse dashboard --remote.[/]")
     else:
         console.print(f"[yellow]Already tracking {url}[/]")
 
@@ -109,9 +84,8 @@ def untrack(
 ):
     removed, tracked = gp_config.remove_tracked(needle)
     if removed:
-        console.print(
-            f"[green]Untracked {needle}[/] " f"[dim]({len(tracked)} remaining)[/]"
-        )
+        console.print(f"[green]Untracked {needle}[/] "
+                      f"[dim]({len(tracked)} remaining)[/]")
     else:
         console.print(f"[yellow]Not found in tracked list: {needle}[/]")
 
@@ -120,10 +94,8 @@ def untrack(
 def tracked():
     items = gp_config.list_tracked()
     if not items:
-        console.print(
-            "[yellow]No tracked remotes. Add one with "
-            "[bold]gitpulse track <url>[/].[/]"
-        )
+        console.print("[yellow]No tracked remotes. Add one with "
+                      "[bold]gitpulse track <url>[/].[/]")
         return
     table = Table(title="Tracked remotes", show_lines=False)
     table.add_column("#", justify="right", style="dim")
@@ -133,7 +105,5 @@ def tracked():
         name = t.get("label") or gp_remote.repo_name_from_url(t["url"])
         table.add_row(str(i), name, t["url"])
     console.print(table)
-    console.print(
-        f"[dim]{len(items)} tracked · "
-        f"run gitpulse dashboard --remote to see activity.[/]"
-    )
+    console.print(f"[dim]{len(items)} tracked · "
+                  f"run gitpulse dashboard --remote to see activity.[/]")

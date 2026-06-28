@@ -1184,3 +1184,140 @@ button.btn.sm {
   font-size: 12px;
   text-align: center
 }
+
+.stats-toggle {
+  margin: 14px 0 6px
+}
+
+.ghost-btn {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 13px;
+  cursor: pointer
+}
+
+.ghost-btn:hover {
+  border-color: var(--accent)
+}
+
+.stats-panel {
+  margin: 6px 0 18px
+}
+
+.stat-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px
+}
+
+.stat-card {
+  flex: 1;
+  min-width: 90px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  text-align: center
+}
+
+.sc-val {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--accent)
+}
+
+.sc-lbl {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 3px;
+  text-transform: uppercase;
+  letter-spacing: .4px
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 14px
+}
+
+.chart {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px
+}
+
+.chart-h {
+  font-size: 12px;
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center
+}
+
+.chart .leg {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 400
+}
+
+.chart .leg i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin: 0 2px 0 6px
+}
+
+.hbars {
+  display: flex;
+  flex-direction: column;
+  gap: 7px
+}
+
+.hbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px
+}
+
+.hbar-lbl {
+  flex: 0 0 110px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis
+}
+
+.hbar-track {
+  flex: 1;
+  height: 14px;
+  background: var(--panel-2);
+  border-radius: 7px;
+  overflow: hidden
+}
+
+.hbar-fill {
+  height: 100%;
+  border-radius: 7px;
+  min-width: 2px
+}
+
+.hbar-val {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap
+}
+
+.hbar-val .dim {
+  opacity: .6
+}

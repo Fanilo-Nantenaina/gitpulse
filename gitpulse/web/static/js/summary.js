@@ -1,10 +1,27 @@
-function runSummary() { cloudGuard(async () => { try { loading('...'); const d = await post('/api/summary', baseBody(Object.assign({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() }, modelArgs()))); renderSummary(d.activity, d.summary); } catch (e) { showErr(e); } }); }
+function runSummary() { cloudGuard(async () => { try { loading('...'); const body = baseBody(Object.assign({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() }, modelArgs())); const d = await post('/api/summary', body); renderSummary(d.activity, d.summary); loadStatsPanel(body); } catch (e) { showErr(e); } }); }
 function renderSummary(a, s) {
   let h = headCard(a, s.headline);
+  h += '<div id="statsMount"></div>';
   if (s.synthesis) h += '<div class="block"><h3>' + t('overview') + '</h3><div class="overview">' + esc(s.synthesis) + '</div></div>';
   if (s.themes.length) h += '<div class="block"><h3>' + t('themes') + '</h3>' + s.themes.map(x => '<div class="theme"><div class="t">' + esc(x.title) + '</div><div class="narr">' + esc(x.narrative) + '</div>' + (x.commits && x.commits.length ? '<div class="shas">' + x.commits.map(esc).join(' ') + '</div>' : '') + '</div>').join('') + '</div>';
   if (s.observations.length) h += '<div class="block"><h3>' + t('observations') + '</h3>' + s.observations.map(o => '<div class="obs"><span class="dot">&#9656;</span><span>' + esc(o) + '</span></div>').join('') + '</div>';
   out.innerHTML = h + '<div class="cost">' + esc(s.cost_note) + '</div>';
+}
+async function loadStatsPanel(body) {
+  const mount = document.getElementById('statsMount'); if (!mount) return;
+  mount.innerHTML = '<div class="stats-toggle"><button id="statsBtn" class="ghost-btn">' + t('showStats') + '</button></div><div id="statsBody" style="display:none"></div>';
+  let loaded = false, shown = false;
+  const btn = document.getElementById('statsBtn'), bodyEl = document.getElementById('statsBody');
+  btn.onclick = async () => {
+    shown = !shown;
+    bodyEl.style.display = shown ? '' : 'none';
+    btn.textContent = shown ? t('hideStats') : t('showStats');
+    if (shown && !loaded) {
+      bodyEl.innerHTML = '<div class="loading"><span class="spinner"></span> ...</div>';
+      try { const d = await post('/api/stats', body); bodyEl.innerHTML = renderStats(d.stats); loaded = true; }
+      catch (e) { bodyEl.innerHTML = '<div class="err">' + (e.message || e) + '</div>'; }
+    }
+  };
 }
 async function runLog() { try { loading('...'); const d = await post('/api/log', baseBody({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() })); const a = d.activity; let h = headCard(a, null) + '<div class="block"><h3>' + t('log') + '</h3>'; if (!a.commits.length) h += '<div class="placeholder" style="margin-top:20px">' + t('noCommits') + '</div>'; a.commits.forEach(c => { h += '<div class="commit"><span class="sha">' + c.sha + '</span><div class="meta">' + esc(c.author) + ' &middot; ' + c.when.replace('T', ' ').slice(0, 16) + '</div><div class="msg">' + esc(c.summary) + '</div><div class="cstat"><span class="add">+' + c.additions + '</span> / <span class="del">-' + c.deletions + '</span> &middot; ' + c.files + ' ' + t('files') + '</div></div>'; }); out.innerHTML = h + '</div>'; } catch (e) { showErr(e); } }
 const LANE_COLORS = ['#f78166', '#58a6ff', '#3fb950', '#d29922', '#bc8cff', '#f85149', '#39c5cf', '#ff7b72'];

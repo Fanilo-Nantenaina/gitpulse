@@ -61,6 +61,21 @@ def api_authors(req: SummaryReq):
         raise HTTPException(400, str(e))
 
 
+@router.post("/stats")
+def api_stats(req: SummaryReq):
+    try:
+        from ...core.stats import compute_stats
+
+        r = parse_range(req.when)
+        src, name = resolve_source(req)
+        activity = collect_activity(
+            src, r.since, r.until, branch=req.branch, name=name, authors=req.authors
+        )
+        return {"stats": compute_stats(activity), "range_label": r.label}
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e))
+
+
 @router.post("/compare")
 def api_compare(req: CompareReq):
     try:

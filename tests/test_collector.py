@@ -149,3 +149,48 @@ def test_author_filter(tmp_path):
     authors = list_authors(d, _SINCE, _UNTIL)
     names = {a["name"] for a in authors}
     assert names == {"Alice", "Bob"}
+
+
+def test_compute_stats(tmp_path):
+    import subprocess, os
+    from gitpulse.core.stats import compute_stats
+
+    d = tmp_path / "s"
+    d.mkdir()
+
+    def g(*a, name="Alice", email="a@x.com", date=None):
+        env = dict(os.environ)
+        env.update(
+            {
+                "GIT_AUTHOR_NAME": name,
+                "GIT_AUTHOR_EMAIL": email,
+                "GIT_COMMITTER_NAME": name,
+                "GIT_COMMITTER_EMAIL": email,
+            }
+        )
+        if date:
+            env.update({"GIT_AUTHOR_DATE": date, "GIT_COMMITTER_DATE": date})
+        subprocess.run(["git", "-C", str(d), *a], env=env, capture_output=True)
+
+    g("init", "-q")
+    g("branch", "-M", "main")
+    (d / "a").write_text("1\n")
+    g("add", "-A")
+    g("commit", "-m", "c1", date="2026-06-10T10:00:00")
+    (d / "a").write_text("1\n2\n")
+    g("add", "-A")
+    g("commit", "-m", "c2", date="2026-06-10T11:00:00")
+    (d / "b").write_text("x\n")
+    g("add", "-A")
+    g("commit", "-m", "c3", name="Bob", email="b@x.com", date="2026-06-12T14:00:00")
+    act = collect_activity(d, _SINCE, _UNTIL, branch=ALL_BRANCHES)
+    st = compute_stats(act)
+    assert st["totals"]["commits"] == 3
+    assert st["totals"]["authors"] == 2
+    assert st["totals"]["active_days"] == 2
+    dates = [d["date"] for d in st["daily"]]
+    assert "2026-06-11" in dates
+    day10 = next(x for x in st["daily"] if x["date"] == "2026-06-10")
+    assert day10["commits"] == 2
+    assert st["authors"][0]["name"] == "Alice"
+    assert sum(st["by_hour"]) == 3
