@@ -1321,3 +1321,73 @@ button.btn.sm {
 .hbar-val .dim {
   opacity: .6
 }
+
+.fail-block {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 10px 12px
+}
+
+.fail-h {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f85149;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: .4px
+}
+
+.fail-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 12px;
+  flex-wrap: wrap
+}
+
+.fail-name {
+  font-weight: 600;
+  color: var(--text);
+  min-width: 120px
+}
+
+.fail-reason {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-weight: 600
+}
+
+.fr-auth {
+  background: rgba(248, 81, 73, .15);
+  color: #f85149
+}
+
+.fr-not_found {
+  background: rgba(210, 153, 34, .15);
+  color: #d29922
+}
+
+.fr-network {
+  background: rgba(88, 166, 255, .15);
+  color: #58a6ff
+}
+
+.fr-other {
+  background: var(--panel-2);
+  color: var(--muted)
+}
+
+.fail-url {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0
+}

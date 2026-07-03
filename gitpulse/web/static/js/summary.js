@@ -9,19 +9,13 @@ function renderSummary(a, s) {
 }
 async function loadStatsPanel(body) {
   const mount = document.getElementById('statsMount'); if (!mount) return;
-  mount.innerHTML = '<div class="stats-toggle"><button id="statsBtn" class="ghost-btn">' + t('showStats') + '</button></div><div id="statsBody" style="display:none"></div>';
-  let loaded = false, shown = false;
-  const btn = document.getElementById('statsBtn'), bodyEl = document.getElementById('statsBody');
-  btn.onclick = async () => {
-    shown = !shown;
-    bodyEl.style.display = shown ? '' : 'none';
-    btn.textContent = shown ? t('hideStats') : t('showStats');
-    if (shown && !loaded) {
-      bodyEl.innerHTML = '<div class="loading"><span class="spinner"></span> ...</div>';
-      try { const d = await post('/api/stats', body); bodyEl.innerHTML = renderStats(d.stats); loaded = true; }
-      catch (e) { bodyEl.innerHTML = '<div class="err">' + (e.message || e) + '</div>'; }
-    }
-  };
+  mount.innerHTML = '<div class="stats-loading"><span class="spinner"></span> ' + t('statsLoading') + '</div>';
+  try {
+    const d = await post('/api/stats', body);
+    mount.innerHTML = renderStats(d.stats);
+  } catch (e) {
+    mount.innerHTML = '<div class="err">' + (e.message || e) + '</div>';
+  }
 }
 async function runLog() { try { loading('...'); const d = await post('/api/log', baseBody({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() })); const a = d.activity; let h = headCard(a, null) + '<div class="block"><h3>' + t('log') + '</h3>'; if (!a.commits.length) h += '<div class="placeholder" style="margin-top:20px">' + t('noCommits') + '</div>'; a.commits.forEach(c => { h += '<div class="commit"><span class="sha">' + c.sha + '</span><div class="meta">' + esc(c.author) + ' &middot; ' + c.when.replace('T', ' ').slice(0, 16) + '</div><div class="msg">' + esc(c.summary) + '</div><div class="cstat"><span class="add">+' + c.additions + '</span> / <span class="del">-' + c.deletions + '</span> &middot; ' + c.files + ' ' + t('files') + '</div></div>'; }); out.innerHTML = h + '</div>'; } catch (e) { showErr(e); } }
 const LANE_COLORS = ['#f78166', '#58a6ff', '#3fb950', '#d29922', '#bc8cff', '#f85149', '#39c5cf', '#ff7b72'];

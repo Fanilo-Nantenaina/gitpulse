@@ -132,3 +132,28 @@ def test_asset_version_changes_with_content(tmp_path, monkeypatch):
 
     v1 = s._asset_version()
     assert s._asset_version() == v1
+
+
+def test_classify_remote_error():
+    from gitpulse.web.routes.analysis import _classify_remote_error
+
+    assert _classify_remote_error("Authentication failed") == "auth"
+    assert _classify_remote_error("remote: Repository not found") == "not_found"
+    assert _classify_remote_error("could not resolve host") == "network"
+    assert _classify_remote_error("SSL certificate problem") == "network"
+    assert _classify_remote_error("totally unexpected") == "other"
+
+
+def test_dashboard_reports_failed_with_reason(tmp_path, monkeypatch):
+    monkeypatch.setenv("GITPULSE_CONFIG_DIR", str(tmp_path))
+    from gitpulse.core import config
+
+    config.add_tracked("https://github.com/nope-xyz-123/missing-404.git", "Bogus")
+    from fastapi.testclient import TestClient
+    from gitpulse.web.server import app
+
+    c = TestClient(app)
+    r = c.post("/api/dashboard", json={"when": "7d", "summarize": False})
+    d = r.json()
+    assert "failed" in d
+    assert any(f["name"] == "Bogus" and "reason" in f for f in d["failed"])

@@ -169,6 +169,56 @@ def api_dashboard(req: DashboardReq):
                 row["headline"] = summ.headline
             rows.append(row)
         except Exception as e:
-            failed.append({"name": name, "error": str(e)})
+            failed.append(
+                {
+                    "name": name,
+                    "url": url,
+                    "reason": _classify_remote_error(str(e)),
+                    "error": str(e),
+                }
+            )
     rows.sort(key=lambda x: x["commits"], reverse=True)
     return {"rows": rows, "failed": failed, "range_label": r.label}
+
+
+def _classify_remote_error(msg: str) -> str:
+    m = msg.lower()
+    if any(
+        k in m
+        for k in (
+            "authentication",
+            "auth",
+            "403",
+            "denied",
+            "permission",
+            "credential",
+            "401",
+        )
+    ):
+        return "auth"
+    if any(
+        k in m
+        for k in (
+            "not found",
+            "404",
+            "repository not found",
+            "does not exist",
+            "could not read",
+        )
+    ):
+        return "not_found"
+    if any(
+        k in m
+        for k in (
+            "could not resolve",
+            "timed out",
+            "timeout",
+            "network",
+            "connection",
+            "unable to access",
+            "ssl",
+            "certificate",
+        )
+    ):
+        return "network"
+    return "other"
