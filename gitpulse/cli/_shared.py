@@ -3,7 +3,7 @@ from __future__ import annotations
 import typer
 from rich.console import Console
 
-from ..core.dateparse import parse_range, DateRange
+from ..core.dateparse import DateRange, parse_range
 
 app = typer.Typer(
     help="GitPulse - AI-powered git activity digests.",

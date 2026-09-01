@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 
@@ -34,7 +33,7 @@ def api_set_lang(body: dict):
 
 
 @router.get("/browse")
-def api_browse(path: Optional[str] = None):
+def api_browse(path: str | None = None):
     from .. import browse
 
     return browse.list_dir(path)
@@ -49,7 +48,6 @@ def api_drives():
 
 @router.post("/branches")
 def api_branches(body: dict):
-    import subprocess
 
     path = body.get("path")
     url = body.get("url")

@@ -5,8 +5,8 @@ import os
 import textwrap
 from dataclasses import dataclass
 
-from ..core.models import RepoActivity
 from ..core import config
+from ..core.models import RepoActivity
 from . import providers
 
 DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", "claude-sonnet-4-6")
@@ -110,18 +110,43 @@ class Summary:
         )
 
     @classmethod
-    def from_json(cls, text: str) -> "Summary":
+    def from_json(cls, text: str) -> Summary:
         text = text.strip()
         if text.startswith("```"):
             text = text.split("```", 2)[1]
-            if text.startswith("json"):
-                text = text[4:]
+            text = text.removeprefix("json")
         data = json.loads(text)
+        if not isinstance(data, dict):
+            raise ValueError("summary response was not a JSON object")
+        headline = data.get("headline")
+        synthesis = data.get("synthesis")
+        themes = data.get("themes")
+        if isinstance(themes, list):
+            themes = [
+                {"title": x, "narrative": "", "commits": []}
+                if isinstance(x, str) and x
+                else x
+                for x in themes
+            ]
+        themes_valid = isinstance(themes, list) and all(
+            isinstance(x, dict) and x.get("title") for x in themes
+        )
+        if not headline or not synthesis or not themes_valid:
+            raise ValueError(
+                "summary response did not match the expected schema "
+                "(missing headline/synthesis, or themes are not "
+                "{title, narrative, commits} objects)"
+            )
+        observations = data.get("observations")
+        if not isinstance(observations, list) or not all(
+            isinstance(o, str) for o in observations
+        ):
+            observations = []
         return cls(
-            headline=data.get("headline", ""),
-            synthesis=data.get("synthesis", ""),
-            themes=data.get("themes", []),
-            observations=data.get("observations", []),
+            headline=headline,
+            synthesis=synthesis,
+            themes=themes,
+            observations=observations,
             raw=text,
         )
 
@@ -162,8 +187,20 @@ def _build_payload(activity: RepoActivity) -> str:
     signals = _signals(activity)
     if signals:
         lines.append("")
-        lines.append("Precomputed signals (use as evidence; verify against commits):")
+        lines.append(
+            "Precomputed signals (cite as evidence inside your narrative; "
+            "do not return this list itself, and do not invent your own "
+            "data fields from it):"
+        )
         lines.extend(f"- {s}" for s in signals)
+
+    lines.append("")
+    lines.append(
+        "Reminder: reply with ONLY the JSON object from the system prompt "
+        "(the headline/synthesis/themes/observations shape) — prose "
+        "written from everything above, not a restatement of the commits "
+        "or signals in a different structure."
+    )
 
     return "\n".join(lines)
 
@@ -297,7 +334,7 @@ def summarize(
         return _local_fallback(activity, lang)
 
     if model:
-        setattr(prov, "model", model)
+        prov.model = model
 
     max_tokens = min(16000, max(4000, activity.commit_count * 170))
     try:
@@ -330,7 +367,7 @@ def summarize(
             result.cost_usd,
         )
         return summ
-    except (json.JSONDecodeError, KeyError):
+    except (ValueError, KeyError):
         fb = _local_fallback(activity, lang)
         fb.raw = result.text
         fb.source = f"local({prov.name}-parse-failed)"

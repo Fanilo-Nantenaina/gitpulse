@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
 
 import pygit2
 
@@ -49,10 +48,10 @@ def _file_changes(repo: pygit2.Repository, commit: pygit2.Commit) -> list[FileCh
 def collect_activity(
     repo_path: str | os.PathLike,
     since: datetime,
-    until: Optional[datetime] = None,
-    branch: Optional[str] = None,
-    name: Optional[str] = None,
-    authors: Optional[list[str]] = None,
+    until: datetime | None = None,
+    branch: str | None = None,
+    name: str | None = None,
+    authors: list[str] | None = None,
 ) -> RepoActivity:
     repo_path = Path(repo_path).resolve()
     repo_name = name or repo_path.name
@@ -136,7 +135,7 @@ def collect_activity(
 
 
 def list_authors(
-    repo_path: str | os.PathLike, since: datetime, until: Optional[datetime] = None
+    repo_path: str | os.PathLike, since: datetime, until: datetime | None = None
 ) -> list[dict]:
     act = collect_activity(repo_path, since, until, branch=ALL_BRANCHES)
     counts: dict[str, dict] = {}

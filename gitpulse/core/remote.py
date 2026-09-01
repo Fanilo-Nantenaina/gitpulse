@@ -20,8 +20,7 @@ def cache_dir() -> Path:
 
 def repo_name_from_url(url: str) -> str:
     cleaned = url.rstrip("/")
-    if cleaned.endswith(".git"):
-        cleaned = cleaned[:-4]
+    cleaned = cleaned.removesuffix(".git")
     tail = re.split(r"[/:]", cleaned)[-1]
     return tail or "repo"
 

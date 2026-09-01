@@ -6,21 +6,21 @@ from rich.console import Console
 from rich.padding import Padding
 from rich.panel import Panel
 from rich.progress import (
+    BarColumn,
+    MofNCompleteColumn,
     Progress,
     SpinnerColumn,
-    BarColumn,
+    TaskProgressColumn,
     TextColumn,
     TimeElapsedColumn,
-    MofNCompleteColumn,
-    TaskProgressColumn,
 )
 from rich.table import Table
 from rich.text import Text
 
-from ..core.models import RepoActivity
-from ..core.trends import Comparison
-from ..core.standup import StandupContext
 from ..ai.summarizer import Summary
+from ..core.models import RepoActivity
+from ..core.standup import StandupContext
+from ..core.trends import Comparison
 
 console = Console()
 

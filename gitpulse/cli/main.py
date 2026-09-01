@@ -1,18 +1,10 @@
 from __future__ import annotations
 
+from . import (
+    commands_dashboard,  # noqa: F401  dashboard
+    commands_service,  # noqa: F401  service start/stop/status/install, gui
+    )
 from ._shared import app
-
-from . import (
-    commands_analyze,
-)  # noqa: F401  summary, log, standup, commit-msg, compare, digest
-from . import (
-    commands_remote,
-)  # noqa: F401  remote, track, untrack, tracked, cache-clear
-from . import commands_dashboard  # noqa: F401  dashboard
-from . import (
-    commands_tools,
-)  # noqa: F401  serve, changelog, watch, config, providers, dates
-from . import commands_service  # noqa: F401  service start/stop/status/install, gui
 
 
 def main():

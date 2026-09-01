@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone, timedelta
+from datetime import timedelta
 
 import pytest
 
-from gitpulse.core.dateparse import parse_range, parse_interval
+from gitpulse.core.dateparse import parse_interval, parse_range
 
 
 def test_parse_range_days():
@@ -49,7 +49,6 @@ def test_common_windows_do_not_raise(expr):
 
 def test_all_time_range():
     from gitpulse.core.dateparse import parse_range
-    from datetime import datetime, timezone
 
     r = parse_range("all")
     assert r.label == "all time"

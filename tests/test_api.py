@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 
 from gitpulse.web.server import app
@@ -114,7 +113,8 @@ def test_summary_bad_path_returns_400():
 
 def test_index_has_cache_busting_and_no_cache_header():
     from fastapi.testclient import TestClient
-    from gitpulse.web.server import app, _VERSION
+
+    from gitpulse.web.server import _VERSION, app
 
     c = TestClient(app)
     r = c.get("/")
@@ -150,6 +150,7 @@ def test_dashboard_reports_failed_with_reason(tmp_path, monkeypatch):
 
     config.add_tracked("https://github.com/nope-xyz-123/missing-404.git", "Bogus")
     from fastapi.testclient import TestClient
+
     from gitpulse.web.server import app
 
     c = TestClient(app)

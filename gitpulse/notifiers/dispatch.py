@@ -4,8 +4,8 @@ import json
 import os
 import smtplib
 import urllib.request
+from collections.abc import Callable
 from email.mime.text import MIMEText
-from typing import Callable
 
 
 def _post_json(url: str, payload: dict) -> bool:

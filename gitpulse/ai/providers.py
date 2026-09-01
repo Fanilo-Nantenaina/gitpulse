@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 import os
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 
 from ..core import config as _config
@@ -98,12 +98,26 @@ class ClaudeProvider(Provider):
         import anthropic
 
         client = anthropic.Anthropic(api_key=self._key())
-        msg = client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        extra_headers = {}
+        workspace_id = os.environ.get("ANTHROPIC_WORKSPACE_ID")
+        if workspace_id:
+            extra_headers["anthropic-workspace-id"] = workspace_id
+        try:
+            msg = client.messages.create(
+                model=self.model,
+                max_tokens=max_tokens,
+                system=system,
+                messages=[{"role": "user", "content": prompt}],
+                extra_headers=extra_headers or None,
+            )
+        except anthropic.BadRequestError as e:
+            if "workspace" in str(e).lower() and not workspace_id:
+                raise RuntimeError(
+                    "This Claude API key requires a workspace: set the "
+                    "ANTHROPIC_WORKSPACE_ID environment variable, or use a "
+                    "standard API key from console.anthropic.com instead."
+                ) from e
+            raise
         text = "".join(b.text for b in msg.content if b.type == "text")
         pin, pout = self._price()
         cost = msg.usage.input_tokens * pin / 1e6 + msg.usage.output_tokens * pout / 1e6
@@ -273,8 +287,15 @@ class OllamaProvider(Provider):
     def resolve_model(self):
         if self.model:
             return self.model
-        models = self.list_models()
-        return models[0] if models else None
+        data = self._get("/api/tags")
+        models = data.get("models", []) if data else []
+        if not models:
+            return None
+        def rank(m):
+            caps = m.get("capabilities", [])
+            return ("completion" not in caps, "thinking" in caps)
+
+        return sorted(models, key=rank)[0]["name"]
 
     def generate(self, system, prompt, max_tokens):
         model = self.resolve_model()

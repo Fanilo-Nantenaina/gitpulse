@@ -1,13 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
-from ._shared import app, console
 from ..service import controller, units
-
+from ._shared import app, console
 
 service_app = typer.Typer(
     help="Run the GitPulse web UI as a background service.", no_args_is_help=True
@@ -38,7 +36,7 @@ def service_stop():
     if res.get("stopped"):
         console.print(f"[green]Stopped[/] (pid {res['pid']})")
     else:
-        console.print(f"[yellow]Not running.[/]")
+        console.print("[yellow]Not running.[/]")
 
 
 @service_app.command("status")
@@ -71,7 +69,7 @@ def service_install(
     every: str = typer.Option("24h", "--every", help="(watch) cadence"),
     when: str = typer.Option("24h", "--when", help="(watch) window each digest covers"),
     to: str = typer.Option("desktop", "--to", help="(watch) channels, comma-separated"),
-    write: Optional[Path] = typer.Option(
+    write: Path | None = typer.Option(
         None, "--write", help="Write the unit file to this path"
     ),
 ):
@@ -108,7 +106,7 @@ def shutdown(
             )
         if res["failed"]:
             console.print(
-                f"[yellow]Could not stop:[/] "
+                "[yellow]Could not stop:[/] "
                 + ", ".join(str(p) for p in res["failed"])
                 + " — close this terminal and retry, or stop them in Task Manager."
             )

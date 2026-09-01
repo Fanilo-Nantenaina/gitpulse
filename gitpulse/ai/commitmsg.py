@@ -3,9 +3,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
-from . import providers
 from ..core import config
 from ..core.diffstage import WorkingChanges
+from . import providers
 
 
 @dataclass
@@ -97,8 +97,7 @@ def _parse(text: str) -> CommitMessage:
     cleaned = text.strip()
     if cleaned.startswith("```"):
         cleaned = cleaned.split("```", 2)[1] if "```" in cleaned[3:] else cleaned[3:]
-        if cleaned.startswith("json"):
-            cleaned = cleaned[4:]
+        cleaned = cleaned.removeprefix("json")
     start, end = cleaned.find("{"), cleaned.rfind("}")
     if start != -1 and end != -1:
         cleaned = cleaned[start : end + 1]
@@ -126,7 +125,7 @@ def generate_commit_message(
             msg.subject = _apply_type(msg.subject, force_type)
         return msg
     if model:
-        setattr(prov, "model", model)
+        prov.model = model
 
     system = _system_prompt(lang)
     if force_type:

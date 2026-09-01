@@ -5,6 +5,7 @@ function renderSummary(a, s) {
   if (s.synthesis) h += '<div class="block"><h3>' + t('overview') + '</h3><div class="overview">' + esc(s.synthesis) + '</div></div>';
   if (s.themes.length) h += '<div class="block"><h3>' + t('themes') + '</h3>' + s.themes.map(x => '<div class="theme"><div class="t">' + esc(x.title) + '</div><div class="narr">' + esc(x.narrative) + '</div>' + (x.commits && x.commits.length ? '<div class="shas">' + x.commits.map(esc).join(' ') + '</div>' : '') + '</div>').join('') + '</div>';
   if (s.observations.length) h += '<div class="block"><h3>' + t('observations') + '</h3>' + s.observations.map(o => '<div class="obs"><span class="dot">&#9656;</span><span>' + esc(o) + '</span></div>').join('') + '</div>';
+  if (s.fallback_reason) h += '<div class="banner info"><span>&#9432; ' + t('fallbackNote') + '</span></div><details class="fallback-detail"><summary>' + t('fallbackDetail') + '</summary><pre>' + esc(s.fallback_reason) + '</pre></details>';
   out.innerHTML = h + '<div class="cost">' + esc(s.cost_note) + '</div>';
 }
 async function loadStatsPanel(body) {

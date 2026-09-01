@@ -42,8 +42,7 @@ def test_collect_branched_repo_has_merge(branched_repo):
     assert act.commit_count >= 6
 
 
-from datetime import datetime, timezone
-from gitpulse.core.collector import collect_activity, list_authors, ALL_BRANCHES
+from gitpulse.core.collector import ALL_BRANCHES, list_authors
 
 _SINCE = datetime(2026, 1, 1, tzinfo=timezone.utc)
 _UNTIL = datetime(2026, 12, 31, tzinfo=timezone.utc)
@@ -109,7 +108,8 @@ def test_all_branches_with_truly_unmerged_branch(tmp_path):
 
 
 def test_author_filter(tmp_path):
-    import subprocess, os
+    import os
+    import subprocess
 
     d = tmp_path / "r2"
     d.mkdir()
@@ -152,7 +152,9 @@ def test_author_filter(tmp_path):
 
 
 def test_compute_stats(tmp_path):
-    import subprocess, os
+    import os
+    import subprocess
+
     from gitpulse.core.stats import compute_stats
 
     d = tmp_path / "s"

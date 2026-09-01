@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
 
 
 @dataclass
@@ -26,7 +25,7 @@ class Commit:
     summary: str
     body: str
     files: list[FileChange] = field(default_factory=list)
-    branch: Optional[str] = None
+    branch: str | None = None
 
     @property
     def short_sha(self) -> str:

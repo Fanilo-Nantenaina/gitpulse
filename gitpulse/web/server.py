@@ -8,7 +8,8 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from .routes import analysis, commit, providers as providers_routes, repos
+from .routes import analysis, commit, repos
+from .routes import providers as providers_routes
 
 app = FastAPI(title="GitPulse")
 _STATIC = Path(__file__).parent / "static"

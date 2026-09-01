@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from gitpulse.ai.commitmsg import _apply_type, generate_commit_message
 from gitpulse.core.diffstage import collect_working_changes
-from gitpulse.ai.commitmsg import generate_commit_message, _apply_type
 
 
 def test_collect_all_scope_includes_staged_and_untracked(dirty_repo):

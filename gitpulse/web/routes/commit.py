@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from ...core.diffstage import collect_working_changes
 from ...ai.commitmsg import generate_commit_message
+from ...core.diffstage import collect_working_changes
 from ..schemas import CommitMsgReq
 
 router = APIRouter(prefix="/api")

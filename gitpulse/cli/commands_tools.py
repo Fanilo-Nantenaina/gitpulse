@@ -2,20 +2,19 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.table import Table
 
-from ._shared import app, console, PROVIDER_HELP, MODEL_HELP, LANG_HELP
-from ..core.collector import collect_activity
-from ..core.changelog import generate_changelog
-from ..core.dateparse import parse_range, parse_interval, suggestions
-from ..core import config as gp_config
-from ..ai.summarizer import summarize
 from ..ai import providers as ai_providers
-from ..scheduler.runner import run_scheduler
+from ..ai.summarizer import summarize
+from ..core import config as gp_config
+from ..core.changelog import generate_changelog
+from ..core.collector import collect_activity
+from ..core.dateparse import parse_interval, parse_range, suggestions
 from ..notifiers.dispatch import dispatch
+from ..scheduler.runner import run_scheduler
+from ._shared import LANG_HELP, MODEL_HELP, PROVIDER_HELP, app, console
 from .render import render_markdown
 
 
@@ -34,7 +33,7 @@ def serve(
 @app.command()
 def changelog(
     path: Path = typer.Argument(Path(".")),
-    from_ref: Optional[str] = typer.Option(None, "--from"),
+    from_ref: str | None = typer.Option(None, "--from"),
     to_ref: str = typer.Option("HEAD", "--to"),
 ):
     console.print(generate_changelog(str(path), from_ref, to_ref))
@@ -47,8 +46,8 @@ def watch(
     when: str = typer.Option("24h", "--when", "-w", help="Window each digest covers"),
     to: list[str] = typer.Option(["desktop"], "--to"),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
-    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
+    model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     parse_interval(every)
 
@@ -70,7 +69,7 @@ def watch(
 
 @app.command()
 def config(
-    lang: Optional[str] = typer.Option(
+    lang: str | None = typer.Option(
         None, "--lang", "-l", help="Set the default output language (code or name)."
     ),
     show: bool = typer.Option(False, "--show", help="Show current settings."),

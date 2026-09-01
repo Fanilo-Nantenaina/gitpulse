@@ -1,31 +1,30 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 
-from ._shared import (
-    app,
-    console,
-    _range,
-    WHEN_HELP,
-    PROVIDER_HELP,
-    MODEL_HELP,
-    LANG_HELP,
-)
+from ..ai.summarizer import summarize
+from ..core import standup as gp_standup
+from ..core import trends as gp_trends
 from ..core.collector import collect_activity
 from ..core.dateparse import parse_interval
-from ..core import trends as gp_trends
-from ..core import standup as gp_standup
-from ..ai.summarizer import summarize
 from ..notifiers.dispatch import dispatch
+from ._shared import (
+    LANG_HELP,
+    MODEL_HELP,
+    PROVIDER_HELP,
+    WHEN_HELP,
+    _range,
+    app,
+    console,
+)
 from .render import (
-    render_terminal,
-    render_markdown,
-    render_log,
     render_comparison,
+    render_log,
+    render_markdown,
     render_standup,
+    render_terminal,
     status_spinner,
 )
 
@@ -34,10 +33,10 @@ from .render import (
 def summary(
     path: Path = typer.Argument(Path("."), help="Repository path"),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
-    branch: Optional[str] = typer.Option(None, "--branch", "-b"),
+    branch: str | None = typer.Option(None, "--branch", "-b"),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
-    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
+    model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     r = _range(when)
     with status_spinner(f"Reading commits from {path.name}"):
@@ -55,7 +54,7 @@ def summary(
 def log(
     path: Path = typer.Argument(Path("."), help="Repository path"),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
-    branch: Optional[str] = typer.Option(None, "--branch", "-b"),
+    branch: str | None = typer.Option(None, "--branch", "-b"),
     files: bool = typer.Option(
         False, "--files", "-f", help="List changed files per commit"
     ),
@@ -69,8 +68,8 @@ def log(
 def standup(
     path: Path = typer.Argument(Path("."), help="Repository path"),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
-    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
+    model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     with status_spinner("Gathering yesterday's work"):
         ctx = gp_standup.gather(path)
@@ -92,11 +91,11 @@ def commit_msg(
         False, "--staged", help="Only staged changes (default: all)"
     ),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
-    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
+    model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
-    from ..core.diffstage import collect_working_changes
     from ..ai.commitmsg import generate_commit_message
+    from ..core.diffstage import collect_working_changes
 
     scope = "staged" if staged else "all"
     changes = collect_working_changes(path, scope=scope)
@@ -127,7 +126,7 @@ def compare(
     periods: int = typer.Option(
         4, "--periods", "-n", help="How many prior periods to average"
     ),
-    branch: Optional[str] = typer.Option(None, "--branch", "-b"),
+    branch: str | None = typer.Option(None, "--branch", "-b"),
 ):
     p = parse_interval(period)
     with status_spinner(f"Comparing last {period} against prior {periods}"):
@@ -143,8 +142,8 @@ def digest(
         ["desktop"], "--to", help="Channels: slack,email,telegram,desktop"
     ),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
-    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
+    model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     r = _range(when)
     with status_spinner(f"Reading commits from {path.name}"):

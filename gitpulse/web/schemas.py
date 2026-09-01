@@ -1,65 +1,63 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from pydantic import BaseModel
 
 
 class SummaryReq(BaseModel):
-    path: Optional[str] = None
-    url: Optional[str] = None
+    path: str | None = None
+    url: str | None = None
     when: str = "7d"
-    branch: Optional[str] = None
-    authors: Optional[list[str]] = None
+    branch: str | None = None
+    authors: list[str] | None = None
     provider: str = "auto"
-    model: Optional[str] = None
-    lang: Optional[str] = None
+    model: str | None = None
+    lang: str | None = None
     refresh: bool = True
     insecure: bool = False
 
 
 class LogReq(BaseModel):
-    path: Optional[str] = None
-    url: Optional[str] = None
+    path: str | None = None
+    url: str | None = None
     when: str = "7d"
-    branch: Optional[str] = None
-    authors: Optional[list[str]] = None
+    branch: str | None = None
+    authors: list[str] | None = None
     refresh: bool = True
     insecure: bool = False
 
 
 class CompareReq(BaseModel):
-    path: Optional[str] = None
-    url: Optional[str] = None
+    path: str | None = None
+    url: str | None = None
     period: str = "7d"
     periods: int = 4
-    branch: Optional[str] = None
+    branch: str | None = None
     refresh: bool = True
     insecure: bool = False
 
 
 class GraphReq(BaseModel):
-    path: Optional[str] = None
-    url: Optional[str] = None
+    path: str | None = None
+    url: str | None = None
     limit: int = 150
     offset: int = 0
     all_commits: bool = False
-    branch: Optional[str] = None
+    branch: str | None = None
     refresh: bool = True
     insecure: bool = False
 
 
 class TrackReq(BaseModel):
     url: str
-    label: Optional[str] = None
+    label: str | None = None
 
 
 class DashboardReq(BaseModel):
     when: str = "7d"
     summarize: bool = False
     provider: str = "auto"
-    model: Optional[str] = None
-    lang: Optional[str] = None
+    model: str | None = None
+    lang: str | None = None
     refresh: bool = True
     insecure: bool = False
 
@@ -67,7 +65,7 @@ class DashboardReq(BaseModel):
 class CommitMsgReq(BaseModel):
     path: str
     scope: str = "all"
-    force_type: Optional[str] = None
+    force_type: str | None = None
     provider: str = "auto"
-    model: Optional[str] = None
-    lang: Optional[str] = None
+    model: str | None = None
+    lang: str | None = None

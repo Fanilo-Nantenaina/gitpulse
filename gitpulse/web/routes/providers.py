@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from ...core import config as gp_config
 from ...ai import providers as ai_providers
+from ...core import config as gp_config
 
 router = APIRouter(prefix="/api")
 

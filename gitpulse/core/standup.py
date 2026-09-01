@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, time, timezone
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 
 import pygit2

@@ -71,7 +71,8 @@ def test_windows_web_is_schtasks(monkeypatch):
 
 
 def test_standup_day_window_uses_local_tz():
-    from datetime import datetime, timezone, timedelta
+    from datetime import datetime, timedelta, timezone
+
     from gitpulse.core import standup
 
     tz = timezone(timedelta(hours=3))
@@ -91,6 +92,7 @@ def test_procutil_run_works():
 
 
 import pytest
+
 from gitpulse.service.controller import _is_gitpulse_server as _isgp
 
 
@@ -127,7 +129,7 @@ def test_shutdown_all_no_processes(tmp_path, monkeypatch):
     monkeypatch.setenv("GITPULSE_CONFIG_DIR", str(tmp_path))
     from gitpulse.service import controller
 
-    monkeypatch.setattr(controller, "_find_gitpulse_pids", lambda: [])
+    monkeypatch.setattr(controller, "_find_gitpulse_pids", list)
     monkeypatch.setattr(controller, "_pids_on_port", lambda port: [])
     res = controller.shutdown_all(port=8420)
     assert res["count"] == 0 and res["failed"] == []

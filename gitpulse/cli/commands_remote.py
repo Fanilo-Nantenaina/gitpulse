@@ -1,35 +1,39 @@
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Optional
-
 import typer
 from rich.table import Table
 
-from ._shared import (app, console, _range,
-                      WHEN_HELP, PROVIDER_HELP, MODEL_HELP, LANG_HELP)
-from ..core.collector import collect_activity
+from ..ai.summarizer import summarize
 from ..core import config as gp_config
 from ..core import remote as gp_remote
-from ..ai.summarizer import summarize
-from .render import render_terminal, render_log, status_spinner
+from ..core.collector import collect_activity
+from ._shared import (
+    LANG_HELP,
+    MODEL_HELP,
+    PROVIDER_HELP,
+    WHEN_HELP,
+    _range,
+    app,
+    console,
+)
+from .render import render_log, render_terminal, status_spinner
 
 
 @app.command()
 def remote(
     url: str = typer.Argument(..., help="Git URL (HTTPS or SSH), any platform"),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
-    branch: Optional[str] = typer.Option(None, "--branch", "-b"),
+    branch: str | None = typer.Option(None, "--branch", "-b"),
     view: str = typer.Option("summary", "--view", help="summary or log"),
     files: bool = typer.Option(False, "--files", "-f", help="(log view) list files"),
-    token: Optional[str] = typer.Option(None, "--token", help="Access token for private HTTPS repos"),
-    username: Optional[str] = typer.Option(None, "--username", help="Username for token auth"),
-    ssh_key: Optional[str] = typer.Option(None, "--ssh-key", help="Path to private SSH key"),
+    token: str | None = typer.Option(None, "--token", help="Access token for private HTTPS repos"),
+    username: str | None = typer.Option(None, "--username", help="Username for token auth"),
+    ssh_key: str | None = typer.Option(None, "--ssh-key", help="Path to private SSH key"),
     no_refresh: bool = typer.Option(False, "--no-refresh", help="Use cached clone, skip fetch"),
     insecure: bool = typer.Option(False, "--insecure", help="Disable SSL cert verification (use at your own risk)"),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
-    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
+    model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     r = _range(when)
     tok, user, key = gp_remote.resolve_auth(token, username, ssh_key)
@@ -66,7 +70,7 @@ def cache_clear():
 @app.command()
 def track(
     url: str = typer.Argument(..., help="Git URL to track for the remote dashboard"),
-    label: Optional[str] = typer.Option(None, "--label", help="Friendly name shown in the dashboard"),
+    label: str | None = typer.Option(None, "--label", help="Friendly name shown in the dashboard"),
 ):
     added, tracked = gp_config.add_tracked(url, label)
     name = label or gp_remote.repo_name_from_url(url)

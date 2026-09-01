@@ -2,16 +2,16 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from ...core.collector import collect_activity
-from ...core.dateparse import parse_range, parse_interval
-from ...core import remote as gp_remote
-from ...core import trends as gp_trends
-from ...core import standup as gp_standup
+from ...ai.summarizer import summarize
 from ...core import config as gp_config
 from ...core import gitgraph
-from ...ai.summarizer import summarize
-from ..schemas import SummaryReq, LogReq, CompareReq, GraphReq, DashboardReq
-from ..serializers import activity_dict, summary_dict, resolve_source
+from ...core import remote as gp_remote
+from ...core import standup as gp_standup
+from ...core import trends as gp_trends
+from ...core.collector import collect_activity
+from ...core.dateparse import parse_interval, parse_range
+from ..schemas import CompareReq, DashboardReq, GraphReq, LogReq, SummaryReq
+from ..serializers import activity_dict, resolve_source, summary_dict
 
 router = APIRouter(prefix="/api")
 

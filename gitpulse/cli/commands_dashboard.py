@@ -1,24 +1,23 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.table import Table
 
-from ._shared import (
-    app,
-    console,
-    _range,
-    WHEN_HELP,
-    PROVIDER_HELP,
-    MODEL_HELP,
-    LANG_HELP,
-)
-from ..core.collector import collect_activity, discover_repos
+from ..ai.summarizer import summarize
 from ..core import config as gp_config
 from ..core import remote as gp_remote
-from ..ai.summarizer import summarize
+from ..core.collector import collect_activity, discover_repos
+from ._shared import (
+    LANG_HELP,
+    MODEL_HELP,
+    PROVIDER_HELP,
+    WHEN_HELP,
+    _range,
+    app,
+    console,
+)
 from .render import progress_bar
 
 
@@ -37,8 +36,8 @@ def dashboard(
         False, "--no-refresh", help="(remote) use cached clones, skip fetch"
     ),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
-    model: Optional[str] = typer.Option(None, "--model", "-m", help=MODEL_HELP),
-    lang: Optional[str] = typer.Option(None, "--lang", "-l", help=LANG_HELP),
+    model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
+    lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ):
     r = _range(when)
 

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 from fastapi import HTTPException
 
 from ..core import remote as gp_remote
@@ -35,7 +33,7 @@ def activity_dict(a) -> dict:
 
 
 def summary_dict(s) -> dict:
-    return {
+    d = {
         "headline": s.headline,
         "synthesis": s.synthesis,
         "themes": s.themes,
@@ -46,9 +44,12 @@ def summary_dict(s) -> dict:
         "output_tokens": s.output_tokens,
         "cost_usd": s.cost_usd,
     }
+    if "-error" in s.source or "-parse-failed" in s.source or "-truncated" in s.source:
+        d["fallback_reason"] = s.raw[:500]
+    return d
 
 
-def resolve_source(req) -> tuple[object, Optional[str]]:
+def resolve_source(req) -> tuple[object, str | None]:
     if getattr(req, "url", None):
         tok, user, key = gp_remote.resolve_auth(None, None, None)
         dest = gp_remote.sync_remote(
