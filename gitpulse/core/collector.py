@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -24,7 +25,21 @@ def _commit_datetime(c: pygit2.Commit) -> datetime:
     return datetime.fromtimestamp(c.commit_time, tz)
 
 
-def _file_changes(repo: pygit2.Repository, commit: pygit2.Commit) -> list[FileChange]:
+_DIFF_CACHE: OrderedDict[tuple[str, str], tuple[FileChange, ...]] = OrderedDict()
+_DIFF_CACHE_MAX = 20_000
+
+
+def clear_diff_cache() -> None:
+    _DIFF_CACHE.clear()
+
+
+def diff_cache_info() -> dict:
+    return {"entries": len(_DIFF_CACHE), "max": _DIFF_CACHE_MAX}
+
+
+def _compute_file_changes(
+    repo: pygit2.Repository, commit: pygit2.Commit
+) -> tuple[FileChange, ...]:
     if commit.parents:
         parent_tree = commit.parents[0].tree
         diff = repo.diff(parent_tree, commit.tree)
@@ -42,7 +57,20 @@ def _file_changes(repo: pygit2.Repository, commit: pygit2.Commit) -> list[FileCh
                 status=_STATUS.get(d.status, "modified"),
             )
         )
-    return changes
+    return tuple(changes)
+
+
+def _file_changes(repo: pygit2.Repository, commit: pygit2.Commit) -> list[FileChange]:
+    key = (repo.path, str(commit.id))
+    cached = _DIFF_CACHE.get(key)
+    if cached is None:
+        cached = _compute_file_changes(repo, commit)
+        _DIFF_CACHE[key] = cached
+        while len(_DIFF_CACHE) > _DIFF_CACHE_MAX:
+            _DIFF_CACHE.popitem(last=False)
+    else:
+        _DIFF_CACHE.move_to_end(key)
+    return list(cached)
 
 
 def collect_activity(

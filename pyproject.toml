@@ -34,3 +34,46 @@ include = ["gitpulse*"]
 
 [tool.setuptools.package-data]
 gitpulse = ["web/static/*", "web/static/css/*", "web/static/js/*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+extend-exclude = ["build", "dist"]
+
+[tool.ruff.lint]
+# F401 (unused import) and F821 (undefined name) are the rules that catch the
+# class of breakage this project already shipped: a formatting pass deleted
+# three imports from gitpulse/cli/main.py and silently removed 17 CLI
+# commands. Keep F enabled everywhere.
+select = ["E", "F", "W", "I", "UP", "B", "C4", "SIM"]
+ignore = [
+    "E501",   # line length is handled by the formatter
+    "SIM108", # ternaries are not always clearer
+    "SIM105", # contextlib.suppress is not clearer than a narrow try/except
+    "B904",   # `raise ... from` - worth doing, but not worth blocking CI today
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# Typer and FastAPI declare defaults by calling these in the signature; B008
+# would flag the framework's own idiom on every command.
+extend-immutable-calls = [
+    "typer.Option",
+    "typer.Argument",
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Body",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Command modules are imported purely to register their Typer commands.
+"gitpulse/cli/main.py" = ["F401"]
+# Tests group imports next to the fixtures they belong with.
+"tests/*" = ["B011", "E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]

@@ -46,9 +46,14 @@ def _avg(values: list[float]) -> float:
     return sum(values) / len(values) if values else 0.0
 
 
-def compare(repo_path, period: timedelta, periods_back: int = 4,
-            branch: str | None = None, now: datetime | None = None,
-            name: str | None = None) -> Comparison:
+def compare(
+    repo_path,
+    period: timedelta,
+    periods_back: int = 4,
+    branch: str | None = None,
+    now: datetime | None = None,
+    name: str | None = None,
+) -> Comparison:
     now = now or datetime.now().astimezone()
     cur_since = now - period
     current = collect_activity(repo_path, cur_since, now, branch=branch, name=name)
@@ -57,7 +62,9 @@ def compare(repo_path, period: timedelta, periods_back: int = 4,
     for i in range(1, periods_back + 1):
         until = now - period * i
         since = now - period * (i + 1)
-        baselines.append(collect_activity(repo_path, since, until, branch=branch, name=name))
+        baselines.append(
+            collect_activity(repo_path, since, until, branch=branch, name=name)
+        )
 
     def metric(label, fn):
         return Metric(label, fn(current), _avg([fn(b) for b in baselines]))

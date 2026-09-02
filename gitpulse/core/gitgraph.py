@@ -170,7 +170,7 @@ def graph(
                 to = next((j for j, w in enumerate(after) if w == v), None)
                 if to is not None:
                     edges.append({"from": i, "to": to, "kind": "pass"})
-        for tgt, p in zip(merge_targets, parents[1:]):
+        for tgt in merge_targets[: max(0, len(parents) - 1)]:
             edges.append({"from": my_lane, "to": tgt, "kind": "merge"})
 
         msg = c.message.strip()
@@ -200,7 +200,7 @@ def graph(
         if i == 0:
             n["incoming"] = []
         else:
-            n["incoming"] = sorted(set(e["to"] for e in nodes[i - 1]["edges"]))
+            n["incoming"] = sorted({e["to"] for e in nodes[i - 1]["edges"]})
         n["tip"] = n["lane"] not in n["incoming"]
 
     max_w = 1

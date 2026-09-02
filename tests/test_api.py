@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from gitpulse.web.server import app
 
-client = TestClient(app)
+client = TestClient(app, base_url="http://127.0.0.1:8420")
 
 
 def test_providers_endpoint():
@@ -116,7 +116,7 @@ def test_index_has_cache_busting_and_no_cache_header():
 
     from gitpulse.web.server import _VERSION, app
 
-    c = TestClient(app)
+    c = TestClient(app, base_url="http://127.0.0.1:8420")
     r = c.get("/")
     assert r.status_code == 200
     assert "no-cache" in r.headers.get("cache-control", "")
@@ -153,7 +153,7 @@ def test_dashboard_reports_failed_with_reason(tmp_path, monkeypatch):
 
     from gitpulse.web.server import app
 
-    c = TestClient(app)
+    c = TestClient(app, base_url="http://127.0.0.1:8420")
     r = c.post("/api/dashboard", json={"when": "7d", "summarize": False})
     d = r.json()
     assert "failed" in d

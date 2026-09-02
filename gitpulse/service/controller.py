@@ -70,7 +70,7 @@ def start(host: str = "127.0.0.1", port: int = 8420) -> dict:
             "url": f"http://{host}:{port}",
         }
 
-    log = open(log_file(), "ab")
+    log = open(log_file(), "ab")  # noqa: SIM115
     cmd = [
         sys.executable,
         "-m",

@@ -10,6 +10,7 @@ from ...core import standup as gp_standup
 from ...core import trends as gp_trends
 from ...core.collector import collect_activity
 from ...core.dateparse import parse_interval, parse_range
+from ...core.gitcreds import redact
 from ..schemas import CompareReq, DashboardReq, GraphReq, LogReq, SummaryReq
 from ..serializers import activity_dict, resolve_source, summary_dict
 
@@ -18,6 +19,8 @@ router = APIRouter(prefix="/api")
 
 @router.post("/summary")
 def api_summary(req: SummaryReq):
+    from ...core.stats import compute_stats
+
     try:
         r = parse_range(req.when)
         src, name = resolve_source(req)
@@ -30,6 +33,7 @@ def api_summary(req: SummaryReq):
         return {
             "activity": activity_dict(activity),
             "summary": summary_dict(summ),
+            "stats": compute_stats(activity),
             "range_label": r.label,
         }
     except (ValueError, RuntimeError) as e:
@@ -169,12 +173,13 @@ def api_dashboard(req: DashboardReq):
                 row["headline"] = summ.headline
             rows.append(row)
         except Exception as e:
+            safe = redact(str(e), tok)
             failed.append(
                 {
                     "name": name,
-                    "url": url,
-                    "reason": _classify_remote_error(str(e)),
-                    "error": str(e),
+                    "url": gp_remote._strip_userinfo(url),
+                    "reason": _classify_remote_error(safe),
+                    "error": safe,
                 }
             )
     rows.sort(key=lambda x: x["commits"], reverse=True)

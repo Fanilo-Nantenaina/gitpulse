@@ -9,7 +9,7 @@ from ..core import config
 from ..core.models import RepoActivity
 from . import providers
 
-DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", "claude-sonnet-4-6")
+DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", providers.DEFAULT_CLAUDE_MODEL)
 
 
 def _system_prompt(lang_code: str) -> str:
@@ -105,9 +105,7 @@ class Summary:
                 )
             return "local fallback (no model call, $0.00)"
         cost = f"${self.cost_usd:.4f}" if self.cost_usd else "free"
-        return (
-            f"{self.source} · {self.input_tokens}+{self.output_tokens} tok " f"· {cost}"
-        )
+        return f"{self.source} · {self.input_tokens}+{self.output_tokens} tok · {cost}"
 
     @classmethod
     def from_json(cls, text: str) -> Summary:
@@ -170,8 +168,7 @@ def _build_payload(activity: RepoActivity) -> str:
     ]
     for c in reversed(activity.commits):
         lines.append(
-            f"- [{c.short_sha}] {c.when:%Y-%m-%d %H:%M} "
-            f"by {c.author_name}: {c.summary}"
+            f"- [{c.short_sha}] {c.when:%Y-%m-%d %H:%M} by {c.author_name}: {c.summary}"
         )
         if c.body:
             for bl in c.body.splitlines():

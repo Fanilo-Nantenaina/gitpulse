@@ -126,8 +126,7 @@ function whenValue() { const ws = document.getElementById('ctlWhenSel'); if (!ws
 
 const out = $('#output');
 function loading(m) { out.innerHTML = '<div class="loading"><span class="spinner"></span> ' + m + '</div>'; }
-function showErr(e) { out.innerHTML = '<div class="err">' + (e.message || e) + '</div>'; }
-function esc(s) { return (s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+function showErr(e) { out.innerHTML = '<div class="err">' + esc(e && e.message ? e.message : e) + '</div>'; }
 
 function cloudGuard(onProceed) {
   const isCloud = selectedIsCloud();
@@ -147,7 +146,7 @@ function cloudGuard(onProceed) {
 
 function headCard(a, headline) {
   const max = Math.max(1, ...Object.values(a.hour_histogram));
-  const bars = Object.keys(a.hour_histogram).map(h => '<div class="bar" style="height:' + Math.max(2, (a.hour_histogram[h] / max) * 34) + 'px" title="' + h + 'h: ' + a.hour_histogram[h] + '"></div>').join('');
+  const bars = Object.keys(a.hour_histogram).map(h => '<div class="bar" style="height:' + Math.max(2, (a.hour_histogram[h] / max) * 34) + 'px" title="' + esc(h) + 'h: ' + esc(a.hour_histogram[h]) + '"></div>').join('');
   return '<div class="head-card"><div class="title">' + esc(a.repo_name) + ' &middot; ' + a.since.slice(0, 10) + ' &rarr; ' + a.until.slice(0, 10) + '</div>' +
     (headline ? '<div class="headline">' + esc(headline) + '</div>' : '') +
     '<div class="stats"><span><span class="n">' + a.commit_count + '</span> ' + t('commits') + '</span><span class="add"><span class="n">+' + a.additions + '</span></span><span class="del"><span class="n">-' + a.deletions + '</span></span><span><span class="n">' + a.files_touched + '</span> ' + t('files') + '</span><span><span class="n">' + a.active_days + '</span> ' + t('activeDays') + '</span></div>' +

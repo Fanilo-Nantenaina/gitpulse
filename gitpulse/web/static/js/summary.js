@@ -1,4 +1,4 @@
-function runSummary() { cloudGuard(async () => { try { loading('...'); const body = baseBody(Object.assign({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() }, modelArgs())); const d = await post('/api/summary', body); renderSummary(d.activity, d.summary); loadStatsPanel(body); } catch (e) { showErr(e); } }); }
+function runSummary() { cloudGuard(async () => { try { loading('...'); const body = baseBody(Object.assign({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() }, modelArgs())); const d = await post('/api/summary', body); renderSummary(d.activity, d.summary); showStatsPanel(d.stats, body); } catch (e) { showErr(e); } }); }
 function renderSummary(a, s) {
   let h = headCard(a, s.headline);
   h += '<div id="statsMount"></div>';
@@ -8,6 +8,11 @@ function renderSummary(a, s) {
   if (s.fallback_reason) h += '<div class="banner info"><span>&#9432; ' + t('fallbackNote') + '</span></div><details class="fallback-detail"><summary>' + t('fallbackDetail') + '</summary><pre>' + esc(s.fallback_reason) + '</pre></details>';
   out.innerHTML = h + '<div class="cost">' + esc(s.cost_note) + '</div>';
 }
+function showStatsPanel(stats, body) {
+  const mount = document.getElementById('statsMount'); if (!mount) return;
+  if (stats) { mount.innerHTML = renderStats(stats); return; }
+  loadStatsPanel(body);
+}
 async function loadStatsPanel(body) {
   const mount = document.getElementById('statsMount'); if (!mount) return;
   mount.innerHTML = '<div class="stats-loading"><span class="spinner"></span> ' + t('statsLoading') + '</div>';
@@ -15,7 +20,7 @@ async function loadStatsPanel(body) {
     const d = await post('/api/stats', body);
     mount.innerHTML = renderStats(d.stats);
   } catch (e) {
-    mount.innerHTML = '<div class="err">' + (e.message || e) + '</div>';
+    mount.innerHTML = '<div class="err">' + esc(e && e.message ? e.message : e) + '</div>';
   }
 }
 async function runLog() { try { loading('...'); const d = await post('/api/log', baseBody({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() })); const a = d.activity; let h = headCard(a, null) + '<div class="block"><h3>' + t('log') + '</h3>'; if (!a.commits.length) h += '<div class="placeholder" style="margin-top:20px">' + t('noCommits') + '</div>'; a.commits.forEach(c => { h += '<div class="commit"><span class="sha">' + c.sha + '</span><div class="meta">' + esc(c.author) + ' &middot; ' + c.when.replace('T', ' ').slice(0, 16) + '</div><div class="msg">' + esc(c.summary) + '</div><div class="cstat"><span class="add">+' + c.additions + '</span> / <span class="del">-' + c.deletions + '</span> &middot; ' + c.files + ' ' + t('files') + '</div></div>'; }); out.innerHTML = h + '</div>'; } catch (e) { showErr(e); } }

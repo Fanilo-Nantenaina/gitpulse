@@ -10,6 +10,8 @@ from urllib.parse import urlparse, urlunparse
 
 import pygit2
 
+from .gitcreds import git_config_env, redact
+
 
 def cache_dir() -> Path:
     base = os.environ.get("GITPULSE_CACHE_DIR")
@@ -30,12 +32,11 @@ def _cache_path(url: str) -> Path:
     return cache_dir() / f"{repo_name_from_url(url)}-{digest}.git"
 
 
-def _inject_token(url: str, token: str, username: str | None) -> str:
+def _strip_userinfo(url: str) -> str:
     parts = urlparse(url)
-    if parts.scheme not in ("http", "https"):
+    if parts.scheme not in ("http", "https") or "@" not in parts.netloc:
         return url
-    user = username or "git"
-    netloc = f"{user}:{token}@{parts.hostname}"
+    netloc = parts.hostname or ""
     if parts.port:
         netloc += f":{parts.port}"
     return urlunparse((parts.scheme, netloc, parts.path, "", "", ""))
@@ -81,7 +82,9 @@ def _clone_pygit2(url: str, dest: Path, token, username, ssh_key) -> bool:
         return False
 
 
-def _run_git(args: list[str], env: dict | None = None) -> tuple[bool, str]:
+def _run_git(
+    args: list[str], env: dict | None = None, secret: str | None = None
+) -> tuple[bool, str]:
     from .procutil import run as _prun
 
     try:
@@ -92,40 +95,26 @@ def _run_git(args: list[str], env: dict | None = None) -> tuple[bool, str]:
             timeout=600,
             env={**os.environ, **(env or {})},
         )
-        return proc.returncode == 0, (proc.stderr or proc.stdout)
+        return proc.returncode == 0, redact(proc.stderr or proc.stdout, secret)
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        return False, str(e)
-
-
-def _git_ssl_opts(insecure: bool) -> list[str]:
-    return ["-c", "http.sslVerify=false"] if insecure else []
+        return False, redact(str(e), secret)
 
 
 def _clone_cli(
     url: str, dest: Path, token, username, insecure: bool = False
 ) -> tuple[bool, str]:
-    clone_url = url
-    env = {"GIT_TERMINAL_PROMPT": "0"}
-    if token and not _is_ssh(url):
-        clone_url = _inject_token(url, token, username)
-    args = _git_ssl_opts(insecure) + [
-        "clone",
-        "--bare",
-        "--quiet",
-        clone_url,
-        str(dest),
-    ]
-    return _run_git(args, env)
+    clone_url = _strip_userinfo(url)
+    env = git_config_env(token, username, insecure, for_url=clone_url)
+    args = ["clone", "--bare", "--quiet", clone_url, str(dest)]
+    return _run_git(args, env, secret=token)
 
 
 def _fetch_cli(
     dest: Path, url: str, token, username, insecure: bool = False
 ) -> tuple[bool, str]:
-    env = {"GIT_TERMINAL_PROMPT": "0"}
-    fetch_url = url
-    if token and not _is_ssh(url):
-        fetch_url = _inject_token(url, token, username)
-    args = _git_ssl_opts(insecure) + [
+    fetch_url = _strip_userinfo(url)
+    env = git_config_env(token, username, insecure, for_url=fetch_url)
+    args = [
         "-C",
         str(dest),
         "fetch",
@@ -133,7 +122,7 @@ def _fetch_cli(
         fetch_url,
         "+refs/heads/*:refs/heads/*",
     ]
-    return _run_git(args, env)
+    return _run_git(args, env, secret=token)
 
 
 def _is_valid_repo(dest: Path) -> bool:
@@ -193,7 +182,10 @@ def sync_remote(
             "Fix the certificate server-side, or — at your own risk — enable "
             "the 'Allow insecure SSL' option for this repo."
         )
-    raise RuntimeError(f"Could not clone {url}.\ngit said: {msg.strip()[:400]}\n{hint}")
+    raise RuntimeError(
+        f"Could not clone {_strip_userinfo(url)}.\n"
+        f"git said: {redact(msg, token).strip()[:400]}\n{hint}"
+    )
 
 
 def resolve_auth(

@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from ...core import config as gp_config
 from ...core import remote as gp_remote
+from ...core.gitcreds import git_config_env, redact
 from ..schemas import TrackReq
 
 router = APIRouter(prefix="/api")
@@ -53,6 +54,7 @@ def api_branches(body: dict):
     url = body.get("url")
     include_remote = body.get("include_remote", False)
     result = {"local": [], "remote": [], "remote_url": None, "head": None}
+    tok = None
     try:
         if path:
             import pygit2
@@ -81,18 +83,16 @@ def api_branches(body: dict):
                 url = result["remote_url"]
         if include_remote and url:
             tok, user, key = gp_remote.resolve_auth(None, None, None)
-            ls_url = url
-            if tok and url.startswith("http"):
-                ls_url = gp_remote._inject_token(url, tok, user)
-            ssl_opts = ["-c", "http.sslVerify=false"] if body.get("insecure") else []
+            ls_url = gp_remote._strip_userinfo(url)
+            env = git_config_env(tok, user, bool(body.get("insecure")), for_url=ls_url)
             from ...core.procutil import run as _prun
 
             proc = _prun(
-                ["git", *ssl_opts, "ls-remote", "--heads", ls_url],
+                ["git", "ls-remote", "--heads", ls_url],
                 capture_output=True,
                 text=True,
                 timeout=30,
-                env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+                env={**os.environ, **env},
             )
             if proc.returncode == 0:
                 for line in proc.stdout.strip().splitlines():
@@ -101,7 +101,7 @@ def api_branches(body: dict):
     except HTTPException:
         raise
     except Exception as e:
-        result["error"] = str(e)
+        result["error"] = redact(str(e), tok)
     return result
 
 

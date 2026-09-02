@@ -10,8 +10,10 @@ from fastapi.staticfiles import StaticFiles
 
 from .routes import analysis, commit, repos
 from .routes import providers as providers_routes
+from .security import LocalOriginGuard
 
 app = FastAPI(title="GitPulse")
+app.add_middleware(LocalOriginGuard)
 _STATIC = Path(__file__).parent / "static"
 
 app.include_router(providers_routes.router)
@@ -65,6 +67,12 @@ if _STATIC.exists():
 
 def serve(host: str = "127.0.0.1", port: int = 8420, open_browser: bool = True):
     import uvicorn
+
+    app.user_middleware = [
+        m for m in app.user_middleware if m.cls is not LocalOriginGuard
+    ]
+    app.add_middleware(LocalOriginGuard, bind_host=host)
+    app.middleware_stack = app.build_middleware_stack()
 
     if open_browser:
         import threading

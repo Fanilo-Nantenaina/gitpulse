@@ -2,11 +2,11 @@ async function loadProviders() {
   $('#provStatus').innerHTML = '<div class="prov-line"><span class="spinner" style="width:11px;height:11px"></span><span class="pd">' + t('loadingProviders') + '</span></div>';
   const provs = await api('/api/providers'); state.providers = provs;
   $('#provStatus').innerHTML = provs.map(p => {
-    return '<div class="prov-line" title="' + p.detail + '"><span class="dot-s ' + (p.available ? 'on' : 'off') + '"></span><span class="pn">' + p.name + '</span><span class="pd">' + p.detail + '</span></div>';
+    return '<div class="prov-line" title="' + esc(p.detail) + '"><span class="dot-s ' + (p.available ? 'on' : 'off') + '"></span><span class="pn">' + esc(p.name) + '</span><span class="pd">' + esc(p.detail) + '</span></div>';
   }).join('');
   const psel = $('#providerSel'); const prev = psel.value;
   psel.innerHTML = '<option value="auto">Auto</option>' +
-    provs.map(p => '<option value="' + p.name + '" ' + (p.available ? '' : 'disabled') + '>' + p.name + (p.available ? '' : ' (' + p.detail + ')') + '</option>').join('') +
+    provs.map(p => '<option value="' + esc(p.name) + '" ' + (p.available ? '' : 'disabled') + '>' + esc(p.name) + (p.available ? '' : ' (' + esc(p.detail) + ')') + '</option>').join('') +
     '<option value="local">Local (no model)</option>';
   if (prev) psel.value = prev;
   psel.onchange = () => { updateModels(); maybeWarnCloud(); };
@@ -16,7 +16,7 @@ function updateModels() {
   const prov = $('#providerSel').value, msel = $('#modelSel');
   if (prov === 'auto' || prov === 'local') { msel.innerHTML = '<option value="">(default)</option>'; return; }
   const p = state.providers.find(x => x.name === prov); const models = p ? p.models : [];
-  msel.innerHTML = '<option value="">(default)</option>' + models.map(m => '<option value="' + m + '">' + m + '</option>').join('');
+  msel.innerHTML = '<option value="">(default)</option>' + models.map(m => '<option value="' + esc(m) + '">' + esc(m) + '</option>').join('');
 }
 function modelArgs() { return { provider: $('#providerSel').value, model: $('#modelSel').value || null, lang: $('#langSel').value || null }; }
 function selectedIsCloud() { const p = state.providers.find(x => x.name === $('#providerSel').value); return p && p.kind === 'cloud'; }
@@ -33,14 +33,14 @@ async function openProvMgr() {
   $('#provBody').innerHTML = '<div class="loading"><span class="spinner"></span> ' + t('loadingProviders') + '</div>';
   let provs, keys;
   try { provs = await api('/api/providers'); keys = await api('/api/keys'); }
-  catch (e) { $('#provBody').innerHTML = '<div class="err">' + (e.message || e) + '</div>'; return; }
+  catch (e) { $('#provBody').innerHTML = '<div class="err">' + esc(e && e.message ? e.message : e) + '</div>'; return; }
   let h = '';
   provs.forEach(p => {
-    h += '<div class="prov-card"><div class="ph"><span class="dot-s ' + (p.available ? 'on' : 'off') + '"></span><span class="name">' + p.name + '</span><span class="badge ' + p.kind + '">' + p.kind + '</span><span class="pd" style="margin-left:auto;color:var(--muted);font-size:12px">' + p.detail + '</span></div>';
+    h += '<div class="prov-card"><div class="ph"><span class="dot-s ' + (p.available ? 'on' : 'off') + '"></span><span class="name">' + esc(p.name) + '</span><span class="badge ' + esc(p.kind) + '">' + esc(p.kind) + '</span><span class="pd" style="margin-left:auto;color:var(--muted);font-size:12px">' + esc(p.detail) + '</span></div>';
     if (p.kind === 'cloud') {
       const k = keys[p.name] || {};
       const hint = PROV_HINTS[p.name] || '';
-      h += '<div class="row" style="margin-top:4px"><input type="password" id="key_' + p.name + '" placeholder="' + t('apiKey') + (k.set ? ' (' + k.masked + ')' : ' (' + t('notSet') + ')') + '"><button class="btn sm" onclick="saveKey(\'' + p.name + '\')">' + t('save') + '</button></div>';
+      h += '<div class="row" style="margin-top:4px"><input type="password" id="key_' + esc(p.name) + '" placeholder="' + t('apiKey') + (k.set ? ' (' + esc(k.masked) + ')' : ' (' + t('notSet') + ')') + '"><button class="btn sm" onclick="saveKey(\'' + esc(p.name) + '\')">' + t('save') + '</button></div>';
       if (hint) h += '<div class="pd" style="color:var(--muted);font-size:11px;margin-top:5px">' + hint + '</div>';
     } else if (p.name === 'ollama') {
       const running = p.detail !== 'server not running' && p.detail !== 'not installed';

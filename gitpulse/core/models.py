@@ -85,7 +85,7 @@ class RepoActivity:
 
     @property
     def hour_histogram(self) -> dict[int, int]:
-        hist = {h: 0 for h in range(24)}
+        hist = dict.fromkeys(range(24), 0)
         for c in self.commits:
             hist[c.hour] += 1
         return hist

@@ -19,7 +19,7 @@ WHEN_HELP = (
     "or this-week / last-week."
 )
 PROVIDER_HELP = "AI backend: auto, claude, ollama, or local (no model)."
-MODEL_HELP = "Model name (provider-specific, e.g. claude-sonnet-4-6 or llama3.1)."
+MODEL_HELP = "Model name (provider-specific, e.g. claude-opus-5 or llama3.1)."
 LANG_HELP = "Output language: code (fr, en, es...) or name. Overrides the default."
 
 

@@ -38,22 +38,39 @@ class Provider:
         raise NotImplementedError
 
 
+def _lookup_price(
+    model: str, prices: dict[str, tuple[float, float]], default: str
+) -> tuple[float, float]:
+    if model in prices:
+        return prices[model]
+    matches = [k for k in prices if model.startswith(k)]
+    if matches:
+        return prices[max(matches, key=len)]
+    return prices[default]
+
+
 _CLAUDE_PRICES = {
-    "claude-opus-4-8": (15.0, 75.0),
+    "claude-fable-5-1": (10.0, 50.0),
+    "claude-opus-5": (5.0, 25.0),
+    "claude-opus-4-8": (5.0, 25.0),
+    "claude-sonnet-5": (2.0, 10.0),
     "claude-sonnet-4-6": (3.0, 15.0),
     "claude-haiku-4-5": (1.0, 5.0),
 }
+DEFAULT_CLAUDE_MODEL = "claude-opus-5"
 _OPENAI_PRICES = {
     "gpt-4o": (2.5, 10.0),
     "gpt-4o-mini": (0.15, 0.6),
     "gpt-4.1": (2.0, 8.0),
     "gpt-4.1-mini": (0.4, 1.6),
 }
+DEFAULT_OPENAI_MODEL = "gpt-4o-mini"
 _GEMINI_PRICES = {
     "gemini-2.5-pro": (1.25, 10.0),
     "gemini-2.5-flash": (0.3, 2.5),
     "gemini-2.0-flash": (0.1, 0.4),
 }
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
 
 @dataclass
@@ -61,7 +78,7 @@ class ClaudeProvider(Provider):
     name: str = "claude"
     kind: str = "cloud"
     model: str = field(
-        default_factory=lambda: os.environ.get("GITPULSE_MODEL", "claude-sonnet-4-6")
+        default_factory=lambda: os.environ.get("GITPULSE_MODEL", DEFAULT_CLAUDE_MODEL)
     )
 
     def _key(self):
@@ -89,10 +106,7 @@ class ClaudeProvider(Provider):
         return list(_CLAUDE_PRICES.keys())
 
     def _price(self):
-        for key, p in _CLAUDE_PRICES.items():
-            if self.model.startswith(key):
-                return p
-        return _CLAUDE_PRICES["claude-sonnet-4-6"]
+        return _lookup_price(self.model, _CLAUDE_PRICES, DEFAULT_CLAUDE_MODEL)
 
     def generate(self, system, prompt, max_tokens):
         import anthropic
@@ -136,7 +150,9 @@ class OpenAIProvider(Provider):
     name: str = "openai"
     kind: str = "cloud"
     model: str = field(
-        default_factory=lambda: os.environ.get("GITPULSE_OPENAI_MODEL", "gpt-4o-mini")
+        default_factory=lambda: os.environ.get(
+            "GITPULSE_OPENAI_MODEL", DEFAULT_OPENAI_MODEL
+        )
     )
 
     def _key(self):
@@ -152,10 +168,7 @@ class OpenAIProvider(Provider):
         return list(_OPENAI_PRICES.keys())
 
     def _price(self):
-        for key, p in _OPENAI_PRICES.items():
-            if self.model.startswith(key):
-                return p
-        return _OPENAI_PRICES["gpt-4o-mini"]
+        return _lookup_price(self.model, _OPENAI_PRICES, DEFAULT_OPENAI_MODEL)
 
     def generate(self, system, prompt, max_tokens):
         body = json.dumps(
@@ -196,7 +209,7 @@ class GeminiProvider(Provider):
     kind: str = "cloud"
     model: str = field(
         default_factory=lambda: os.environ.get(
-            "GITPULSE_GEMINI_MODEL", "gemini-2.5-flash"
+            "GITPULSE_GEMINI_MODEL", DEFAULT_GEMINI_MODEL
         )
     )
 
@@ -213,15 +226,12 @@ class GeminiProvider(Provider):
         return list(_GEMINI_PRICES.keys())
 
     def _price(self):
-        for key, p in _GEMINI_PRICES.items():
-            if self.model.startswith(key):
-                return p
-        return _GEMINI_PRICES["gemini-2.5-flash"]
+        return _lookup_price(self.model, _GEMINI_PRICES, DEFAULT_GEMINI_MODEL)
 
     def generate(self, system, prompt, max_tokens):
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self.model}:generateContent?key={self._key()}"
+            f"{self.model}:generateContent"
         )
         body = json.dumps(
             {
@@ -234,7 +244,12 @@ class GeminiProvider(Provider):
             }
         ).encode()
         req = urllib.request.Request(
-            url, data=body, headers={"Content-Type": "application/json"}
+            url,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": self._key() or "",
+            },
         )
         with urllib.request.urlopen(req, timeout=120) as r:
             data = json.loads(r.read())
@@ -291,6 +306,7 @@ class OllamaProvider(Provider):
         models = data.get("models", []) if data else []
         if not models:
             return None
+
         def rank(m):
             caps = m.get("capabilities", [])
             return ("completion" not in caps, "thinking" in caps)

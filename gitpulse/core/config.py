@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import stat
+import tempfile
 from pathlib import Path
 
 LANGUAGES = {
@@ -42,8 +44,30 @@ def load_config() -> dict:
 def save_config(cfg: dict) -> Path:
     p = _config_path()
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(cfg, indent=2, ensure_ascii=False), encoding="utf-8")
+    _restrict(p.parent, stat.S_IRWXU)
+    payload = json.dumps(cfg, indent=2, ensure_ascii=False)
+
+    fd, tmp_name = tempfile.mkstemp(dir=str(p.parent), prefix=".config-")
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(payload)
+        _restrict(tmp, stat.S_IRUSR | stat.S_IWUSR)
+        os.replace(tmp, p)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
+    _restrict(p, stat.S_IRUSR | stat.S_IWUSR)
     return p
+
+
+def _restrict(path: Path, mode: int) -> None:
+    if os.name == "nt":
+        return
+    try:
+        os.chmod(path, mode)
+    except OSError:
+        pass
 
 
 def list_tracked() -> list[dict]:

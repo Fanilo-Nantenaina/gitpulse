@@ -56,12 +56,19 @@ def watch(
         activity = collect_activity(path, r.since, r.until)
         summ = summarize(activity, provider=provider, model=model, lang=lang)
         md = render_markdown(activity, summ)
-        dispatch(to, md)
+        results = dispatch(to, md)
         from datetime import datetime
 
-        console.print(
-            f"[dim]{datetime.now():%H:%M}[/] digest sent ({activity.commit_count} commits)"
-        )
+        stamp = f"[dim]{datetime.now():%H:%M}[/]"
+        delivered = [ch for ch, r in results.items() if r]
+        if delivered:
+            console.print(
+                f"{stamp} digest sent to {', '.join(delivered)} "
+                f"({activity.commit_count} commits)"
+            )
+        for r in results.values():
+            if not r:
+                console.print(f"{stamp} [red]{r.status}[/] {r.describe()}")
 
     console.print(f"[cyan]Watching {path} every {every}...[/]")
     run_scheduler(job, every)

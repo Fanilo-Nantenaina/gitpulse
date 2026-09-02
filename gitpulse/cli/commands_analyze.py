@@ -113,7 +113,7 @@ def commit_msg(
     console.print(
         f"\n[dim]{msg.source} · {len(changes.files)} files "
         f"(+{changes.total_additions}/-{changes.total_deletions})"
-        f"{' · cost ~$%.4f' % msg.cost_usd if msg.cost_usd else ''}[/]"
+        f"{f' · cost ~${msg.cost_usd:.4f}' if msg.cost_usd else ''}[/]"
     )
 
 
@@ -154,7 +154,10 @@ def digest(
     md = render_markdown(activity, summ)
     with status_spinner(f"Sending to {', '.join(to)}"):
         results = dispatch(to, md)
-    for ch, ok in results.items():
-        console.print(f"[{'green' if ok else 'red'}]{'ok' if ok else 'fail'}[/] {ch}")
+    colour = {"ok": "green", "skipped": "yellow", "failed": "red"}
+    for r in results.values():
+        detail = f" [dim]({r.reason})[/]" if r.reason else ""
+        console.print(f"[{colour[r.status]}]{r.status}[/] {r.channel}{detail}")
     if not any(results.values()):
+        console.print("[yellow]Nothing was delivered - printing the digest below.[/]")
         console.print(md)

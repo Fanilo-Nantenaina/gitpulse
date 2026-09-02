@@ -26,7 +26,6 @@ console = Console()
 
 
 def render_comparison(cmp: Comparison) -> None:
-    w = _width()
     days = cmp.period_len.days or round(cmp.period_len.total_seconds() / 86400, 1)
     header = Text()
     header.append(f"  {cmp.repo_name}  ", style="bold")

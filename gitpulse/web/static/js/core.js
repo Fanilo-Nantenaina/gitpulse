@@ -1,4 +1,6 @@
 const $ = s => document.querySelector(s);
+const _ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+function esc(s) { return (s === null || s === undefined ? '' : String(s)).replace(/[&<>"']/g, c => _ESC[c]); }
 const api = async (p, o) => { const r = await fetch(p, o); if (!r.ok) { const e = await r.json().catch(() => ({ detail: r.statusText })); throw new Error(e.detail || 'Error'); } return r.json(); };
 const post = (p, b) => api(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
 let state = { source: 'local', action: 'summary', providers: [], langs: {}, uiLang: 'en', latency: null };
@@ -65,7 +67,7 @@ function renderMem() {
   m.forEach(r => {
     const li = document.createElement('li');
     const short = r.value.replace(/\.git$/, '').split(/[\/\\]/).pop() || r.value;
-    li.innerHTML = '<span class="tag">' + (r.kind === 'url' ? 'URL' : 'DIR') + '</span><span class="nm" title="' + r.value + '">' + short + '</span><span class="x">&#10005;</span>';
+    li.innerHTML = '<span class="tag">' + (r.kind === 'url' ? 'URL' : 'DIR') + '</span><span class="nm" title="' + esc(r.value) + '">' + esc(short) + '</span><span class="x">&#10005;</span>';
     li.querySelector('.nm').onclick = () => { if (r.kind === 'url') { setSource('url'); $('#urlInput').value = r.value; } else { setSource('local'); $('#pathInput').value = r.value; } onRepoChanged(); };
     li.querySelector('.x').onclick = e => { e.stopPropagation(); saveMem(loadMem().filter(x => x.value !== r.value)); renderMem(); };
     ul.appendChild(li);

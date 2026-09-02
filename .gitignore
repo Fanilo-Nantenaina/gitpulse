@@ -25,4 +25,12 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
-*comment*
+# Local code-rewriting scratch scripts, root only.
+#
+# This was previously the unanchored glob `*comment*`, which also silently
+# ignored any real source file whose name contained "comment"
+# (gitpulse/web/routes/comments.py, tests/test_comments.py, ...).
+# NOTE: clean_comments_v2.py is what deleted three import lines from
+# gitpulse/cli/main.py and removed 17 CLI commands. It should be tracked with
+# tests or deleted - not hidden.
+/clean_comments*.py

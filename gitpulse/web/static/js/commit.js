@@ -1,4 +1,4 @@
-async function runCompare() { try { loading('...'); const d = await post('/api/compare', baseBody({ period: document.getElementById('ctlPeriod').value, periods: parseInt(document.getElementById('ctlPeriods').value) || 4, branch: document.getElementById('ctlBranch').value || null })); const rows = d.metrics.map(m => { const ar = m.direction === 'up' ? '&#9650;' : m.direction === 'down' ? '&#9660;' : '='; const gu = ['Commits', 'Files touched', 'Active days', 'Lines added'].includes(m.name); const cls = m.direction === 'flat' ? '' : ((m.direction === 'up') === gu ? 'add' : 'del'); const pct = m.pct === null ? (m.current ? 'new' : '-') : (m.pct >= 0 ? '+' : '') + m.pct.toFixed(0) + '%'; return '<tr><td>' + m.name + '</td><td class="num">' + Math.round(m.current) + '</td><td class="num" style="color:var(--muted)">' + m.baseline.toFixed(1) + '</td><td class="num ' + cls + '">' + pct + ' ' + ar + '</td></tr>'; }).join(''); out.innerHTML = '<div class="block"><h3>' + esc(d.repo_name) + ' &middot; ' + d.period_days + 'd vs ' + d.periods_back + '</h3><table class="grid"><thead><tr><th>Metric</th><th class="num">Now</th><th class="num">Avg</th><th class="num">Change</th></tr></thead><tbody>' + rows + '</tbody></table></div>'; } catch (e) { showErr(e); } }
+async function runCompare() { try { loading('...'); const d = await post('/api/compare', baseBody({ period: document.getElementById('ctlPeriod').value, periods: parseInt(document.getElementById('ctlPeriods').value) || 4, branch: document.getElementById('ctlBranch').value || null })); const rows = d.metrics.map(m => { const ar = m.direction === 'up' ? '&#9650;' : m.direction === 'down' ? '&#9660;' : '='; const gu = ['Commits', 'Files touched', 'Active days', 'Lines added'].includes(m.name); const cls = m.direction === 'flat' ? '' : ((m.direction === 'up') === gu ? 'add' : 'del'); const pct = m.pct === null ? (m.current ? 'new' : '-') : (m.pct >= 0 ? '+' : '') + m.pct.toFixed(0) + '%'; return '<tr><td>' + esc(m.name) + '</td><td class="num">' + Math.round(m.current) + '</td><td class="num" style="color:var(--muted)">' + m.baseline.toFixed(1) + '</td><td class="num ' + cls + '">' + pct + ' ' + ar + '</td></tr>'; }).join(''); out.innerHTML = '<div class="block"><h3>' + esc(d.repo_name) + ' &middot; ' + d.period_days + 'd vs ' + d.periods_back + '</h3><table class="grid"><thead><tr><th>Metric</th><th class="num">Now</th><th class="num">Avg</th><th class="num">Change</th></tr></thead><tbody>' + rows + '</tbody></table></div>'; } catch (e) { showErr(e); } }
 function runStandup() {
   cloudGuard(async () => {
     try {
@@ -62,7 +62,7 @@ async function openBrowser() {
     const drv = await api('/api/drives');
     $('#modalDrives').innerHTML = (drv.drives || []).map(d => '<span class="drive" data-p="' + esc(d) + '">' + esc(d) + '</span>').join('');
     document.querySelectorAll('.drive').forEach(el => el.onclick = () => browseTo(el.dataset.p));
-  } catch (e) { $('#modalDrives').innerHTML = '<span class="err">' + (e.message || e) + '</span>'; }
+  } catch (e) { $('#modalDrives').innerHTML = '<span class="err">' + esc(e && e.message ? e.message : e) + '</span>'; }
   const p = ($('#pathInput').value || '').trim();
   await browseTo(p || null);
 }
@@ -79,7 +79,7 @@ async function browseTo(path) {
       : '<div style="color:var(--muted);padding:14px">' + (t('emptyFolder') || '— empty —') + '</div>';
     document.querySelectorAll('.dir-item').forEach(el => el.onclick = () => browseTo(el.dataset.p));
   } catch (e) {
-    $('#modalList').innerHTML = '<div class="err" style="padding:14px">' + (e.message || e) + '</div>';
+    $('#modalList').innerHTML = '<div class="err" style="padding:14px">' + esc(e && e.message ? e.message : e) + '</div>';
   }
 }
 $('#browseBtn').onclick = openBrowser;
