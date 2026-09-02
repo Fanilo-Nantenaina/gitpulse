@@ -297,7 +297,15 @@ class OllamaProvider(Provider):
 
     def list_models(self) -> list[str]:
         data = self._get("/api/tags")
-        return [m["name"] for m in data.get("models", [])] if data else []
+        if not data:
+            return []
+        out = []
+        for m in data.get("models", []):
+            caps = m.get("capabilities")
+            if caps is not None and "completion" not in caps:
+                continue
+            out.append(m["name"])
+        return out
 
     def resolve_model(self):
         if self.model:

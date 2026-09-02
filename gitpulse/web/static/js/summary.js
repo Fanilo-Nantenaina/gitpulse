@@ -1,4 +1,29 @@
-function runSummary() { cloudGuard(async () => { try { loading('...'); const body = baseBody(Object.assign({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() }, modelArgs())); const d = await post('/api/summary', body); renderSummary(d.activity, d.summary); showStatsPanel(d.stats, body); } catch (e) { showErr(e); } }); }
+function runSummary() {
+  cloudGuard(async () => {
+    const body = baseBody(Object.assign({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() }, modelArgs()));
+    const ctrl = new AbortController();
+    const startedAt = Date.now();
+    const renderWait = () => {
+      const secs = Math.round((Date.now() - startedAt) / 1000);
+      out.innerHTML = '<div class="loading wait"><div class="wait-row"><span class="spinner"></span><span>' + t('summarizing') + '… (' + secs + 's)</span>'
+        + '<button class="btn sm ghost" id="cancelSummaryBtn">' + t('cancel') + '</button></div>'
+        + '<div class="wait-hint">' + t('slowLocalHint') + '</div></div>';
+      const btn = document.getElementById('cancelSummaryBtn');
+      if (btn) btn.onclick = () => ctrl.abort();
+    };
+    renderWait();
+    const tick = setInterval(renderWait, 1000);
+    try {
+      const d = await post('/api/summary', body, ctrl.signal);
+      clearInterval(tick);
+      renderSummary(d.activity, d.summary); showStatsPanel(d.stats, body);
+    } catch (e) {
+      clearInterval(tick);
+      if (e.name === 'AbortError') out.innerHTML = '<div class="err">' + t('cancelled') + '</div>';
+      else showErr(e);
+    }
+  });
+}
 function renderSummary(a, s) {
   let h = headCard(a, s.headline);
   h += '<div id="statsMount"></div>';

@@ -149,6 +149,9 @@ class Summary:
         )
 
 
+MAX_PAYLOAD_COMMITS = 300
+
+
 def _build_payload(activity: RepoActivity) -> str:
     seen = []
     for c in activity.commits:
@@ -156,17 +159,30 @@ def _build_payload(activity: RepoActivity) -> str:
             seen.append(c.author_name)
     who = ", ".join(seen) if seen else "unknown"
 
+    commits = activity.commits
+    omitted = max(0, len(commits) - MAX_PAYLOAD_COMMITS)
+    if omitted:
+        commits = commits[:MAX_PAYLOAD_COMMITS]
+
     lines = [
         f"Repository: {activity.repo_name}",
         f"Window: {activity.since:%Y-%m-%d} to {activity.until:%Y-%m-%d}",
         f"Commits: {activity.commit_count}  "
         f"(+{activity.total_additions} / -{activity.total_deletions} lines)",
         f"Author(s) in this window: {who}",
-        "",
-        "Commits (OLDEST first — narrate the story in THIS order, "
-        "from the start of the period to the end):",
     ]
-    for c in reversed(activity.commits):
+    if omitted:
+        lines.append(
+            f"(Showing the {MAX_PAYLOAD_COMMITS} most recent commits below; "
+            f"{omitted} older commit(s) from this window are not listed "
+            "individually, but are included in the totals above.)"
+        )
+    lines.append("")
+    lines.append(
+        "Commits (OLDEST first — narrate the story in THIS order, "
+        "from the start of the period to the end):"
+    )
+    for c in reversed(commits):
         lines.append(
             f"- [{c.short_sha}] {c.when:%Y-%m-%d %H:%M} by {c.author_name}: {c.summary}"
         )
@@ -334,43 +350,56 @@ def summarize(
         prov.model = model
 
     max_tokens = min(16000, max(4000, activity.commit_count * 170))
-    try:
-        result = prov.generate(
-            _system_prompt(lang), _build_payload(activity), max_tokens
-        )
-    except Exception as e:
-        fb = _local_fallback(activity, lang)
-        fb.source = f"local({prov.name}-error)"
-        fb.raw = str(e)
-        return fb
+    system = _system_prompt(lang)
+    payload = _build_payload(activity)
 
-    if result.truncated:
-        fb = _local_fallback(activity, lang)
-        fb.raw = result.text
-        fb.source = f"local({prov.name}-truncated)"
-        fb.input_tokens, fb.output_tokens, fb.cost_usd = (
-            result.input_tokens,
-            result.output_tokens,
-            result.cost_usd,
-        )
-        return fb
+    for attempt in range(2):
+        try:
+            result = prov.generate(system, payload, max_tokens)
+        except Exception as e:
+            fb = _local_fallback(activity, lang)
+            fb.source = f"local({prov.name}-error)"
+            fb.raw = str(e)
+            return fb
 
-    try:
-        summ = Summary.from_json(result.text)
-        summ.source = f"{prov.name}:{result.model}"
-        summ.input_tokens, summ.output_tokens, summ.cost_usd = (
-            result.input_tokens,
-            result.output_tokens,
-            result.cost_usd,
-        )
-        return summ
-    except (ValueError, KeyError):
-        fb = _local_fallback(activity, lang)
-        fb.raw = result.text
-        fb.source = f"local({prov.name}-parse-failed)"
-        fb.input_tokens, fb.output_tokens, fb.cost_usd = (
-            result.input_tokens,
-            result.output_tokens,
-            result.cost_usd,
-        )
-        return fb
+        if result.truncated:
+            fb = _local_fallback(activity, lang)
+            fb.raw = result.text
+            fb.source = f"local({prov.name}-truncated)"
+            fb.input_tokens, fb.output_tokens, fb.cost_usd = (
+                result.input_tokens,
+                result.output_tokens,
+                result.cost_usd,
+            )
+            return fb
+
+        try:
+            summ = Summary.from_json(result.text)
+            summ.source = f"{prov.name}:{result.model}"
+            summ.input_tokens, summ.output_tokens, summ.cost_usd = (
+                result.input_tokens,
+                result.output_tokens,
+                result.cost_usd,
+            )
+            return summ
+        except (ValueError, KeyError):
+            if attempt == 0:
+                payload += (
+                    "\n\nYour previous reply did not match the required "
+                    "JSON shape. It started with:\n"
+                    f"{result.text[:300]}\n\n"
+                    "Reply again with ONLY the JSON object described above "
+                    "(headline, synthesis, themes: "
+                    "[{title, narrative, commits}], observations) - no other "
+                    "structure, no markdown fences."
+                )
+                continue
+            fb = _local_fallback(activity, lang)
+            fb.raw = result.text
+            fb.source = f"local({prov.name}-parse-failed)"
+            fb.input_tokens, fb.output_tokens, fb.cost_usd = (
+                result.input_tokens,
+                result.output_tokens,
+                result.cost_usd,
+            )
+            return fb

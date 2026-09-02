@@ -799,6 +799,22 @@ table.grid tr:hover td {
   justify-content: center
 }
 
+.loading.wait {
+  flex-direction: column;
+  gap: 8px
+}
+
+.loading.wait .wait-row {
+  display: flex;
+  align-items: center;
+  gap: 10px
+}
+
+.loading.wait .wait-hint {
+  font-size: 12px;
+  opacity: .75
+}
+
 .modal-bg {
   position: fixed;
   inset: 0;
