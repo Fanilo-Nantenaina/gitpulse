@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypedDict
+
 from fastapi import APIRouter, HTTPException
 
 from ...ai.commitmsg import generate_commit_message
@@ -9,10 +11,17 @@ from ..schemas import CommitMsgReq
 router = APIRouter(prefix="/api")
 
 
+class ChangedFileDict(TypedDict):
+    path: str
+    status: str
+    additions: int
+    deletions: int
+
+
 @router.post("/changes-count")
-def api_changes_count(body: dict):
+def api_changes_count(body: dict[str, object]):
     path = body.get("path")
-    if not path:
+    if not isinstance(path, str) or not path:
         return {"count": 0, "staged": 0}
     try:
         all_changes = collect_working_changes(path, scope="all")
@@ -31,8 +40,17 @@ def api_changes_count(body: dict):
 def api_commit_message(req: CommitMsgReq):
     try:
         changes = collect_working_changes(req.path, scope=req.scope)
+        files: list[ChangedFileDict] = [
+            {
+                "path": f.path,
+                "status": f.status,
+                "additions": f.additions,
+                "deletions": f.deletions,
+            }
+            for f in changes.files
+        ]
         if not changes.has_changes:
-            return {"has_changes": False, "scope": req.scope, "files": []}
+            return {"has_changes": False, "scope": req.scope, "files": files}
         msg = generate_commit_message(
             changes,
             provider=req.provider,
@@ -43,15 +61,7 @@ def api_commit_message(req: CommitMsgReq):
         return {
             "has_changes": True,
             "scope": req.scope,
-            "files": [
-                {
-                    "path": f.path,
-                    "status": f.status,
-                    "additions": f.additions,
-                    "deletions": f.deletions,
-                }
-                for f in changes.files
-            ],
+            "files": files,
             "additions": changes.total_additions,
             "deletions": changes.total_deletions,
             "truncated": changes.truncated,

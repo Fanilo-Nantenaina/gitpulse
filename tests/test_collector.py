@@ -1,43 +1,40 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 from gitpulse.core.collector import collect_activity
 
 
-def _since(d="2026-01-01"):
-    return datetime(2026, 1, 1, tzinfo=timezone.utc)
-
-
-def test_collect_counts_all_commits(linear_repo):
+def test_collect_counts_all_commits(linear_repo: Path) -> None:
     act = collect_activity(linear_repo, datetime(2025, 1, 1, tzinfo=timezone.utc))
     assert act.commit_count == 5
 
 
-def test_collect_respects_since_window(linear_repo):
+def test_collect_respects_since_window(linear_repo: Path) -> None:
     act = collect_activity(linear_repo, datetime(2026, 1, 3, tzinfo=timezone.utc))
     assert act.commit_count == 3
 
 
-def test_collect_name_override(linear_repo):
+def test_collect_name_override(linear_repo: Path) -> None:
     act = collect_activity(
         linear_repo, datetime(2025, 1, 1, tzinfo=timezone.utc), name="custom-name"
     )
     assert act.repo_name == "custom-name"
 
 
-def test_collect_tracks_additions(linear_repo):
+def test_collect_tracks_additions(linear_repo: Path) -> None:
     act = collect_activity(linear_repo, datetime(2025, 1, 1, tzinfo=timezone.utc))
     assert act.total_additions > 0
     assert act.files_touched >= 1
 
 
-def test_collect_author_present(linear_repo):
+def test_collect_author_present(linear_repo: Path) -> None:
     act = collect_activity(linear_repo, datetime(2025, 1, 1, tzinfo=timezone.utc))
     assert "Tester" in act.authors
 
 
-def test_collect_branched_repo_has_merge(branched_repo):
+def test_collect_branched_repo_has_merge(branched_repo: Path) -> None:
     act = collect_activity(branched_repo, datetime(2025, 1, 1, tzinfo=timezone.utc))
     assert act.commit_count >= 6
 
@@ -48,7 +45,7 @@ _SINCE = datetime(2026, 1, 1, tzinfo=timezone.utc)
 _UNTIL = datetime(2026, 12, 31, tzinfo=timezone.utc)
 
 
-def test_all_branches_includes_unmerged_feature(branched_repo):
+def test_all_branches_includes_unmerged_feature(branched_repo: Path) -> None:
     on_master = collect_activity(branched_repo, _SINCE, _UNTIL)
     all_b = collect_activity(branched_repo, _SINCE, _UNTIL, branch=ALL_BRANCHES)
     assert all_b.commit_count >= on_master.commit_count
@@ -56,15 +53,16 @@ def test_all_branches_includes_unmerged_feature(branched_repo):
     assert len(shas) == len(set(shas))
 
 
-def test_all_branches_with_truly_unmerged_branch(tmp_path):
+def test_all_branches_with_truly_unmerged_branch(tmp_path: Path) -> None:
+    import os
     import subprocess
 
     d = tmp_path / "r"
     d.mkdir()
 
-    def g(*a, **k):
-        env = dict(__import__("os").environ)
-        env.update(
+    def g(*a: str, env: dict[str, str] | None = None) -> None:
+        run_env = dict(os.environ)
+        run_env.update(
             {
                 "GIT_AUTHOR_NAME": "A",
                 "GIT_AUTHOR_EMAIL": "a@x.com",
@@ -72,8 +70,8 @@ def test_all_branches_with_truly_unmerged_branch(tmp_path):
                 "GIT_COMMITTER_EMAIL": "a@x.com",
             }
         )
-        env.update(k.get("env", {}))
-        subprocess.run(["git", "-C", str(d), *a], env=env, capture_output=True)
+        run_env.update(env or {})
+        subprocess.run(["git", "-C", str(d), *a], env=run_env, capture_output=True)
 
     g("init", "-q")
     g("branch", "-M", "main")
@@ -107,14 +105,16 @@ def test_all_branches_with_truly_unmerged_branch(tmp_path):
     assert all_b.commit_count == 2
 
 
-def test_author_filter(tmp_path):
+def test_author_filter(tmp_path: Path) -> None:
     import os
     import subprocess
 
     d = tmp_path / "r2"
     d.mkdir()
 
-    def g(*a, name="A", email="a@x.com", date=None):
+    def g(
+        *a: str, name: str = "A", email: str = "a@x.com", date: str | None = None
+    ) -> None:
         env = dict(os.environ)
         env.update(
             {
@@ -151,7 +151,7 @@ def test_author_filter(tmp_path):
     assert names == {"Alice", "Bob"}
 
 
-def test_compute_stats(tmp_path):
+def test_compute_stats(tmp_path: Path) -> None:
     import os
     import subprocess
 
@@ -160,7 +160,9 @@ def test_compute_stats(tmp_path):
     d = tmp_path / "s"
     d.mkdir()
 
-    def g(*a, name="Alice", email="a@x.com", date=None):
+    def g(
+        *a: str, name: str = "Alice", email: str = "a@x.com", date: str | None = None
+    ) -> None:
         env = dict(os.environ)
         env.update(
             {

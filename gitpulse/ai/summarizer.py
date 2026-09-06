@@ -4,10 +4,12 @@ import json
 import os
 import textwrap
 from dataclasses import dataclass
+from typing import TypedDict
 
 from ..core import collector, config
-from ..core.models import RepoActivity
+from ..core.models import Commit, RepoActivity
 from . import providers
+from ._json import JsonValue
 
 DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", providers.DEFAULT_CLAUDE_MODEL)
 
@@ -107,10 +109,42 @@ def _system_prompt(lang_code: str) -> str:
     return base
 
 
+class Theme(TypedDict):
+    title: str
+    narrative: str
+    commits: list[str]
+
+
+def _coerce_theme(value: JsonValue) -> Theme | None:
+    """Normalize one model-supplied theme, or None when it has no usable title.
+
+    Returning None is what makes the response invalid upstream: a theme without
+    a title is the schema deviation `from_json` refuses to accept.
+    """
+    if isinstance(value, str):
+        return {"title": value, "narrative": "", "commits": []} if value else None
+    if not isinstance(value, dict):
+        return None
+    title = value.get("title")
+    if not isinstance(title, str) or not title:
+        return None
+    narrative = value.get("narrative")
+    commits = value.get("commits")
+    return {
+        "title": title,
+        "narrative": narrative if isinstance(narrative, str) else "",
+        "commits": (
+            [c for c in commits if isinstance(c, str)]
+            if isinstance(commits, list)
+            else []
+        ),
+    }
+
+
 @dataclass
 class Summary:
     headline: str
-    themes: list[dict]
+    themes: list[Theme]
     observations: list[str]
     synthesis: str = ""
     raw: str = ""
@@ -138,33 +172,40 @@ class Summary:
         if text.startswith("```"):
             text = text.split("```", 2)[1]
             text = text.removeprefix("json")
-        data = json.loads(text)
+        data: JsonValue = json.loads(text)
         if not isinstance(data, dict):
             raise ValueError("summary response was not a JSON object")
         headline = data.get("headline")
         synthesis = data.get("synthesis")
-        themes = data.get("themes")
-        if isinstance(themes, list):
-            themes = [
-                {"title": x, "narrative": "", "commits": []}
-                if isinstance(x, str) and x
-                else x
-                for x in themes
-            ]
-        themes_valid = isinstance(themes, list) and all(
-            isinstance(x, dict) and x.get("title") for x in themes
-        )
-        if not headline or not synthesis or not themes_valid:
+        raw_themes = data.get("themes")
+        themes: list[Theme] = []
+        themes_valid = isinstance(raw_themes, list)
+        for x in raw_themes if isinstance(raw_themes, list) else []:
+            theme = _coerce_theme(x)
+            if theme is None:
+                themes_valid = False
+                break
+            themes.append(theme)
+        if (
+            not isinstance(headline, str)
+            or not headline
+            or not isinstance(synthesis, str)
+            or not synthesis
+            or not themes_valid
+        ):
             raise ValueError(
                 "summary response did not match the expected schema "
                 "(missing headline/synthesis, or themes are not "
                 "{title, narrative, commits} objects)"
             )
-        observations = data.get("observations")
-        if not isinstance(observations, list) or not all(
-            isinstance(o, str) for o in observations
-        ):
-            observations = []
+        raw_observations = data.get("observations")
+        observations: list[str] = []
+        if isinstance(raw_observations, list):
+            strings = [o for o in raw_observations if isinstance(o, str)]
+            # Anything but a list of plain strings is dropped wholesale, as
+            # before: a half-parsed observation list is worse than none.
+            if len(strings) == len(raw_observations):
+                observations = strings
         return cls(
             headline=headline,
             synthesis=synthesis,
@@ -180,7 +221,7 @@ DIFF_EXCERPT_CHARS = 2000
 
 
 def _build_payload(activity: RepoActivity) -> str:
-    seen = []
+    seen: list[str] = []
     for c in activity.commits:
         if c.author_name and c.author_name not in seen:
             seen.append(c.author_name)
@@ -247,7 +288,7 @@ def _build_payload(activity: RepoActivity) -> str:
     return "\n".join(lines)
 
 
-def _diff_section(activity: RepoActivity, commits: list) -> list[str]:
+def _diff_section(activity: RepoActivity, commits: list[Commit]) -> list[str]:
     candidates = [c for c in commits if not c.is_merge and c.churn > 0]
     notable = sorted(candidates, key=lambda c: c.churn, reverse=True)[
         :DIFF_EXCERPT_COMMITS
@@ -352,7 +393,7 @@ _FALLBACK_STRINGS = {
 }
 
 
-def _fb_str(lang: str, key: str, **kw) -> str:
+def _fb_str(lang: str, key: str, **kw: object) -> str:
     table = _FALLBACK_STRINGS.get(lang, _FALLBACK_STRINGS["en"])
     return table.get(key, _FALLBACK_STRINGS["en"][key]).format(**kw)
 
@@ -362,11 +403,11 @@ def _local_fallback(activity: RepoActivity, lang: str = "en") -> Summary:
     for c in activity.commits:
         prefix = c.summary.split(":", 1)[0] if ":" in c.summary[:12] else "other"
         by_prefix.setdefault(prefix, []).append(c.short_sha)
-    themes = [
+    themes: list[Theme] = [
         {"title": k, "narrative": _fb_str(lang, "n_commits", n=len(v)), "commits": v}
         for k, v in by_prefix.items()
     ]
-    obs = []
+    obs: list[str] = []
     late = [c for c in activity.commits if c.hour >= 22 or c.hour < 6]
     if late:
         obs.append(_fb_str(lang, "off_hours", n=len(late)))
@@ -469,3 +510,7 @@ def summarize(
                 result.cost_usd,
             )
             return fb
+
+    # Both attempts either return a summary or a fallback; the loop never falls
+    # through. Spelled out so the return type stays honest.
+    raise AssertionError("summarize() retry loop completed without a result")

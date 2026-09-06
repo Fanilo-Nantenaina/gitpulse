@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TypedDict
+
 from fastapi import APIRouter, HTTPException
 
 from ...ai.summarizer import summarize
@@ -15,6 +17,22 @@ from ..schemas import CompareReq, DashboardReq, GraphReq, LogReq, SummaryReq
 from ..serializers import activity_dict, resolve_source, summary_dict
 
 router = APIRouter(prefix="/api")
+
+
+class DashboardRow(TypedDict):
+    name: str
+    commits: int
+    additions: int
+    deletions: int
+    files: int
+    headline: str | None
+
+
+class DashboardFailure(TypedDict):
+    name: str
+    url: str
+    reason: str
+    error: str
 
 
 @router.post("/summary")
@@ -59,7 +77,7 @@ def api_authors(req: SummaryReq):
         from ...core.collector import list_authors
 
         r = parse_range(req.when)
-        src, name = resolve_source(req)
+        src, _ = resolve_source(req)
         return {"authors": list_authors(src, r.since, r.until)}
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
@@ -139,12 +157,13 @@ def api_graph(req: GraphReq):
 
 @router.post("/dashboard")
 def api_dashboard(req: DashboardReq):
+    rows: list[DashboardRow] = []
+    failed: list[DashboardFailure] = []
     tracked = gp_config.list_tracked()
     if not tracked:
-        return {"rows": [], "error": "No tracked remotes"}
+        return {"rows": rows, "error": "No tracked remotes"}
     r = parse_range(req.when)
     tok, user, key = gp_remote.resolve_auth(None, None, None)
-    rows, failed = [], []
     for t in tracked:
         url = t["url"]
         name = t.get("label") or gp_remote.repo_name_from_url(url)
@@ -155,10 +174,10 @@ def api_dashboard(req: DashboardReq):
                 user,
                 key,
                 refresh=req.refresh,
-                insecure=getattr(req, "insecure", False),
+                insecure=req.insecure,
             )
             act = collect_activity(dest, r.since, r.until, name=name)
-            row = {
+            row: DashboardRow = {
                 "name": name,
                 "commits": act.commit_count,
                 "additions": act.total_additions,
@@ -177,7 +196,7 @@ def api_dashboard(req: DashboardReq):
             failed.append(
                 {
                     "name": name,
-                    "url": gp_remote._strip_userinfo(url),
+                    "url": gp_remote.strip_userinfo(url),
                     "reason": _classify_remote_error(safe),
                     "error": safe,
                 }

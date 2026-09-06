@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import os
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
 
 
-def _git(repo: Path, *args, env_extra=None):
+def _git(
+    repo: Path,
+    *args: str,
+    env_extra: Mapping[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     env = dict(os.environ)
     env.update(
         {
@@ -28,14 +33,14 @@ def _git(repo: Path, *args, env_extra=None):
     )
 
 
-def _commit(repo: Path, message: str, date: str):
+def _commit(repo: Path, message: str, date: str) -> None:
     env = {"GIT_AUTHOR_DATE": date, "GIT_COMMITTER_DATE": date}
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", message, env_extra=env)
 
 
 @pytest.fixture
-def linear_repo(tmp_path):
+def linear_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "linear"
     repo.mkdir()
     _git(repo, "init", "-q")
@@ -47,7 +52,7 @@ def linear_repo(tmp_path):
 
 
 @pytest.fixture
-def branched_repo(tmp_path):
+def branched_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "branched"
     repo.mkdir()
     _git(repo, "init", "-q")
@@ -81,7 +86,7 @@ def branched_repo(tmp_path):
 
 
 @pytest.fixture
-def dirty_repo(tmp_path):
+def dirty_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "dirty"
     repo.mkdir()
     _git(repo, "init", "-q")

@@ -2,11 +2,52 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import timedelta
+from typing import TypedDict
 
 from .models import RepoActivity
 
 
-def compute_stats(activity: RepoActivity) -> dict:
+class DayStat(TypedDict):
+    date: str
+    commits: int
+    additions: int
+    deletions: int
+
+
+class _AuthorTotals(TypedDict):
+    commits: int
+    additions: int
+    deletions: int
+
+
+class AuthorStat(_AuthorTotals):
+    name: str
+
+
+class FileChurn(TypedDict):
+    path: str
+    churn: int
+
+
+class Totals(TypedDict):
+    commits: int
+    additions: int
+    deletions: int
+    files_touched: int
+    active_days: int
+    authors: int
+
+
+class Stats(TypedDict):
+    totals: Totals
+    daily: list[DayStat]
+    authors: list[AuthorStat]
+    by_hour: list[int]
+    by_weekday: list[int]
+    top_files: list[FileChurn]
+
+
+def compute_stats(activity: RepoActivity) -> Stats:
     commits = activity.commits
 
     per_day_commits: dict[str, int] = defaultdict(int)
@@ -27,7 +68,7 @@ def compute_stats(activity: RepoActivity) -> dict:
             days.append(d.strftime("%Y-%m-%d"))
             d += timedelta(days=1)
 
-    daily = [
+    daily: list[DayStat] = [
         {
             "date": day,
             "commits": per_day_commits.get(day, 0),
@@ -37,7 +78,7 @@ def compute_stats(activity: RepoActivity) -> dict:
         for day in days
     ]
 
-    by_author: dict[str, dict] = defaultdict(
+    by_author: defaultdict[str, _AuthorTotals] = defaultdict(
         lambda: {"commits": 0, "additions": 0, "deletions": 0}
     )
     for c in commits:
@@ -45,7 +86,7 @@ def compute_stats(activity: RepoActivity) -> dict:
         a["commits"] += 1
         a["additions"] += c.additions
         a["deletions"] += c.deletions
-    authors = sorted(
+    authors: list[AuthorStat] = sorted(
         ({"name": k, **v} for k, v in by_author.items()),
         key=lambda x: x["commits"],
         reverse=True,
@@ -64,7 +105,7 @@ def compute_stats(activity: RepoActivity) -> dict:
         for f in c.files:
             file_churn[f.path] += f.additions + f.deletions
     top_files = sorted(
-        ({"path": p, "churn": n} for p, n in file_churn.items()),
+        (FileChurn(path=p, churn=n) for p, n in file_churn.items()),
         key=lambda x: x["churn"],
         reverse=True,
     )[:10]

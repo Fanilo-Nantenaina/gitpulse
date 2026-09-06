@@ -7,47 +7,47 @@ import pytest
 from gitpulse.core.dateparse import parse_interval, parse_range
 
 
-def test_parse_range_days():
+def test_parse_range_days() -> None:
     r = parse_range("7d")
     span = r.until - r.since
     assert 6 <= span.days <= 7
 
 
-def test_parse_range_hours():
+def test_parse_range_hours() -> None:
     r = parse_range("24h")
     span = r.until - r.since
     assert timedelta(hours=23) <= span <= timedelta(hours=25)
 
 
-def test_parse_range_today_has_label():
+def test_parse_range_today_has_label() -> None:
     r = parse_range("today")
     assert r.label
     assert r.since <= r.until
 
 
-def test_parse_range_yesterday():
+def test_parse_range_yesterday() -> None:
     r = parse_range("yesterday")
     assert r.since < r.until
 
 
-def test_parse_interval_returns_timedelta():
+def test_parse_interval_returns_timedelta() -> None:
     d = parse_interval("7d")
     assert isinstance(d, timedelta)
     assert d.days == 7
 
 
-def test_parse_interval_weeks_or_days():
+def test_parse_interval_weeks_or_days() -> None:
     d = parse_interval("30d")
     assert d.days == 30
 
 
 @pytest.mark.parametrize("expr", ["7d", "24h", "today", "yesterday"])
-def test_common_windows_do_not_raise(expr):
+def test_common_windows_do_not_raise(expr: str) -> None:
     r = parse_range(expr)
     assert r.since is not None and r.until is not None
 
 
-def test_all_time_range():
+def test_all_time_range() -> None:
     from gitpulse.core.dateparse import parse_range
 
     r = parse_range("all")

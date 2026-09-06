@@ -11,7 +11,7 @@ from . import providers
 @dataclass
 class CommitMessage:
     subject: str
-    bullets: list[str] = field(default_factory=list)
+    bullets: list[str] = field(default_factory=list[str])
     source: str = "local"
     raw: str = ""
     input_tokens: int = 0

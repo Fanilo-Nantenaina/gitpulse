@@ -4,12 +4,20 @@ import os
 from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import TypedDict
 
 import pygit2
+from pygit2.enums import ObjectType, SortMode
 
 from .models import Commit, FileChange, RepoActivity
 
 ALL_BRANCHES = "__all__"
+
+
+class AuthorCount(TypedDict):
+    name: str
+    email: str
+    commits: int
 
 _STATUS = {
     pygit2.GIT_DELTA_ADDED: "added",
@@ -33,7 +41,7 @@ def clear_diff_cache() -> None:
     _DIFF_CACHE.clear()
 
 
-def diff_cache_info() -> dict:
+def diff_cache_info() -> dict[str, int]:
     return {"entries": len(_DIFF_CACHE), "max": _DIFF_CACHE_MAX}
 
 
@@ -41,13 +49,16 @@ def _compute_file_changes(
     repo: pygit2.Repository, commit: pygit2.Commit
 ) -> tuple[FileChange, ...]:
     if commit.parents:
-        parent_tree = commit.parents[0].tree
-        diff = repo.diff(parent_tree, commit.tree)
+        # Passing the commits (not their trees) keeps this a tree-to-tree diff
+        # while staying inside pygit2's typed overload.
+        diff = repo.diff(commit.parents[0], commit)
     else:
         diff = commit.tree.diff_to_tree(swap=True)
 
     changes: list[FileChange] = []
     for patch in diff:
+        if patch is None:
+            continue
         d = patch.delta
         changes.append(
             FileChange(
@@ -77,13 +88,15 @@ def _diff_excerpt(
     repo: pygit2.Repository, commit: pygit2.Commit, max_chars: int
 ) -> str:
     if commit.parents:
-        diff = repo.diff(commit.parents[0].tree, commit.tree)
+        diff = repo.diff(commit.parents[0], commit)
     else:
         diff = commit.tree.diff_to_tree(swap=True)
 
     parts: list[str] = []
     total = 0
     for patch in diff:
+        if patch is None:
+            continue
         text = patch.text or ""
         if not text:
             continue
@@ -98,7 +111,7 @@ def _diff_excerpt(
 
 
 def diff_excerpts(
-    repo_path: str | os.PathLike, shas: list[str], max_chars_each: int = 1500
+    repo_path: str | os.PathLike[str], shas: list[str], max_chars_each: int = 1500
 ) -> dict[str, str]:
     discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
     if discovered is None:
@@ -107,11 +120,12 @@ def diff_excerpts(
     out: dict[str, str] = {}
     for sha in shas:
         try:
-            commit = repo.revparse_single(sha)
+            obj = repo.revparse_single(sha)
         except (KeyError, ValueError):
             continue
-        if not isinstance(commit, pygit2.Commit):
+        if obj.type != ObjectType.COMMIT:
             continue
+        commit = obj.peel(pygit2.Commit)
         text = _diff_excerpt(repo, commit, max_chars_each)
         if text:
             out[sha] = text
@@ -119,7 +133,7 @@ def diff_excerpts(
 
 
 def collect_activity(
-    repo_path: str | os.PathLike,
+    repo_path: str | os.PathLike[str],
     since: datetime,
     until: datetime | None = None,
     branch: str | None = None,
@@ -145,17 +159,19 @@ def collect_activity(
     if all_branches:
         if repo.head_is_unborn:
             return RepoActivity(repo_name, str(repo_path), since, until, [])
-        tips = []
+        tips: list[pygit2.Oid | str] = []
         for bname in repo.branches.local:
-            b = repo.branches.get(bname)
-            if b is not None:
-                tips.append(b.target)
+            try:
+                tips.append(repo.branches[bname].target)
+            except KeyError:
+                continue
         if not tips:
             tips = [repo.head.target]
         branch_label = None
     elif branch:
-        target = repo.branches.get(branch)
-        if target is None:
+        try:
+            target = repo.branches[branch]
+        except KeyError:
             raise ValueError(f"Branch '{branch}' not found")
         tips = [target.target]
         branch_label = branch
@@ -165,7 +181,7 @@ def collect_activity(
         tips = [repo.head.target]
         branch_label = repo.head.shorthand if not repo.head_is_detached else None
 
-    walker = repo.walk(tips[0], pygit2.GIT_SORT_TIME)
+    walker = repo.walk(tips[0], SortMode.TIME)
     for extra in tips[1:]:
         walker.push(extra)
 
@@ -209,10 +225,10 @@ def collect_activity(
 
 
 def list_authors(
-    repo_path: str | os.PathLike, since: datetime, until: datetime | None = None
-) -> list[dict]:
+    repo_path: str | os.PathLike[str], since: datetime, until: datetime | None = None
+) -> list[AuthorCount]:
     act = collect_activity(repo_path, since, until, branch=ALL_BRANCHES)
-    counts: dict[str, dict] = {}
+    counts: dict[str, AuthorCount] = {}
     for c in act.commits:
         key = c.author_email or c.author_name
         if key not in counts:
@@ -221,7 +237,7 @@ def list_authors(
     return sorted(counts.values(), key=lambda a: a["commits"], reverse=True)
 
 
-def discover_repos(root: str | os.PathLike, max_depth: int = 3) -> list[Path]:
+def discover_repos(root: str | os.PathLike[str], max_depth: int = 3) -> list[Path]:
     root = Path(root).resolve()
     found: list[Path] = []
     root_depth = len(root.parts)

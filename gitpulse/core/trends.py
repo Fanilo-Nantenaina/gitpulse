@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
@@ -47,7 +49,7 @@ def _avg(values: list[float]) -> float:
 
 
 def compare(
-    repo_path,
+    repo_path: str | os.PathLike[str],
     period: timedelta,
     periods_back: int = 4,
     branch: str | None = None,
@@ -66,7 +68,7 @@ def compare(
             collect_activity(repo_path, since, until, branch=branch, name=name)
         )
 
-    def metric(label, fn):
+    def metric(label: str, fn: Callable[[RepoActivity], float]) -> Metric:
         return Metric(label, fn(current), _avg([fn(b) for b in baselines]))
 
     metrics = [

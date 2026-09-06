@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
@@ -15,8 +16,8 @@ class StandupContext:
     repo_name: str
     yesterday: RepoActivity
     current_branch: str | None
-    uncommitted: list[str] = field(default_factory=list)
-    recent_branches: list[str] = field(default_factory=list)
+    uncommitted: list[str] = field(default_factory=list[str])
+    recent_branches: list[str] = field(default_factory=list[str])
 
 
 def _day_window(target: datetime) -> tuple[datetime, datetime]:
@@ -27,7 +28,9 @@ def _day_window(target: datetime) -> tuple[datetime, datetime]:
 
 
 def gather(
-    repo_path, name: str | None = None, now: datetime | None = None
+    repo_path: str | os.PathLike[str],
+    name: str | None = None,
+    now: datetime | None = None,
 ) -> StandupContext:
     now = now or datetime.now().astimezone()
     repo_path = Path(repo_path).resolve()
@@ -42,6 +45,8 @@ def gather(
     activity = collect_activity(repo_path, y_start, y_end, name=repo_name)
 
     discovered = pygit2.discover_repository(str(repo_path))
+    if discovered is None:
+        raise ValueError(f"No git repository found at {repo_path}")
     repo = pygit2.Repository(discovered)
 
     current_branch = None
@@ -60,7 +65,7 @@ def gather(
     for bname in repo.branches.local:
         try:
             ref = repo.branches[bname]
-            commit = repo[ref.target]
+            commit = repo[ref.target].peel(pygit2.Commit)
             recent.append((bname, commit.commit_time))
         except Exception:
             continue

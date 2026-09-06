@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import json
@@ -43,7 +42,7 @@ def _fail(channel: str, exc: BaseException) -> DeliveryResult:
     return DeliveryResult(channel, False, f"{type(exc).__name__}: {exc}")
 
 
-def _post_json(channel: str, url: str, payload: dict) -> DeliveryResult:
+def _post_json(channel: str, url: str, payload: dict[str, str]) -> DeliveryResult:
     data = json.dumps(payload).encode()
     req = urllib.request.Request(
         url, data=data, headers={"Content-Type": "application/json"}
@@ -117,13 +116,19 @@ def notify_email(markdown: str) -> DeliveryResult:
 
 def notify_desktop(markdown: str) -> DeliveryResult:
     try:
-        from plyer import notification
+        # plyer is an optional extra and ships no stubs of its own.
+        from plyer import notification  # pyright: ignore[reportMissingTypeStubs]
     except ImportError:
         return _skip("desktop", "install the 'desktop' extra (plyer)")
     try:
         first = markdown.splitlines()[0] if markdown.splitlines() else "GitPulse"
         title = first.lstrip("# ").strip()
-        notification.notify(title="GitPulse", message=title[:200], timeout=10)
+        # plyer ships no type information and reaches its platform backend
+        # through a __getattribute__ proxy, which pyright can only type as
+        # optional. The call is already guarded by the try/except.
+        notification.notify(  # pyright: ignore[reportOptionalCall]
+            title="GitPulse", message=title[:200], timeout=10
+        )
         return DeliveryResult("desktop", True)
     except Exception as e:
         return _fail("desktop", e)

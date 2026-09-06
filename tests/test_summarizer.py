@@ -7,7 +7,7 @@ import pytest
 from gitpulse.ai.summarizer import Summary
 
 
-def test_from_json_parses_well_formed_response():
+def test_from_json_parses_well_formed_response() -> None:
     payload = json.dumps(
         {
             "headline": "Busy week on the parser",
@@ -22,7 +22,7 @@ def test_from_json_parses_well_formed_response():
     assert summ.observations == ["README.md changed 3x."]
 
 
-def test_from_json_rejects_schema_deviation():
+def test_from_json_rejects_schema_deviation() -> None:
     payload = json.dumps(
         {
             "query": "gitpulse",
@@ -34,7 +34,7 @@ def test_from_json_rejects_schema_deviation():
         Summary.from_json(payload)
 
 
-def test_from_json_rejects_empty_fields():
+def test_from_json_rejects_empty_fields() -> None:
     payload = json.dumps(
         {"headline": "", "synthesis": "", "themes": [], "observations": []}
     )
@@ -42,7 +42,7 @@ def test_from_json_rejects_empty_fields():
         Summary.from_json(payload)
 
 
-def test_from_json_normalizes_themes_given_as_plain_strings():
+def test_from_json_normalizes_themes_given_as_plain_strings() -> None:
     payload = json.dumps(
         {
             "headline": "Busy week",
@@ -58,7 +58,7 @@ def test_from_json_normalizes_themes_given_as_plain_strings():
     ]
 
 
-def test_from_json_rejects_themes_with_invalid_entries():
+def test_from_json_rejects_themes_with_invalid_entries() -> None:
     payload = json.dumps(
         {
             "headline": "Busy week",
@@ -71,7 +71,7 @@ def test_from_json_rejects_themes_with_invalid_entries():
         Summary.from_json(payload)
 
 
-def test_from_json_tolerates_missing_observations():
+def test_from_json_tolerates_missing_observations() -> None:
     payload = json.dumps(
         {
             "headline": "Quiet day",

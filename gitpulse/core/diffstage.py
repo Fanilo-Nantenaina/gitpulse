@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -18,7 +19,7 @@ class FileDelta:
 class WorkingChanges:
     repo_name: str
     scope: str
-    files: list[FileDelta] = field(default_factory=list)
+    files: list[FileDelta] = field(default_factory=list[FileDelta])
     diff_text: str = ""
     truncated: bool = False
 
@@ -54,16 +55,17 @@ def _run(args: list[str], cwd: str) -> str:
 
 
 def collect_working_changes(
-    repo_path, scope: str = "all", max_diff_chars: int = 24000
+    repo_path: str | os.PathLike[str],
+    scope: str = "all",
+    max_diff_chars: int = 24000,
 ) -> WorkingChanges:
     discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
     if discovered is None:
         raise ValueError("No git repository found")
     repo = pygit2.Repository(discovered)
-    workdir = repo.workdir
-    if workdir is None:
+    if repo.is_bare:
         raise ValueError("Bare repository has no working tree")
-    workdir = workdir.rstrip("/\\")
+    workdir = repo.workdir.rstrip("/\\")
     name = Path(workdir).name
 
     staged_only = scope == "staged"

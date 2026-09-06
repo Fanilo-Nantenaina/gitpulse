@@ -23,7 +23,7 @@ MODEL_HELP = "Model name (provider-specific, e.g. claude-opus-5 or llama3.1)."
 LANG_HELP = "Output language: code (fr, en, es...) or name. Overrides the default."
 
 
-def _range(when: str) -> DateRange:
+def resolve_range(when: str) -> DateRange:
     try:
         return parse_range(when)
     except ValueError as e:

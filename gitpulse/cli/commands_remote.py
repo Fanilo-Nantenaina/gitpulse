@@ -12,9 +12,9 @@ from ._shared import (
     MODEL_HELP,
     PROVIDER_HELP,
     WHEN_HELP,
-    _range,
     app,
     console,
+    resolve_range,
 )
 from .render import render_log, render_terminal, status_spinner
 
@@ -44,8 +44,8 @@ def remote(
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
-):
-    r = _range(when)
+) -> None:
+    r = resolve_range(when)
     tok, user, key = gp_remote.resolve_auth(token, username, ssh_key)
     name = gp_remote.repo_name_from_url(url)
     action = "Fetching" if not no_refresh else "Loading cached"
@@ -76,7 +76,7 @@ def remote(
 
 
 @app.command(name="cache-clear")
-def cache_clear():
+def cache_clear() -> None:
     n = gp_remote.clear_cache()
     console.print(f"[green]Cleared {n} cached remote repo(s).[/]")
 
@@ -87,7 +87,7 @@ def track(
     label: str | None = typer.Option(
         None, "--label", help="Friendly name shown in the dashboard"
     ),
-):
+) -> None:
     added, tracked = gp_config.add_tracked(url, label)
     name = label or gp_remote.repo_name_from_url(url)
     if added:
@@ -103,7 +103,7 @@ def track(
 @app.command()
 def untrack(
     needle: str = typer.Argument(..., help="URL or label to stop tracking"),
-):
+) -> None:
     removed, tracked = gp_config.remove_tracked(needle)
     if removed:
         console.print(
@@ -114,7 +114,7 @@ def untrack(
 
 
 @app.command()
-def tracked():
+def tracked() -> None:
     items = gp_config.list_tracked()
     if not items:
         console.print(

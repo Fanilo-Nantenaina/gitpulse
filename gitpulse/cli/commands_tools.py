@@ -23,7 +23,7 @@ def serve(
     port: int = typer.Option(8420, "--port", help="Port to serve on"),
     host: str = typer.Option("127.0.0.1", "--host"),
     no_open: bool = typer.Option(False, "--no-open", help="Don't open the browser"),
-):
+) -> None:
     from ..web.server import serve as run_server
 
     console.print(f"[cyan]GitPulse UI on http://{host}:{port}[/]  (Ctrl+C to stop)")
@@ -35,7 +35,7 @@ def changelog(
     path: Path = typer.Argument(Path(".")),
     from_ref: str | None = typer.Option(None, "--from"),
     to_ref: str = typer.Option("HEAD", "--to"),
-):
+) -> None:
     console.print(generate_changelog(str(path), from_ref, to_ref))
 
 
@@ -48,10 +48,10 @@ def watch(
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
-):
+) -> None:
     parse_interval(every)
 
-    def job():
+    def job() -> None:
         r = parse_range(when)
         activity = collect_activity(path, r.since, r.until)
         summ = summarize(activity, provider=provider, model=model, lang=lang)
@@ -80,7 +80,7 @@ def config(
         None, "--lang", "-l", help="Set the default output language (code or name)."
     ),
     show: bool = typer.Option(False, "--show", help="Show current settings."),
-):
+) -> None:
     cfg = gp_config.load_config()
     if lang is not None:
         code = gp_config.normalize_lang(lang)
@@ -120,7 +120,7 @@ def config(
 
 
 @app.command()
-def providers():
+def providers() -> None:
     table = Table(title="AI providers", show_lines=False)
     table.add_column("Provider", style="cyan")
     table.add_column("Type", style="dim")
@@ -142,7 +142,7 @@ def providers():
 
 
 @app.command()
-def dates():
+def dates() -> None:
     table = Table(title="Accepted --when formats", show_lines=False)
     table.add_column("Type", style="cyan")
     table.add_column("Example", style="bold")

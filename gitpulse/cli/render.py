@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from contextlib import contextmanager
 
 from rich.console import Console
@@ -14,6 +15,7 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+from rich.status import Status
 from rich.table import Table
 from rich.text import Text
 
@@ -97,7 +99,7 @@ def render_standup(ctx: StandupContext, summary: Summary) -> None:
     console.print()
 
     console.print(Text("  Today", style="bold"))
-    plan = []
+    plan: list[tuple[str, str]] = []
     if ctx.current_branch:
         plan.append(("Continue on branch", ctx.current_branch))
     if ctx.uncommitted:
@@ -123,7 +125,7 @@ def render_standup(ctx: StandupContext, summary: Summary) -> None:
 
 
 @contextmanager
-def progress_bar(description: str = "Working"):
+def progress_bar(description: str = "Working") -> Generator[Progress, None, None]:
     prog = Progress(
         SpinnerColumn(),
         TextColumn("[bold]{task.description}"),
@@ -140,7 +142,7 @@ def progress_bar(description: str = "Working"):
 
 
 @contextmanager
-def status_spinner(message: str):
+def status_spinner(message: str) -> Generator[Status, None, None]:
     with console.status(f"[bold]{message}", spinner="dots") as st:
         yield st
 

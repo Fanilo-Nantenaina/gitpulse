@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 from gitpulse.ai import providers
 from gitpulse.ai.summarizer import _build_payload
@@ -13,7 +14,7 @@ def _provider(ctx_limit: int) -> providers.OllamaProvider:
     return p
 
 
-def test_num_ctx_grows_with_the_prompt():
+def test_num_ctx_grows_with_the_prompt() -> None:
     p = _provider(200_000)
     small = p._num_ctx("test-model", "sys", "x" * 1_000, 500)
     medium = p._num_ctx("test-model", "sys", "x" * 60_000, 500)
@@ -21,22 +22,25 @@ def test_num_ctx_grows_with_the_prompt():
     assert medium >= 20_000
 
 
-def test_num_ctx_never_below_floor():
+def test_num_ctx_never_below_floor() -> None:
     p = _provider(200_000)
     assert p._num_ctx("test-model", "", "hi", 10) == providers.OLLAMA_MIN_CTX
 
 
-def test_num_ctx_capped_by_model_limit():
+def test_num_ctx_capped_by_model_limit() -> None:
     p = _provider(8192)
     assert p._num_ctx("test-model", "sys", "x" * 400_000, 500) == 8192
 
 
-def test_num_ctx_capped_by_global_max():
+def test_num_ctx_capped_by_global_max() -> None:
     p = _provider(1_000_000)
-    assert p._num_ctx("test-model", "sys", "x" * 4_000_000, 500) == providers.OLLAMA_MAX_CTX
+    assert (
+        p._num_ctx("test-model", "sys", "x" * 4_000_000, 500)
+        == providers.OLLAMA_MAX_CTX
+    )
 
 
-def test_payload_includes_diff_excerpts(linear_repo):
+def test_payload_includes_diff_excerpts(linear_repo: Path) -> None:
     activity = collect_activity(
         linear_repo, datetime(2020, 1, 1, tzinfo=timezone.utc), None
     )
@@ -45,7 +49,7 @@ def test_payload_includes_diff_excerpts(linear_repo):
     assert "diff --git" in payload
 
 
-def test_payload_skips_merge_commit_diffs(branched_repo):
+def test_payload_skips_merge_commit_diffs(branched_repo: Path) -> None:
     activity = collect_activity(
         branched_repo,
         datetime(2020, 1, 1, tzinfo=timezone.utc),

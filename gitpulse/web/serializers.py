@@ -1,11 +1,69 @@
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Protocol, TypedDict
+
 from fastapi import HTTPException
 
+from ..ai.summarizer import Summary, Theme
 from ..core import remote as gp_remote
+from ..core.models import RepoActivity
 
 
-def activity_dict(a) -> dict:
+class CommitDict(TypedDict):
+    sha: str
+    summary: str
+    when: str
+    author: str
+    additions: int
+    deletions: int
+    files: int
+
+
+class ActivityDict(TypedDict):
+    repo_name: str
+    since: str
+    until: str
+    commit_count: int
+    additions: int
+    deletions: int
+    files_touched: int
+    active_days: int
+    hour_histogram: dict[int, int]
+    authors: dict[str, int]
+    commits: list[CommitDict]
+
+
+class _SummaryDictBase(TypedDict):
+    headline: str
+    synthesis: str
+    themes: list[Theme]
+    observations: list[str]
+    source: str
+    cost_note: str
+    input_tokens: int
+    output_tokens: int
+    cost_usd: float
+
+
+class SummaryDict(_SummaryDictBase, total=False):
+    # Only emitted when the model answer was unusable and a fallback was served.
+    fallback_reason: str
+
+
+class RepoSourceReq(Protocol):
+    """The request fields every "which repository?" endpoint shares.
+
+    Implemented structurally by SummaryReq, LogReq, CompareReq and GraphReq.
+    """
+
+    path: str | None
+    url: str | None
+    refresh: bool
+    insecure: bool
+
+
+def activity_dict(a: RepoActivity) -> ActivityDict:
     return {
         "repo_name": a.repo_name,
         "since": a.since.isoformat(),
@@ -32,8 +90,8 @@ def activity_dict(a) -> dict:
     }
 
 
-def summary_dict(s) -> dict:
-    d = {
+def summary_dict(s: Summary) -> SummaryDict:
+    d: SummaryDict = {
         "headline": s.headline,
         "synthesis": s.synthesis,
         "themes": s.themes,
@@ -49,18 +107,18 @@ def summary_dict(s) -> dict:
     return d
 
 
-def resolve_source(req) -> tuple[object, str | None]:
-    if getattr(req, "url", None):
+def resolve_source(req: RepoSourceReq) -> tuple[str | Path, str | None]:
+    if req.url:
         tok, user, key = gp_remote.resolve_auth(None, None, None)
         dest = gp_remote.sync_remote(
             req.url,
             tok,
             user,
             key,
-            refresh=getattr(req, "refresh", True),
-            insecure=getattr(req, "insecure", False),
+            refresh=req.refresh,
+            insecure=req.insecure,
         )
         return dest, gp_remote.repo_name_from_url(req.url)
-    if not getattr(req, "path", None):
+    if not req.path:
         raise HTTPException(400, "Provide a path or url")
     return req.path, None

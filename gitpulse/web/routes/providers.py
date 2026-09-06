@@ -1,11 +1,20 @@
 from __future__ import annotations
 
+from typing import TypedDict
+
 from fastapi import APIRouter, HTTPException
 
 from ...ai import providers as ai_providers
 from ...core import config as gp_config
 
 router = APIRouter(prefix="/api")
+
+_KEYED_PROVIDERS = ("claude", "openai", "gemini")
+
+
+class KeyStatus(TypedDict):
+    set: bool
+    masked: str | None
 
 
 def _ollama_available() -> bool:
@@ -24,8 +33,8 @@ def api_latency():
 
 @router.get("/keys")
 def api_keys():
-    out = {}
-    for prov in ("claude", "openai", "gemini"):
+    out: dict[str, KeyStatus] = {}
+    for prov in _KEYED_PROVIDERS:
         k = gp_config.get_api_key(prov)
         out[prov] = {
             "set": bool(k),
@@ -37,11 +46,12 @@ def api_keys():
 
 
 @router.post("/keys")
-def api_set_key(body: dict):
+def api_set_key(body: dict[str, object]):
     prov = body.get("provider")
-    if prov not in ("claude", "openai", "gemini"):
+    if not isinstance(prov, str) or prov not in _KEYED_PROVIDERS:
         raise HTTPException(400, "Unknown provider")
-    gp_config.set_api_key(prov, body.get("key", "").strip())
+    key = body.get("key", "")
+    gp_config.set_api_key(prov, key.strip() if isinstance(key, str) else "")
     return {"ok": True}
 
 

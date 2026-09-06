@@ -1,11 +1,9 @@
-
 from __future__ import annotations
 
 import re
 import shutil
 import sys
 from xml.sax.saxutils import escape as xml_escape
-from xml.sax.saxutils import quoteattr as xml_quoteattr  # noqa: F401  (API parity)
 
 _WHEN_RE = re.compile(r"^[\w.:-]+(?:\.\.[\w.:-]+)?$")
 _EVERY_RE = re.compile(r"^(\d+)([mhd])$")
@@ -15,8 +13,6 @@ _HOST_RE = re.compile(r"^[A-Za-z0-9._:\[\]-]+$")
 
 class UnitValueError(ValueError):
     pass
-
-
 
 
 def _check_no_control_chars(value: str, label: str) -> str:
@@ -75,8 +71,6 @@ def validate_path(path: str) -> str:
     return _check_no_control_chars(str(path), "repository path")
 
 
-
-
 def _exe_argv() -> list[str]:
     try:
         found = shutil.which("gitpulse")
@@ -85,12 +79,6 @@ def _exe_argv() -> list[str]:
     if found:
         return [found]
     return [sys.executable, "-m", "gitpulse.cli.main"]
-
-
-def _exe() -> str:
-    return " ".join(_exe_argv())
-
-
 
 
 def _systemd_quote(arg: str) -> str:
@@ -112,7 +100,7 @@ def _plist_args(*args: str) -> str:
 
 
 def _bat_command(*args: str) -> str:
-    out = []
+    out: list[str] = []
     for a in args:
         _check_no_control_chars(a, "unit argument")
         if '"' in a:
@@ -123,8 +111,6 @@ def _bat_command(*args: str) -> str:
         a = a.replace("%", "%%")
         out.append(f"\\?{a}\\?" if " " in a else a)
     return " ".join(o.replace("\\?", '\\"') for o in out)
-
-
 
 
 def systemd_web(host: str, port: int) -> tuple[str, str, str]:
@@ -185,7 +171,6 @@ WantedBy=timers.target
     return "gitpulse-digest", service + "\n---TIMER---\n" + timer, hint
 
 
-
 _PLIST_HEAD = """<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -238,8 +223,6 @@ def launchd_watch(path: str, every: str, when: str, to: str) -> tuple[str, str, 
     return "com.gitpulse.digest.plist", plist, hint
 
 
-
-
 def windows_web(host: str, port: int) -> tuple[str, str, str]:
     host, port = validate_host(host), validate_port(port)
     cmd = _bat_command(
@@ -280,24 +263,33 @@ echo Task "GitPulse Digest" created (every {count} {sc.lower()}).
     return "install-gitpulse-digest.bat", script, hint
 
 
-def for_platform(kind: str, **kw) -> tuple[str, str, str]:
+def for_platform(
+    kind: str,
+    *,
+    host: str = "127.0.0.1",
+    port: int = 8420,
+    path: str = ".",
+    every: str = "24h",
+    when: str = "24h",
+    to: str = "desktop",
+) -> tuple[str, str, str]:
     plat = sys.platform
     if plat.startswith("linux"):
         return (
-            systemd_web(kw["host"], kw["port"])
+            systemd_web(host, port)
             if kind == "web"
-            else systemd_watch(kw["path"], kw["every"], kw["when"], kw["to"])
+            else systemd_watch(path, every, when, to)
         )
     if plat == "darwin":
         return (
-            launchd_web(kw["host"], kw["port"])
+            launchd_web(host, port)
             if kind == "web"
-            else launchd_watch(kw["path"], kw["every"], kw["when"], kw["to"])
+            else launchd_watch(path, every, when, to)
         )
     if plat.startswith("win"):
         return (
-            windows_web(kw["host"], kw["port"])
+            windows_web(host, port)
             if kind == "web"
-            else windows_watch(kw["path"], kw["every"], kw["when"], kw["to"])
+            else windows_watch(path, every, when, to)
         )
     raise RuntimeError(f"Unsupported platform: {plat}")

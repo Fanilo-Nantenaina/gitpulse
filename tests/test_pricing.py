@@ -4,7 +4,7 @@ import pytest
 
 from gitpulse.ai import providers as P
 
-CLAUDE_RATES = [
+CLAUDE_RATES: list[tuple[str, float, float]] = [
     ("claude-fable-5-1", 10.0, 50.0),
     ("claude-opus-5", 5.0, 25.0),
     ("claude-opus-4-8", 5.0, 25.0),
@@ -15,15 +15,15 @@ CLAUDE_RATES = [
 
 
 @pytest.mark.parametrize("model,pin,pout", CLAUDE_RATES)
-def test_claude_rates(model, pin, pout):
+def test_claude_rates(model: str, pin: float, pout: float) -> None:
     assert P.ClaudeProvider(model=model)._price() == (pin, pout)
 
 
-def test_claude_default_model_is_current():
+def test_claude_default_model_is_current() -> None:
     assert P.ClaudeProvider().model == P.DEFAULT_CLAUDE_MODEL == "claude-opus-5"
 
 
-def test_every_offered_claude_model_is_priced():
+def test_every_offered_claude_model_is_priced() -> None:
     prov = P.ClaudeProvider()
     for model in prov.list_models():
         assert P.ClaudeProvider(model=model)._price() in {
@@ -31,7 +31,7 @@ def test_every_offered_claude_model_is_priced():
         }
 
 
-def test_unknown_model_falls_back_to_default_price():
+def test_unknown_model_falls_back_to_default_price() -> None:
     fallback = P.ClaudeProvider(model="claude-something-unreleased")._price()
     assert fallback == P.ClaudeProvider(model=P.DEFAULT_CLAUDE_MODEL)._price()
 
@@ -47,15 +47,19 @@ def test_unknown_model_falls_back_to_default_price():
         (P.GeminiProvider, "gemini-2.5-pro", (1.25, 10.0)),
     ],
 )
-def test_exact_match_wins_over_shorter_prefix(provider_cls, model, expected):
+def test_exact_match_wins_over_shorter_prefix(
+    provider_cls: type[P.OpenAIProvider] | type[P.GeminiProvider],
+    model: str,
+    expected: tuple[float, float],
+) -> None:
     assert provider_cls(model=model)._price() == expected
 
 
-def test_defaults_are_present_in_their_price_tables():
+def test_defaults_are_present_in_their_price_tables() -> None:
     assert P.DEFAULT_CLAUDE_MODEL in P._CLAUDE_PRICES
     assert P.DEFAULT_OPENAI_MODEL in P._OPENAI_PRICES
     assert P.DEFAULT_GEMINI_MODEL in P._GEMINI_PRICES
 
 
-def test_dated_model_id_prices_from_its_base_id():
+def test_dated_model_id_prices_from_its_base_id() -> None:
     assert P.ClaudeProvider(model="claude-haiku-4-5-20251001")._price() == (1.0, 5.0)

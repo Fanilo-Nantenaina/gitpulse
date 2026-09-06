@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+import pytest
 from fastapi.testclient import TestClient
 
 from gitpulse.web.server import app
@@ -7,7 +10,7 @@ from gitpulse.web.server import app
 client = TestClient(app, base_url="http://127.0.0.1:8420")
 
 
-def test_providers_endpoint():
+def test_providers_endpoint() -> None:
     r = client.get("/api/providers")
     assert r.status_code == 200
     data = r.json()
@@ -15,19 +18,19 @@ def test_providers_endpoint():
     assert {"claude", "openai", "gemini", "ollama"}.issubset(names)
 
 
-def test_config_endpoint():
+def test_config_endpoint() -> None:
     r = client.get("/api/config")
     assert r.status_code == 200
     assert "languages" in r.json()
 
 
-def test_index_served():
+def test_index_served() -> None:
     r = client.get("/")
     assert r.status_code == 200
     assert "gitpulse" in r.text.lower()
 
 
-def test_summary_endpoint(linear_repo):
+def test_summary_endpoint(linear_repo: Path) -> None:
     r = client.post(
         "/api/summary",
         json={"path": str(linear_repo), "when": "1000d", "provider": "local"},
@@ -38,13 +41,13 @@ def test_summary_endpoint(linear_repo):
     assert "summary" in data
 
 
-def test_log_endpoint(linear_repo):
+def test_log_endpoint(linear_repo: Path) -> None:
     r = client.post("/api/log", json={"path": str(linear_repo), "when": "1000d"})
     assert r.status_code == 200
     assert r.json()["activity"]["commit_count"] == 5
 
 
-def test_graph_endpoint(branched_repo):
+def test_graph_endpoint(branched_repo: Path) -> None:
     r = client.post("/api/graph", json={"path": str(branched_repo)})
     assert r.status_code == 200
     data = r.json()
@@ -52,7 +55,7 @@ def test_graph_endpoint(branched_repo):
     assert data["nodes"]
 
 
-def test_commit_message_endpoint(dirty_repo):
+def test_commit_message_endpoint(dirty_repo: Path) -> None:
     r = client.post(
         "/api/commit-message",
         json={"path": str(dirty_repo), "scope": "all", "provider": "local"},
@@ -64,7 +67,7 @@ def test_commit_message_endpoint(dirty_repo):
     assert data["files"]
 
 
-def test_commit_message_force_type(dirty_repo):
+def test_commit_message_force_type(dirty_repo: Path) -> None:
     r = client.post(
         "/api/commit-message",
         json={
@@ -77,7 +80,7 @@ def test_commit_message_force_type(dirty_repo):
     assert r.json()["subject"].startswith("feat")
 
 
-def test_changes_count_endpoint(dirty_repo):
+def test_changes_count_endpoint(dirty_repo: Path) -> None:
     r = client.post("/api/changes-count", json={"path": str(dirty_repo)})
     assert r.status_code == 200
     data = r.json()
@@ -85,12 +88,12 @@ def test_changes_count_endpoint(dirty_repo):
     assert data["staged"] == 1
 
 
-def test_changes_count_clean_repo(linear_repo):
+def test_changes_count_clean_repo(linear_repo: Path) -> None:
     r = client.post("/api/changes-count", json={"path": str(linear_repo)})
     assert r.json()["count"] == 0
 
 
-def test_compare_endpoint(branched_repo):
+def test_compare_endpoint(branched_repo: Path) -> None:
     r = client.post(
         "/api/compare", json={"path": str(branched_repo), "period": "7d", "periods": 2}
     )
@@ -98,7 +101,7 @@ def test_compare_endpoint(branched_repo):
     assert r.json()["metrics"]
 
 
-def test_tracked_crud():
+def test_tracked_crud() -> None:
     r = client.post("/api/tracked", json={"url": "file:///tmp/x", "label": "x"})
     assert r.status_code == 200
     assert any(t["url"] == "file:///tmp/x" for t in client.get("/api/tracked").json())
@@ -106,12 +109,12 @@ def test_tracked_crud():
     assert r.json()["removed"] is True
 
 
-def test_summary_bad_path_returns_400():
+def test_summary_bad_path_returns_400() -> None:
     r = client.post("/api/summary", json={"path": "/nonexistent/repo", "when": "7d"})
     assert r.status_code == 400
 
 
-def test_index_has_cache_busting_and_no_cache_header():
+def test_index_has_cache_busting_and_no_cache_header() -> None:
     from fastapi.testclient import TestClient
 
     from gitpulse.web.server import _VERSION, app
@@ -127,14 +130,16 @@ def test_index_has_cache_busting_and_no_cache_header():
     assert all(v == _VERSION for v in assets)
 
 
-def test_asset_version_changes_with_content(tmp_path, monkeypatch):
+def test_asset_version_changes_with_content(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     import gitpulse.web.server as s
 
     v1 = s._asset_version()
     assert s._asset_version() == v1
 
 
-def test_classify_remote_error():
+def test_classify_remote_error() -> None:
     from gitpulse.web.routes.analysis import _classify_remote_error
 
     assert _classify_remote_error("Authentication failed") == "auth"
@@ -144,7 +149,9 @@ def test_classify_remote_error():
     assert _classify_remote_error("totally unexpected") == "other"
 
 
-def test_dashboard_reports_failed_with_reason(tmp_path, monkeypatch):
+def test_dashboard_reports_failed_with_reason(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setenv("GITPULSE_CONFIG_DIR", str(tmp_path))
     from gitpulse.core import config
 

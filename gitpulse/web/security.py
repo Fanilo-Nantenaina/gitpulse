@@ -1,11 +1,12 @@
-
 from __future__ import annotations
 
 import ipaddress
 import os
 
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request
+from starlette.responses import JSONResponse, Response
+from starlette.types import ASGIApp
 
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 _LOOPBACK_NAMES = frozenset({"localhost", "localhost.localdomain", ""})
@@ -38,8 +39,7 @@ def allowed_hostnames(bind_host: str | None = None) -> set[str]:
 
 
 class LocalOriginGuard(BaseHTTPMiddleware):
-
-    def __init__(self, app, bind_host: str | None = None):
+    def __init__(self, app: ASGIApp, bind_host: str | None = None) -> None:
         super().__init__(app)
         self._bind_host = bind_host
         self._allowed = allowed_hostnames(bind_host)
@@ -59,7 +59,9 @@ class LocalOriginGuard(BaseHTTPMiddleware):
         hostname = _split_host(authority).lower()
         return hostname in self._allowed or _is_loopback_host(hostname)
 
-    async def dispatch(self, request, call_next):
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         if not self._host_ok(request.headers.get("host")):
             return JSONResponse(
                 {

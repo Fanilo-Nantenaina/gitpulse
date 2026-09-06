@@ -15,9 +15,9 @@ from ._shared import (
     MODEL_HELP,
     PROVIDER_HELP,
     WHEN_HELP,
-    _range,
     app,
     console,
+    resolve_range,
 )
 from .render import (
     render_comparison,
@@ -37,8 +37,8 @@ def summary(
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
-):
-    r = _range(when)
+) -> None:
+    r = resolve_range(when)
     with status_spinner(f"Reading commits from {path.name}"):
         activity = collect_activity(path, r.since, r.until, branch=branch)
     if activity.commit_count == 0:
@@ -58,8 +58,8 @@ def log(
     files: bool = typer.Option(
         False, "--files", "-f", help="List changed files per commit"
     ),
-):
-    r = _range(when)
+) -> None:
+    r = resolve_range(when)
     activity = collect_activity(path, r.since, r.until, branch=branch)
     render_log(activity, show_files=files)
 
@@ -70,7 +70,7 @@ def standup(
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
-):
+) -> None:
     with status_spinner("Gathering yesterday's work"):
         ctx = gp_standup.gather(path)
     if ctx.yesterday.commit_count == 0:
@@ -93,7 +93,7 @@ def commit_msg(
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
-):
+) -> None:
     from ..ai.commitmsg import generate_commit_message
     from ..core.diffstage import collect_working_changes
 
@@ -127,7 +127,7 @@ def compare(
         4, "--periods", "-n", help="How many prior periods to average"
     ),
     branch: str | None = typer.Option(None, "--branch", "-b"),
-):
+) -> None:
     p = parse_interval(period)
     with status_spinner(f"Comparing last {period} against prior {periods}"):
         cmp = gp_trends.compare(path, p, periods_back=periods, branch=branch)
@@ -144,8 +144,8 @@ def digest(
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
-):
-    r = _range(when)
+) -> None:
+    r = resolve_range(when)
     with status_spinner(f"Reading commits from {path.name}"):
         activity = collect_activity(path, r.since, r.until)
     label = "local" if provider == "local" else provider

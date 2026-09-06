@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import abc
+import importlib
 import json
 import os
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass, field
+from typing import TypedDict
 
 from ..core import config as _config
+from ._json import JsonValue, as_array, as_int, as_object, as_str
 
 
 @dataclass
@@ -20,11 +25,27 @@ class GenResult:
     model: str = ""
 
 
+class ProviderStatus(TypedDict):
+    name: str
+    kind: str
+    available: bool
+    detail: str
+    models: list[str]
+    has_key: bool | None
+
+
+class CloudLatency(TypedDict):
+    online: bool
+    latency_ms: int | None
+
+
 @dataclass
-class Provider:
+class Provider(abc.ABC):
     name: str
     kind: str = "local"
+    model: str = ""
 
+    @abc.abstractmethod
     def available(self) -> bool:
         raise NotImplementedError
 
@@ -34,6 +55,7 @@ class Provider:
     def list_models(self) -> list[str]:
         return []
 
+    @abc.abstractmethod
     def generate(self, system: str, prompt: str, max_tokens: int) -> GenResult:
         raise NotImplementedError
 
@@ -77,6 +99,16 @@ OLLAMA_CTX_FALLBACK = 8192
 OLLAMA_MAX_CTX = int(os.environ.get("GITPULSE_OLLAMA_MAX_CTX", "32768"))
 
 
+def _anthropic_installed() -> bool:
+    # importlib.import_module has the same effect as `import anthropic` (the
+    # module is executed and cached) without leaving an unused local binding.
+    try:
+        importlib.import_module("anthropic")
+    except ImportError:
+        return False
+    return True
+
+
 @dataclass
 class ClaudeProvider(Provider):
     name: str = "claude"
@@ -85,38 +117,32 @@ class ClaudeProvider(Provider):
         default_factory=lambda: os.environ.get("GITPULSE_MODEL", DEFAULT_CLAUDE_MODEL)
     )
 
-    def _key(self):
+    def _key(self) -> str | None:
         return _config.get_api_key("claude")
 
     def available(self) -> bool:
         if not self._key():
             return False
-        try:
-            import anthropic  # noqa: F401
-        except ImportError:
-            return False
-        return True
+        return _anthropic_installed()
 
     def detail(self) -> str:
         if not self._key():
             return "no API key"
-        try:
-            import anthropic  # noqa: F401
-        except ImportError:
+        if not _anthropic_installed():
             return "package 'anthropic' not installed"
         return "ready"
 
     def list_models(self) -> list[str]:
         return list(_CLAUDE_PRICES.keys())
 
-    def _price(self):
+    def _price(self) -> tuple[float, float]:
         return _lookup_price(self.model, _CLAUDE_PRICES, DEFAULT_CLAUDE_MODEL)
 
-    def generate(self, system, prompt, max_tokens):
+    def generate(self, system: str, prompt: str, max_tokens: int) -> GenResult:
         import anthropic
 
         client = anthropic.Anthropic(api_key=self._key())
-        extra_headers = {}
+        extra_headers: dict[str, str] = {}
         workspace_id = os.environ.get("ANTHROPIC_WORKSPACE_ID")
         if workspace_id:
             extra_headers["anthropic-workspace-id"] = workspace_id
@@ -159,7 +185,7 @@ class OpenAIProvider(Provider):
         )
     )
 
-    def _key(self):
+    def _key(self) -> str | None:
         return _config.get_api_key("openai")
 
     def available(self) -> bool:
@@ -171,10 +197,10 @@ class OpenAIProvider(Provider):
     def list_models(self) -> list[str]:
         return list(_OPENAI_PRICES.keys())
 
-    def _price(self):
+    def _price(self) -> tuple[float, float]:
         return _lookup_price(self.model, _OPENAI_PRICES, DEFAULT_OPENAI_MODEL)
 
-    def generate(self, system, prompt, max_tokens):
+    def generate(self, system: str, prompt: str, max_tokens: int) -> GenResult:
         body = json.dumps(
             {
                 "model": self.model,
@@ -195,12 +221,17 @@ class OpenAIProvider(Provider):
             },
         )
         with urllib.request.urlopen(req, timeout=120) as r:
-            data = json.loads(r.read())
-        choice = data["choices"][0]
-        text = choice["message"]["content"]
-        usage = data.get("usage", {})
+            payload: JsonValue = json.loads(r.read())
+        data = as_object(payload)
+        choices = as_array(data.get("choices"))
+        if not choices:
+            raise RuntimeError("OpenAI response contained no choices")
+        choice = as_object(choices[0])
+        text = as_str(as_object(choice.get("message")).get("content"))
+        usage = as_object(data.get("usage"))
         pin, pout = self._price()
-        it, ot = usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0)
+        it = as_int(usage.get("prompt_tokens"))
+        ot = as_int(usage.get("completion_tokens"))
         cost = it * pin / 1e6 + ot * pout / 1e6
         return GenResult(
             text, it, ot, cost, choice.get("finish_reason") == "length", self.model
@@ -217,7 +248,7 @@ class GeminiProvider(Provider):
         )
     )
 
-    def _key(self):
+    def _key(self) -> str | None:
         return _config.get_api_key("gemini")
 
     def available(self) -> bool:
@@ -229,10 +260,10 @@ class GeminiProvider(Provider):
     def list_models(self) -> list[str]:
         return list(_GEMINI_PRICES.keys())
 
-    def _price(self):
+    def _price(self) -> tuple[float, float]:
         return _lookup_price(self.model, _GEMINI_PRICES, DEFAULT_GEMINI_MODEL)
 
-    def generate(self, system, prompt, max_tokens):
+    def generate(self, system: str, prompt: str, max_tokens: int) -> GenResult:
         url = (
             f"https://generativelanguage.googleapis.com/v1beta/models/"
             f"{self.model}:generateContent"
@@ -256,17 +287,60 @@ class GeminiProvider(Provider):
             },
         )
         with urllib.request.urlopen(req, timeout=120) as r:
-            data = json.loads(r.read())
-        cand = data["candidates"][0]
-        text = "".join(p.get("text", "") for p in cand["content"]["parts"])
-        usage = data.get("usageMetadata", {})
+            payload: JsonValue = json.loads(r.read())
+        data = as_object(payload)
+        candidates = as_array(data.get("candidates"))
+        if not candidates:
+            raise RuntimeError("Gemini response contained no candidates")
+        cand = as_object(candidates[0])
+        parts = as_array(as_object(cand.get("content")).get("parts"))
+        text = "".join(as_str(as_object(p).get("text")) for p in parts)
+        usage = as_object(data.get("usageMetadata"))
         pin, pout = self._price()
-        it = usage.get("promptTokenCount", 0)
-        ot = usage.get("candidatesTokenCount", 0)
+        it = as_int(usage.get("promptTokenCount"))
+        ot = as_int(usage.get("candidatesTokenCount"))
         cost = it * pin / 1e6 + ot * pout / 1e6
         return GenResult(
             text, it, ot, cost, cand.get("finishReason") == "MAX_TOKENS", self.model
         )
+
+
+class OllamaModel(TypedDict):
+    """One entry of the Ollama /api/tags response, after validation.
+
+    `capabilities` is None when the server did not report any (older Ollama
+    builds omit the field), which is not the same as reporting an empty list.
+    """
+
+    name: str
+    capabilities: list[str] | None
+    context_length: int | None
+
+
+def _parse_tags(payload: JsonValue) -> list[OllamaModel]:
+    """Validate an /api/tags payload, dropping entries we cannot use."""
+    out: list[OllamaModel] = []
+    for entry in as_array(as_object(payload).get("models")):
+        model = as_object(entry)
+        name = model.get("name")
+        if not isinstance(name, str) or not name:
+            continue
+        caps = model.get("capabilities")
+        limit = as_object(model.get("details")).get("context_length")
+        out.append(
+            {
+                "name": name,
+                "capabilities": (
+                    [c for c in caps if isinstance(c, str)]
+                    if isinstance(caps, list)
+                    else None
+                ),
+                "context_length": (
+                    limit if isinstance(limit, int) and limit > 0 else None
+                ),
+            }
+        )
+    return out
 
 
 @dataclass
@@ -280,14 +354,18 @@ class OllamaProvider(Provider):
         default_factory=lambda: os.environ.get("GITPULSE_OLLAMA_MODEL", "")
     )
 
-    def _get(self, path, timeout=2.0):
+    def _get(self, path: str, timeout: float = 2.0) -> JsonValue | None:
         try:
             with urllib.request.urlopen(
                 self.host.rstrip("/") + path, timeout=timeout
             ) as r:
-                return json.loads(r.read())
+                parsed: JsonValue = json.loads(r.read())
+                return parsed
         except (urllib.error.URLError, OSError, json.JSONDecodeError):
             return None
+
+    def _tags(self) -> list[OllamaModel]:
+        return _parse_tags(self._get("/api/tags"))
 
     def available(self) -> bool:
         return self._get("/api/tags") is not None
@@ -300,37 +378,30 @@ class OllamaProvider(Provider):
         return "ready"
 
     def list_models(self) -> list[str]:
-        data = self._get("/api/tags")
-        if not data:
-            return []
-        out = []
-        for m in data.get("models", []):
-            caps = m.get("capabilities")
-            if caps is not None and "completion" not in caps:
-                continue
-            out.append(m["name"])
-        return out
+        return [
+            m["name"]
+            for m in self._tags()
+            if m["capabilities"] is None or "completion" in m["capabilities"]
+        ]
 
-    def resolve_model(self):
+    def resolve_model(self) -> str | None:
         if self.model:
             return self.model
-        data = self._get("/api/tags")
-        models = data.get("models", []) if data else []
+        models = self._tags()
         if not models:
             return None
 
-        def rank(m):
-            caps = m.get("capabilities", [])
+        def rank(m: OllamaModel) -> tuple[bool, bool]:
+            caps = m["capabilities"] or []
             return ("completion" not in caps, "thinking" in caps)
 
         return sorted(models, key=rank)[0]["name"]
 
     def model_context_limit(self, model: str) -> int:
-        data = self._get("/api/tags")
-        for m in (data or {}).get("models", []):
-            if m.get("name") == model:
-                limit = (m.get("details") or {}).get("context_length")
-                if isinstance(limit, int) and limit > 0:
+        for m in self._tags():
+            if m["name"] == model:
+                limit = m["context_length"]
+                if limit is not None:
                     return limit
         return OLLAMA_CTX_FALLBACK
 
@@ -339,7 +410,7 @@ class OllamaProvider(Provider):
         ceiling = min(self.model_context_limit(model), OLLAMA_MAX_CTX)
         return max(OLLAMA_MIN_CTX, min(estimated, ceiling))
 
-    def generate(self, system, prompt, max_tokens):
+    def generate(self, system: str, prompt: str, max_tokens: int) -> GenResult:
         model = self.resolve_model()
         if not model:
             raise RuntimeError(
@@ -365,24 +436,27 @@ class OllamaProvider(Provider):
             headers={"Content-Type": "application/json"},
         )
         with urllib.request.urlopen(req, timeout=600) as r:
-            data = json.loads(r.read())
+            payload: JsonValue = json.loads(r.read())
+        data = as_object(payload)
         return GenResult(
-            data.get("response", ""),
-            data.get("prompt_eval_count", 0),
-            data.get("eval_count", 0),
+            as_str(data.get("response")),
+            as_int(data.get("prompt_eval_count")),
+            as_int(data.get("eval_count")),
             0.0,
             data.get("done_reason") == "length",
             model,
         )
 
 
-_REGISTRY = {
+# Values are zero-argument factories: every concrete provider defaults all of
+# its fields, so the registry can build one from a name alone.
+_REGISTRY: dict[str, Callable[[], Provider]] = {
     "claude": ClaudeProvider,
     "openai": OpenAIProvider,
     "gemini": GeminiProvider,
     "ollama": OllamaProvider,
 }
-_AUTO_ORDER = ["ollama", "claude", "openai", "gemini"]
+_AUTO_ORDER: list[str] = ["ollama", "claude", "openai", "gemini"]
 
 
 def get_provider(name: str) -> Provider:
@@ -404,8 +478,8 @@ def detect(preferred: str = "auto") -> Provider | None:
     return None
 
 
-def status() -> list[dict]:
-    out = []
+def status() -> list[ProviderStatus]:
+    out: list[ProviderStatus] = []
     for name, cls in _REGISTRY.items():
         p = cls()
         ok = p.available()
@@ -422,17 +496,17 @@ def status() -> list[dict]:
     return out
 
 
-def measure_cloud_latency(timeout: float = 3.0) -> dict:
+def measure_cloud_latency(timeout: float = 3.0) -> CloudLatency:
     targets = {
         "claude": "https://api.anthropic.com",
         "openai": "https://api.openai.com",
         "gemini": "https://generativelanguage.googleapis.com",
     }
     online = False
-    latency_ms = None
+    latency_ms: int | None = None
     for url in targets.values():
+        t0 = time.time()
         try:
-            t0 = time.time()
             req = urllib.request.Request(url, method="HEAD")
             urllib.request.urlopen(req, timeout=timeout)
             latency_ms = round((time.time() - t0) * 1000)

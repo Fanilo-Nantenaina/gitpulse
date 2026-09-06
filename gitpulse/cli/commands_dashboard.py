@@ -5,18 +5,19 @@ from pathlib import Path
 import typer
 from rich.table import Table
 
-from ..ai.summarizer import summarize
+from ..ai.summarizer import Summary, summarize
 from ..core import config as gp_config
 from ..core import remote as gp_remote
 from ..core.collector import collect_activity, discover_repos
+from ..core.models import RepoActivity
 from ._shared import (
     LANG_HELP,
     MODEL_HELP,
     PROVIDER_HELP,
     WHEN_HELP,
-    _range,
     app,
     console,
+    resolve_range,
 )
 from .render import progress_bar
 
@@ -38,9 +39,12 @@ def dashboard(
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
-):
-    r = _range(when)
+) -> None:
+    r = resolve_range(when)
 
+    # Both modes feed the same loop: a display name plus something
+    # collect_activity can open (a cached clone, or a discovered directory).
+    sources: list[tuple[str, str | Path]]
     if remote:
         tracked = gp_config.list_tracked()
         if not tracked:
@@ -49,7 +53,7 @@ def dashboard(
                 "[bold]gitpulse track <url>[/].[/]"
             )
             raise typer.Exit()
-        targets: list[tuple[str, str, dict]] = []
+        targets: list[tuple[str, str, dict[str, str | Path]]] = []
         tok, user, key = gp_remote.resolve_auth(None, None, None)
         with progress_bar() as prog:
             task = prog.add_task(
@@ -84,7 +88,7 @@ def dashboard(
         prefetch_failed = 0
         title = f"Activity: {r.label}"
 
-    rows = []
+    rows: list[tuple[RepoActivity, Summary | None]] = []
     skipped = 0
     failed = prefetch_failed
     with progress_bar() as prog:
@@ -97,7 +101,7 @@ def dashboard(
                     skipped += 1
                     prog.advance(task)
                     continue
-                summ = None
+                summ: Summary | None = None
                 if summarize_rows:
                     summ = summarize(act, provider=provider, model=model, lang=lang)
                 rows.append((act, summ))
@@ -120,7 +124,7 @@ def dashboard(
 
     rows.sort(key=lambda x: x[0].commit_count, reverse=True)
     for act, summ in rows:
-        cells = [
+        cells: list[str] = [
             act.repo_name,
             str(act.commit_count),
             f"+{act.total_additions}",

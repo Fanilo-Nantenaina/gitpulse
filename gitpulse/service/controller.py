@@ -6,8 +6,50 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import TypedDict
 
 from ..core import config as gp_config
+
+# Detach the child from this console so it survives the terminal that spawned
+# it. These constants only exist on Windows; POSIX gets start_new_session.
+if sys.platform == "win32":
+    _DETACHED_FLAGS = (
+        subprocess.CREATE_NEW_PROCESS_GROUP
+        | subprocess.DETACHED_PROCESS
+        | subprocess.CREATE_NO_WINDOW
+    )
+    _NEW_SESSION = False
+else:
+    _DETACHED_FLAGS = 0
+    _NEW_SESSION = True
+
+
+class ServiceStatus(TypedDict):
+    running: bool
+    pid: int | None
+    log: str
+
+
+class StartResult(TypedDict):
+    started: bool
+    already: bool
+    pid: int | None
+    url: str | None
+    error: str | None
+    log: str
+
+
+class StopResult(TypedDict):
+    stopped: bool
+    pid: int | None
+    reason: str
+
+
+class ShutdownResult(TypedDict):
+    killed: list[int]
+    failed: list[int]
+    port: int
+    count: int
 
 
 def _runtime_dir() -> Path:
@@ -53,21 +95,25 @@ def _alive(pid: int) -> bool:
         return False
 
 
-def status() -> dict:
+def status() -> ServiceStatus:
     pid = _read_pid()
     if pid and _alive(pid):
         return {"running": True, "pid": pid, "log": str(log_file())}
     return {"running": False, "pid": None, "log": str(log_file())}
 
 
-def start(host: str = "127.0.0.1", port: int = 8420) -> dict:
+def start(host: str = "127.0.0.1", port: int = 8420) -> StartResult:
+    url = f"http://{host}:{port}"
+    log_path = str(log_file())
     st = status()
     if st["running"]:
         return {
             "started": False,
             "already": True,
             "pid": st["pid"],
-            "url": f"http://{host}:{port}",
+            "url": url,
+            "error": None,
+            "log": log_path,
         }
 
     log = open(log_file(), "ab")  # noqa: SIM115
@@ -83,34 +129,41 @@ def start(host: str = "127.0.0.1", port: int = 8420) -> dict:
         "--no-open",
     ]
 
-    kwargs: dict = {"stdout": log, "stderr": log, "stdin": subprocess.DEVNULL}
-    if os.name == "nt":
-        kwargs["creationflags"] = (
-            subprocess.CREATE_NEW_PROCESS_GROUP
-            | getattr(subprocess, "DETACHED_PROCESS", 0)
-            | getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        )
-    else:
-        kwargs["start_new_session"] = True
-
-    proc = subprocess.Popen(cmd, **kwargs)
+    proc = subprocess.Popen(
+        cmd,
+        stdout=log,
+        stderr=log,
+        stdin=subprocess.DEVNULL,
+        creationflags=_DETACHED_FLAGS,
+        start_new_session=_NEW_SESSION,
+    )
     pid_file().write_text(str(proc.pid))
 
     time.sleep(1.2)
     if not _alive(proc.pid):
         return {
             "started": False,
+            "already": False,
+            "pid": None,
+            "url": None,
             "error": "server exited immediately; see log",
-            "log": str(log_file()),
+            "log": log_path,
         }
-    return {"started": True, "pid": proc.pid, "url": f"http://{host}:{port}"}
+    return {
+        "started": True,
+        "already": False,
+        "pid": proc.pid,
+        "url": url,
+        "error": None,
+        "log": log_path,
+    }
 
 
-def stop() -> dict:
+def stop() -> StopResult:
     pid = _read_pid()
     if not pid or not _alive(pid):
         pid_file().unlink(missing_ok=True)
-        return {"stopped": False, "reason": "not running"}
+        return {"stopped": False, "pid": None, "reason": "not running"}
     try:
         if os.name == "nt":
             from ..core.procutil import run as _prun
@@ -127,7 +180,7 @@ def stop() -> dict:
     except (OSError, ProcessLookupError):
         pass
     pid_file().unlink(missing_ok=True)
-    return {"stopped": True, "pid": pid}
+    return {"stopped": True, "pid": pid, "reason": ""}
 
 
 def _is_gitpulse_server(name: str, cmdline: list[str]) -> bool:
@@ -168,13 +221,14 @@ def _find_gitpulse_pids() -> list[int]:
     parent = os.getppid()
     pids: set[int] = set()
     try:
-        import psutil  # type: ignore
+        import psutil
 
         for p in psutil.process_iter(["pid", "name", "cmdline"]):
-            pid = p.info["pid"]
+            info = p.info
+            pid: int = info["pid"]
             if pid in (me, parent):
                 continue
-            if _is_gitpulse_server(p.info.get("name"), p.info.get("cmdline")):
+            if _is_gitpulse_server(info.get("name") or "", info.get("cmdline") or []):
                 pids.add(pid)
         return list(pids)
     except Exception:
@@ -219,7 +273,7 @@ def _pids_on_port(port: int) -> list[int]:
     me = os.getpid()
     found: set[int] = set()
     try:
-        import psutil  # type: ignore
+        import psutil
 
         for c in psutil.net_connections(kind="inet"):
             if c.laddr and c.laddr.port == port and c.pid and c.pid != me:
@@ -260,10 +314,11 @@ def _kill(pid: int) -> bool:
         return False
 
 
-def shutdown_all(port: int = 8420) -> dict:
+def shutdown_all(port: int = 8420) -> ShutdownResult:
     targets = set(_find_gitpulse_pids()) | set(_pids_on_port(port))
     targets.discard(os.getpid())
-    killed, failed = [], []
+    killed: list[int] = []
+    failed: list[int] = []
     for pid in targets:
         (killed if _kill(pid) else failed).append(pid)
     pid_file().unlink(missing_ok=True)

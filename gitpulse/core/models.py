@@ -24,7 +24,7 @@ class Commit:
     when: datetime
     summary: str
     body: str
-    files: list[FileChange] = field(default_factory=list)
+    files: list[FileChange] = field(default_factory=list[FileChange])
     branch: str | None = None
     is_merge: bool = False
 
@@ -55,7 +55,7 @@ class RepoActivity:
     repo_path: str
     since: datetime
     until: datetime
-    commits: list[Commit] = field(default_factory=list)
+    commits: list[Commit] = field(default_factory=list[Commit])
 
     @property
     def commit_count(self) -> int:
@@ -93,7 +93,7 @@ class RepoActivity:
 
     @property
     def files_touched(self) -> int:
-        seen = set()
+        seen: set[str] = set()
         for c in self.commits:
             for f in c.files:
                 seen.add(f.path)

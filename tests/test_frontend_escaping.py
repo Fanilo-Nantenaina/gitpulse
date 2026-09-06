@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import re
@@ -16,11 +15,11 @@ def _read(p: Path) -> str:
     return p.read_text(encoding="utf-8")
 
 
-def test_js_files_found():
+def test_js_files_found() -> None:
     assert JS_FILES, f"no JS under {JS_DIR}"
 
 
-def test_esc_escapes_quotes_as_well_as_angle_brackets():
+def test_esc_escapes_quotes_as_well_as_angle_brackets() -> None:
     src = _read(JS_DIR / "core.js")
     assert "function esc(" in src, "esc() must be defined in core.js (loaded first)"
     table = re.search(r"const _ESC = \{(.+?)\};", src, re.S)
@@ -36,31 +35,31 @@ def test_esc_escapes_quotes_as_well_as_angle_brackets():
         assert entity in body, f"esc() does not escape {char!r} -> {entity}"
 
 
-def test_esc_is_defined_only_once():
+def test_esc_is_defined_only_once() -> None:
     defs = [p.name for p in JS_FILES if re.search(r"function esc\s*\(", _read(p))]
     assert defs == ["core.js"], f"esc() defined in {defs}"
 
 
-def test_esc_is_defined_before_any_file_that_uses_it():
+def test_esc_is_defined_before_any_file_that_uses_it() -> None:
     index = (JS_DIR.parent / "index.html").read_text(encoding="utf-8")
     order = re.findall(r"/static/js/([\w.]+\.js)", index)
     assert order[0] == "core.js", f"core.js must load first, got {order}"
 
 
 @pytest.mark.parametrize("path", JS_FILES, ids=lambda p: p.name)
-def test_no_weak_three_char_escape_reappears(path):
+def test_no_weak_three_char_escape_reappears(path: Path) -> None:
     assert "/[&<>]/g" not in _read(path)
 
 
 @pytest.mark.parametrize("path", JS_FILES, ids=lambda p: p.name)
-def test_server_error_text_is_escaped_before_injection(path):
+def test_server_error_text_is_escaped_before_injection(path: Path) -> None:
     assert "(e.message || e)" not in _read(path), (
         "raw error interpolation - wrap it in esc()"
     )
 
 
 @pytest.mark.parametrize("path", JS_FILES, ids=lambda p: p.name)
-def test_no_unescaped_title_attribute(path):
+def test_no_unescaped_title_attribute(path: Path) -> None:
     for i, line in enumerate(_read(path).splitlines(), 1):
         for m in re.finditer(r"""title="'\s*\+\s*([^+]+?)\s*\+\s*'""", line):
             expr = m.group(1).strip()

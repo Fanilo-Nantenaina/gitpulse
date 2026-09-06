@@ -5,6 +5,16 @@ import os
 import stat
 import tempfile
 from pathlib import Path
+from typing import Any, TypedDict
+
+
+class _TrackedBase(TypedDict):
+    url: str
+
+
+class TrackedRepo(_TrackedBase, total=False):
+    label: str
+
 
 LANGUAGES = {
     "en": "English",
@@ -31,7 +41,9 @@ def config_dir() -> Path:
     return Path(base) if base else Path.home() / ".gitpulse"
 
 
-def load_config() -> dict:
+# The on-disk config is free-form user JSON: keys are added by the CLI, the
+# web UI and the scheduler, so the values stay Any rather than a fixed schema.
+def load_config() -> dict[str, Any]:
     p = _config_path()
     if not p.exists():
         return {}
@@ -41,7 +53,7 @@ def load_config() -> dict:
         return {}
 
 
-def save_config(cfg: dict) -> Path:
+def save_config(cfg: dict[str, Any]) -> Path:
     p = _config_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     _restrict(p.parent, stat.S_IRWXU)
@@ -70,8 +82,9 @@ def _restrict(path: Path, mode: int) -> None:
         pass
 
 
-def list_tracked() -> list[dict]:
-    return load_config().get("tracked", [])
+def list_tracked() -> list[TrackedRepo]:
+    tracked: list[TrackedRepo] = load_config().get("tracked", [])
+    return tracked
 
 
 _KEY_FIELDS = {
@@ -85,12 +98,13 @@ def get_api_key(provider: str) -> str | None:
     env_name = _KEY_FIELDS.get(provider)
     if env_name and os.environ.get(env_name):
         return os.environ[env_name]
-    return load_config().get("keys", {}).get(provider)
+    keys: dict[str, str] = load_config().get("keys", {})
+    return keys.get(provider)
 
 
 def set_api_key(provider: str, key: str) -> None:
     cfg = load_config()
-    keys = cfg.get("keys", {})
+    keys: dict[str, str] = cfg.get("keys", {})
     if key:
         keys[provider] = key
     else:
@@ -100,12 +114,13 @@ def set_api_key(provider: str, key: str) -> None:
 
 
 def has_stored_key(provider: str) -> bool:
-    return bool(load_config().get("keys", {}).get(provider))
+    keys: dict[str, str] = load_config().get("keys", {})
+    return bool(keys.get(provider))
 
 
-def add_tracked(url: str, label: str | None = None) -> tuple[bool, list[dict]]:
+def add_tracked(url: str, label: str | None = None) -> tuple[bool, list[TrackedRepo]]:
     cfg = load_config()
-    tracked = cfg.get("tracked", [])
+    tracked: list[TrackedRepo] = cfg.get("tracked", [])
     if any(t["url"] == url for t in tracked):
         return False, tracked
     tracked.append({"url": url, "label": label} if label else {"url": url})
@@ -114,9 +129,9 @@ def add_tracked(url: str, label: str | None = None) -> tuple[bool, list[dict]]:
     return True, tracked
 
 
-def remove_tracked(needle: str) -> tuple[bool, list[dict]]:
+def remove_tracked(needle: str) -> tuple[bool, list[TrackedRepo]]:
     cfg = load_config()
-    tracked = cfg.get("tracked", [])
+    tracked: list[TrackedRepo] = cfg.get("tracked", [])
     kept = [t for t in tracked if t["url"] != needle and t.get("label") != needle]
     changed = len(kept) != len(tracked)
     if changed:

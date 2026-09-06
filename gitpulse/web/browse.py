@@ -2,11 +2,30 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import TypedDict
 
 import pygit2
 
 
-def list_dir(path: str | None) -> dict:
+class BrowseEntry(TypedDict):
+    name: str
+    path: str
+    is_repo: bool
+
+
+class _BrowseResultBase(TypedDict):
+    path: str
+    parent: str | None
+    entries: list[BrowseEntry]
+
+
+class BrowseResult(_BrowseResultBase, total=False):
+    # "is_repo" on success, "error" when the directory could not be listed.
+    is_repo: bool
+    error: str
+
+
+def list_dir(path: str | None) -> BrowseResult:
     if not path:
         target = Path.home()
     else:
@@ -21,7 +40,7 @@ def list_dir(path: str | None) -> dict:
             "entries": [],
         }
 
-    entries = []
+    entries: list[BrowseEntry] = []
     try:
         for child in sorted(target.iterdir(), key=lambda p: p.name.lower()):
             if child.name.startswith("."):
@@ -61,7 +80,7 @@ def _is_repo(p: Path) -> bool:
 def drives() -> list[str]:
     if os.name != "nt":
         return ["/"]
-    found = []
+    found: list[str] = []
     for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
         d = f"{letter}:\\"
         if Path(d).exists():

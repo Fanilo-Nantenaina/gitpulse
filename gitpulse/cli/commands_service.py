@@ -17,7 +17,7 @@ app.add_typer(service_app, name="service")
 def service_start(
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8420, "--port"),
-):
+) -> None:
     res = controller.start(host=host, port=port)
     if res.get("already"):
         console.print(f"[yellow]Already running[/] (pid {res['pid']}) — {res['url']}")
@@ -31,7 +31,7 @@ def service_start(
 
 
 @service_app.command("stop")
-def service_stop():
+def service_stop() -> None:
     res = controller.stop()
     if res.get("stopped"):
         console.print(f"[green]Stopped[/] (pid {res['pid']})")
@@ -40,7 +40,7 @@ def service_stop():
 
 
 @service_app.command("status")
-def service_status():
+def service_status() -> None:
     st = controller.status()
     if st["running"]:
         console.print(f"[green]running[/] — pid {st['pid']}")
@@ -53,7 +53,7 @@ def service_status():
 def service_restart(
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8420, "--port"),
-):
+) -> None:
     controller.stop()
     service_start(host=host, port=port)
 
@@ -72,7 +72,7 @@ def service_install(
     write: Path | None = typer.Option(
         None, "--write", help="Write the unit file to this path"
     ),
-):
+) -> None:
     if kind not in ("web", "watch"):
         console.print("[red]kind must be 'web' or 'watch'[/]")
         raise typer.Exit(1)
@@ -94,7 +94,7 @@ def service_install(
 @app.command()
 def shutdown(
     port: int = typer.Option(8420, "--port", help="Port to also free if held"),
-):
+) -> None:
     res = controller.shutdown_all(port=port)
     if res["count"] == 0 and not res["failed"]:
         console.print("[dim]No running GitPulse processes found.[/]")
@@ -117,7 +117,7 @@ def shutdown(
 def gui(
     host: str = typer.Option("127.0.0.1", "--host"),
     port: int = typer.Option(8420, "--port"),
-):
+) -> None:
     from ..gui import main as gui_main
 
     gui_main(["--host", host, "--port", str(port)])

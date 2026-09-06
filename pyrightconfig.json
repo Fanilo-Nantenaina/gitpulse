@@ -1,0 +1,17 @@
+{
+  "include": ["gitpulse", "tests"],
+  "exclude": ["build", "dist", "**/__pycache__"],
+  "typeCheckingMode": "strict",
+  "pythonVersion": "3.10",
+  "executionEnvironments": [
+    {
+      // Tests legitimately reach into private helpers; making every internal
+      // public just to satisfy the checker would inflate the public API.
+      // extraPaths keeps "import gitpulse" resolving to the working tree
+      // rather than to whatever copy happens to sit in site-packages.
+      "root": "tests",
+      "extraPaths": ["."],
+      "reportPrivateUsage": "none"
+    }
+  ]
+}

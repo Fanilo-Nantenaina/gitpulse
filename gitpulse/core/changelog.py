@@ -4,6 +4,7 @@ import re
 from datetime import datetime, timezone
 
 import pygit2
+from pygit2.enums import SortMode
 
 _CONV = re.compile(
     r"^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<bang>!)?:\s*(?P<desc>.+)"
@@ -25,14 +26,17 @@ _SECTION = {
 def generate_changelog(
     repo_path: str, from_ref: str | None, to_ref: str = "HEAD"
 ) -> str:
-    repo = pygit2.Repository(pygit2.discover_repository(repo_path))
+    discovered = pygit2.discover_repository(repo_path)
+    if discovered is None:
+        raise ValueError(f"No git repository found at {repo_path}")
+    repo = pygit2.Repository(discovered)
     to_oid = repo.revparse_single(to_ref).id
     from_oid = repo.revparse_single(from_ref).id if from_ref else None
 
     sections: dict[str, list[str]] = {}
     breaking: list[str] = []
 
-    for c in repo.walk(to_oid, pygit2.GIT_SORT_TIME):
+    for c in repo.walk(to_oid, SortMode.TIME):
         if from_oid and c.id == from_oid:
             break
         first = c.message.strip().splitlines()[0]

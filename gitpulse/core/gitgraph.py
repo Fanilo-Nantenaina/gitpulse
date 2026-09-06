@@ -1,13 +1,59 @@
 from __future__ import annotations
 
+import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import TypedDict
 
 import pygit2
+from pygit2.enums import SortMode
 
 
-def _refs_by_oid(repo) -> dict[str, list[dict]]:
-    out: dict[str, list[dict]] = {}
+class RefLabel(TypedDict):
+    name: str
+    kind: str
+    head: bool
+
+
+# "from" is a keyword, so this one needs the functional syntax.
+GraphEdge = TypedDict("GraphEdge", {"from": int, "to": int, "kind": str})
+
+
+class _GraphNodeBase(TypedDict):
+    sha: str
+    short: str
+    lane: int
+    parents: list[str]
+    incoming: list[int]
+    edges: list[GraphEdge]
+    is_merge: bool
+    summary: str
+    body: str
+    author: str
+    email: str
+    committer: str
+    when: str
+    refs: list[RefLabel]
+    width: int
+
+
+class GraphNode(_GraphNodeBase, total=False):
+    # Filled in a second pass, once every node is laid out.
+    tip: bool
+
+
+class Graph(TypedDict):
+    nodes: list[GraphNode]
+    branches: list[str]
+    remote_branches: list[str]
+    head: str | None
+    returned: int
+    lanes: int
+    has_more: bool
+
+
+def _refs_by_oid(repo: pygit2.Repository) -> dict[str, list[RefLabel]]:
+    out: dict[str, list[RefLabel]] = {}
     head = None
     if not repo.head_is_unborn and not repo.head_is_detached:
         head = repo.head.shorthand
@@ -41,11 +87,11 @@ def _refs_by_oid(repo) -> dict[str, list[dict]]:
     return out
 
 
-def _tips(repo):
-    oids = []
-    seen = set()
+def _tips(repo: pygit2.Repository) -> list[pygit2.Oid]:
+    oids: list[pygit2.Oid] = []
+    seen: set[str] = set()
 
-    def add_commit(target):
+    def add_commit(target: pygit2.Oid | str) -> None:
         try:
             obj = repo[target]
             commit = obj.peel(pygit2.Commit)
@@ -70,12 +116,12 @@ def _tips(repo):
 
 
 def graph(
-    repo_path,
+    repo_path: str | os.PathLike[str],
     limit: int = 0,
     offset: int = 0,
     branch: str | None = None,
     all_commits: bool = True,
-) -> dict:
+) -> Graph:
     discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
     if discovered is None:
         raise ValueError("No git repository found")
@@ -94,7 +140,7 @@ def graph(
     refs = _refs_by_oid(repo)
     head = repo.head.shorthand if not repo.head_is_detached else None
 
-    flags = pygit2.GIT_SORT_TIME | pygit2.GIT_SORT_TOPOLOGICAL
+    flags = SortMode.TIME | SortMode.TOPOLOGICAL
     walker = repo.walk(repo.head.target, flags)
     for oid in _tips(repo):
         try:
@@ -103,9 +149,9 @@ def graph(
             continue
 
     lanes: list[str | None] = []
-    nodes = []
+    nodes: list[GraphNode] = []
 
-    def first_free(state):
+    def first_free(state: list[str | None]) -> int:
         for i, v in enumerate(state):
             if v is None:
                 return i
@@ -143,7 +189,7 @@ def graph(
                 after[my_lane] = p0
                 first_parent_lane = my_lane
 
-        merge_targets = []
+        merge_targets: list[int] = []
         for p in parents[1:]:
             tgt = next((i for i, v in enumerate(after) if v == p), None)
             if tgt is None:
@@ -155,7 +201,7 @@ def graph(
 
         incoming = [i for i, v in enumerate(before) if v is not None]
 
-        edges = []
+        edges: list[GraphEdge] = []
         for i, v in enumerate(before):
             if v is None:
                 continue

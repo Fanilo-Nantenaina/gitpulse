@@ -6,11 +6,27 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse, urlunparse
 
 import pygit2
 
 from .gitcreds import git_config_env, redact
+
+if TYPE_CHECKING:
+    # pygit2 ships py.typed but leaves clone_repository's `repository` and
+    # `remote` factory parameters unannotated, which makes the whole symbol
+    # partially unknown under strict mode. Declare the part we actually call.
+    def _clone_repository(
+        url: str,
+        path: str,
+        bare: bool = False,
+        *,
+        callbacks: pygit2.RemoteCallbacks | None = None,
+    ) -> pygit2.Repository: ...
+
+else:
+    _clone_repository = pygit2.clone_repository
 
 
 def cache_dir() -> Path:
@@ -32,7 +48,7 @@ def _cache_path(url: str) -> Path:
     return cache_dir() / f"{repo_name_from_url(url)}-{digest}.git"
 
 
-def _strip_userinfo(url: str) -> str:
+def strip_userinfo(url: str) -> str:
     parts = urlparse(url)
     if parts.scheme not in ("http", "https") or "@" not in parts.netloc:
         return url
@@ -71,10 +87,16 @@ def _callbacks(
     return None
 
 
-def _clone_pygit2(url: str, dest: Path, token, username, ssh_key) -> bool:
+def _clone_pygit2(
+    url: str,
+    dest: Path,
+    token: str | None,
+    username: str | None,
+    ssh_key: str | None,
+) -> bool:
     try:
         cb = _callbacks(url, token, username, ssh_key)
-        pygit2.clone_repository(url, str(dest), bare=True, callbacks=cb)
+        _clone_repository(url, str(dest), bare=True, callbacks=cb)
         return True
     except Exception:
         if dest.exists():
@@ -83,7 +105,7 @@ def _clone_pygit2(url: str, dest: Path, token, username, ssh_key) -> bool:
 
 
 def _run_git(
-    args: list[str], env: dict | None = None, secret: str | None = None
+    args: list[str], env: dict[str, str] | None = None, secret: str | None = None
 ) -> tuple[bool, str]:
     from .procutil import run as _prun
 
@@ -101,18 +123,26 @@ def _run_git(
 
 
 def _clone_cli(
-    url: str, dest: Path, token, username, insecure: bool = False
+    url: str,
+    dest: Path,
+    token: str | None,
+    username: str | None,
+    insecure: bool = False,
 ) -> tuple[bool, str]:
-    clone_url = _strip_userinfo(url)
+    clone_url = strip_userinfo(url)
     env = git_config_env(token, username, insecure, for_url=clone_url)
     args = ["clone", "--bare", "--quiet", clone_url, str(dest)]
     return _run_git(args, env, secret=token)
 
 
 def _fetch_cli(
-    dest: Path, url: str, token, username, insecure: bool = False
+    dest: Path,
+    url: str,
+    token: str | None,
+    username: str | None,
+    insecure: bool = False,
 ) -> tuple[bool, str]:
-    fetch_url = _strip_userinfo(url)
+    fetch_url = strip_userinfo(url)
     env = git_config_env(token, username, insecure, for_url=fetch_url)
     args = [
         "-C",
@@ -183,7 +213,7 @@ def sync_remote(
             "the 'Allow insecure SSL' option for this repo."
         )
     raise RuntimeError(
-        f"Could not clone {_strip_userinfo(url)}.\n"
+        f"Could not clone {strip_userinfo(url)}.\n"
         f"git said: {redact(msg, token).strip()[:400]}\n{hint}"
     )
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from typing import TypedDict
 
 from fastapi import APIRouter, HTTPException
 
@@ -12,19 +13,32 @@ from ..schemas import TrackReq
 router = APIRouter(prefix="/api")
 
 
+class _BranchesBase(TypedDict):
+    local: list[str]
+    remote: list[str]
+    remote_url: str | None
+    head: str | None
+
+
+class BranchesResult(_BranchesBase, total=False):
+    # Only set when branch discovery failed; the other keys stay at their
+    # empty defaults in that case.
+    error: str
+
+
 @router.get("/config")
 def api_get_config():
-    cfg = gp_config.load_config()
     return {
         "lang": gp_config.resolve_lang(),
         "languages": gp_config.LANGUAGES,
-        "tracked": cfg.get("tracked", []),
+        "tracked": gp_config.list_tracked(),
     }
 
 
 @router.post("/config/lang")
-def api_set_lang(body: dict):
-    code = gp_config.normalize_lang(body.get("lang"))
+def api_set_lang(body: dict[str, object]):
+    lang = body.get("lang")
+    code = gp_config.normalize_lang(lang if isinstance(lang, str) else None)
     if not code:
         raise HTTPException(400, "Unknown language")
     cfg = gp_config.load_config()
@@ -48,15 +62,21 @@ def api_drives():
 
 
 @router.post("/branches")
-def api_branches(body: dict):
+def api_branches(body: dict[str, object]):
 
     path = body.get("path")
-    url = body.get("url")
-    include_remote = body.get("include_remote", False)
-    result = {"local": [], "remote": [], "remote_url": None, "head": None}
-    tok = None
+    raw_url = body.get("url")
+    url = raw_url if isinstance(raw_url, str) else None
+    include_remote = bool(body.get("include_remote", False))
+    result: BranchesResult = {
+        "local": [],
+        "remote": [],
+        "remote_url": None,
+        "head": None,
+    }
+    tok: str | None = None
     try:
-        if path:
+        if isinstance(path, str) and path:
             import pygit2
 
             disc = pygit2.discover_repository(path)
@@ -64,9 +84,9 @@ def api_branches(body: dict):
                 raise HTTPException(400, "Not a git repository")
             repo = pygit2.Repository(disc)
 
-            def _branch_time(bn):
+            def _branch_time(bn: str) -> int:
                 try:
-                    return repo.branches.get(bn).peel().commit_time
+                    return repo.branches.get(bn).peel(pygit2.Commit).commit_time
                 except Exception:
                     return 0
 
@@ -79,11 +99,12 @@ def api_branches(body: dict):
                 result["remote_url"] = repo.remotes["origin"].url
             except Exception:
                 pass
-            if include_remote and result["remote_url"]:
-                url = result["remote_url"]
+            remote_url = result["remote_url"]
+            if include_remote and remote_url:
+                url = remote_url
         if include_remote and url:
-            tok, user, key = gp_remote.resolve_auth(None, None, None)
-            ls_url = gp_remote._strip_userinfo(url)
+            tok, user, _ = gp_remote.resolve_auth(None, None, None)
+            ls_url = gp_remote.strip_userinfo(url)
             env = git_config_env(tok, user, bool(body.get("insecure")), for_url=ls_url)
             from ...core.procutil import run as _prun
 
