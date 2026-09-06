@@ -14,9 +14,6 @@ import pygit2
 from .gitcreds import git_config_env, redact
 
 if TYPE_CHECKING:
-    # pygit2 ships py.typed but leaves clone_repository's `repository` and
-    # `remote` factory parameters unannotated, which makes the whole symbol
-    # partially unknown under strict mode. Declare the part we actually call.
     def _clone_repository(
         url: str,
         path: str,

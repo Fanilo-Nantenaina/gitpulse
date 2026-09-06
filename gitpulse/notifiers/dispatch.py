@@ -116,16 +116,13 @@ def notify_email(markdown: str) -> DeliveryResult:
 
 def notify_desktop(markdown: str) -> DeliveryResult:
     try:
-        # plyer is an optional extra and ships no stubs of its own.
         from plyer import notification  # pyright: ignore[reportMissingTypeStubs]
     except ImportError:
         return _skip("desktop", "install the 'desktop' extra (plyer)")
     try:
         first = markdown.splitlines()[0] if markdown.splitlines() else "GitPulse"
         title = first.lstrip("# ").strip()
-        # plyer ships no type information and reaches its platform backend
         # through a __getattribute__ proxy, which pyright can only type as
-        # optional. The call is already guarded by the try/except.
         notification.notify(  # pyright: ignore[reportOptionalCall]
             title="GitPulse", message=title[:200], timeout=10
         )

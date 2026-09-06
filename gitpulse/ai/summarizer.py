@@ -116,11 +116,6 @@ class Theme(TypedDict):
 
 
 def _coerce_theme(value: JsonValue) -> Theme | None:
-    """Normalize one model-supplied theme, or None when it has no usable title.
-
-    Returning None is what makes the response invalid upstream: a theme without
-    a title is the schema deviation `from_json` refuses to accept.
-    """
     if isinstance(value, str):
         return {"title": value, "narrative": "", "commits": []} if value else None
     if not isinstance(value, dict):
@@ -202,8 +197,6 @@ class Summary:
         observations: list[str] = []
         if isinstance(raw_observations, list):
             strings = [o for o in raw_observations if isinstance(o, str)]
-            # Anything but a list of plain strings is dropped wholesale, as
-            # before: a half-parsed observation list is worse than none.
             if len(strings) == len(raw_observations):
                 observations = strings
         return cls(
@@ -511,6 +504,4 @@ def summarize(
             )
             return fb
 
-    # Both attempts either return a summary or a fallback; the loop never falls
-    # through. Spelled out so the return type stays honest.
     raise AssertionError("summarize() retry loop completed without a result")

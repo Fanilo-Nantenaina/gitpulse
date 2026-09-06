@@ -100,8 +100,6 @@ OLLAMA_MAX_CTX = int(os.environ.get("GITPULSE_OLLAMA_MAX_CTX", "32768"))
 
 
 def _anthropic_installed() -> bool:
-    # importlib.import_module has the same effect as `import anthropic` (the
-    # module is executed and cached) without leaving an unused local binding.
     try:
         importlib.import_module("anthropic")
     except ImportError:
@@ -306,11 +304,6 @@ class GeminiProvider(Provider):
 
 
 class OllamaModel(TypedDict):
-    """One entry of the Ollama /api/tags response, after validation.
-
-    `capabilities` is None when the server did not report any (older Ollama
-    builds omit the field), which is not the same as reporting an empty list.
-    """
 
     name: str
     capabilities: list[str] | None
@@ -318,7 +311,6 @@ class OllamaModel(TypedDict):
 
 
 def _parse_tags(payload: JsonValue) -> list[OllamaModel]:
-    """Validate an /api/tags payload, dropping entries we cannot use."""
     out: list[OllamaModel] = []
     for entry in as_array(as_object(payload).get("models")):
         model = as_object(entry)
@@ -448,8 +440,6 @@ class OllamaProvider(Provider):
         )
 
 
-# Values are zero-argument factories: every concrete provider defaults all of
-# its fields, so the registry can build one from a name alone.
 _REGISTRY: dict[str, Callable[[], Provider]] = {
     "claude": ClaudeProvider,
     "openai": OpenAIProvider,

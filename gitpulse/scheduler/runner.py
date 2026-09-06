@@ -8,11 +8,6 @@ from ..core.dateparse import parse_interval
 
 
 class _Scheduler(Protocol):
-    """The slice of APScheduler's BlockingScheduler GitPulse depends on.
-
-    APScheduler ships no type information, so binding the instance to this
-    Protocol is what gives the two call sites below a checked signature.
-    """
 
     def add_job(
         self,
@@ -27,8 +22,6 @@ class _Scheduler(Protocol):
 
 
 def _blocking_scheduler() -> _Scheduler:
-    # APScheduler is an optional extra and ships no stubs of its own; the
-    # _Scheduler Protocol above is what types the two methods we call.
     from apscheduler.schedulers.blocking import (  # pyright: ignore[reportMissingTypeStubs]
         BlockingScheduler,
     )

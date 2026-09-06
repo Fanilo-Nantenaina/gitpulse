@@ -15,7 +15,6 @@ class RefLabel(TypedDict):
     head: bool
 
 
-# "from" is a keyword, so this one needs the functional syntax.
 GraphEdge = TypedDict("GraphEdge", {"from": int, "to": int, "kind": str})
 
 
@@ -38,7 +37,6 @@ class _GraphNodeBase(TypedDict):
 
 
 class GraphNode(_GraphNodeBase, total=False):
-    # Filled in a second pass, once every node is laid out.
     tip: bool
 
 

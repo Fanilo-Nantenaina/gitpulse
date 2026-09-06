@@ -14,7 +14,6 @@ URL = "https://github.com/acme/private.git"
 
 
 class Captured:
-    """The argv and env of the faked git invocation; unset until it runs."""
 
     argv: list[str]
     env: dict[str, str]

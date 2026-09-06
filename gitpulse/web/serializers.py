@@ -47,15 +47,10 @@ class _SummaryDictBase(TypedDict):
 
 
 class SummaryDict(_SummaryDictBase, total=False):
-    # Only emitted when the model answer was unusable and a fallback was served.
     fallback_reason: str
 
 
 class RepoSourceReq(Protocol):
-    """The request fields every "which repository?" endpoint shares.
-
-    Implemented structurally by SummaryReq, LogReq, CompareReq and GraphReq.
-    """
 
     path: str | None
     url: str | None

@@ -49,8 +49,6 @@ def _compute_file_changes(
     repo: pygit2.Repository, commit: pygit2.Commit
 ) -> tuple[FileChange, ...]:
     if commit.parents:
-        # Passing the commits (not their trees) keeps this a tree-to-tree diff
-        # while staying inside pygit2's typed overload.
         diff = repo.diff(commit.parents[0], commit)
     else:
         diff = commit.tree.diff_to_tree(swap=True)

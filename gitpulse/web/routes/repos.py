@@ -21,8 +21,6 @@ class _BranchesBase(TypedDict):
 
 
 class BranchesResult(_BranchesBase, total=False):
-    # Only set when branch discovery failed; the other keys stay at their
-    # empty defaults in that case.
     error: str
 
 

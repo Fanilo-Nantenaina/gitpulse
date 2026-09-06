@@ -41,8 +41,6 @@ def config_dir() -> Path:
     return Path(base) if base else Path.home() / ".gitpulse"
 
 
-# The on-disk config is free-form user JSON: keys are added by the CLI, the
-# web UI and the scheduler, so the values stay Any rather than a fixed schema.
 def load_config() -> dict[str, Any]:
     p = _config_path()
     if not p.exists():

@@ -42,8 +42,6 @@ def dashboard(
 ) -> None:
     r = resolve_range(when)
 
-    # Both modes feed the same loop: a display name plus something
-    # collect_activity can open (a cached clone, or a discovered directory).
     sources: list[tuple[str, str | Path]]
     if remote:
         tracked = gp_config.list_tracked()

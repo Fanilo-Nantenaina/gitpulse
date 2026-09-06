@@ -5,8 +5,6 @@ import sys
 from collections.abc import Mapping, Sequence
 from typing import IO, Literal, overload
 
-# subprocess.CREATE_NO_WINDOW only exists on Windows; getattr keeps the numeric
-# fallback for interpreters that predate it.
 _NO_WINDOW: int = (
     getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
     if sys.platform == "win32"

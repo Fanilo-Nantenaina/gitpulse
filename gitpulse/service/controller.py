@@ -10,8 +10,6 @@ from typing import TypedDict
 
 from ..core import config as gp_config
 
-# Detach the child from this console so it survives the terminal that spawned
-# it. These constants only exist on Windows; POSIX gets start_new_session.
 if sys.platform == "win32":
     _DETACHED_FLAGS = (
         subprocess.CREATE_NEW_PROCESS_GROUP

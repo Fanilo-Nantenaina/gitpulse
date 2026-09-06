@@ -20,7 +20,6 @@ class _BrowseResultBase(TypedDict):
 
 
 class BrowseResult(_BrowseResultBase, total=False):
-    # "is_repo" on success, "error" when the directory could not be listed.
     is_repo: bool
     error: str
 
