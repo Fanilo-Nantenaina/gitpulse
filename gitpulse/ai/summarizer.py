@@ -5,7 +5,7 @@ import os
 import textwrap
 from dataclasses import dataclass
 
-from ..core import config
+from ..core import collector, config
 from ..core.models import RepoActivity
 from . import providers
 
@@ -19,34 +19,59 @@ def _system_prompt(lang_code: str) -> str:
         The goal is to SUMMARIZE the work clearly first, and only then note anything
         worth flagging. This is a recap, not a performance review.
 
-        NARRATIVE ORDER (important):
-        - Tell the story in CHRONOLOGICAL order: oldest first, ending with the most
-          recent work. Never narrate backwards. The commit list is given oldest
-          first; follow that order.
-        - Anchor the story in TIME, not in commit IDs. Refer to days and dates
-          ("On the 12th", "early in the week", "the next day", "by Friday") rather
-          than to commit SHAs. Do NOT say "commit abc1234 did X" in the prose.
+        DEPTH — this is what separates a good digest from a useless one:
+        - Describe the ENGINEERING SUBSTANCE: the capabilities, subsystems and
+          mechanisms that were built or changed, in the project's own domain
+          terms. Name them the way the codebase names them.
+        - Read the commit bodies, file paths and (when given) the diff excerpts,
+          and extract the specific things introduced: the new fields, functions,
+          classes, schemas, endpoints, config keys, validation rules, data flows.
+        - BANNED as a description of work: bare conventional-commit labels and
+          empty umbrella words — "feat work", "several refactors", "various
+          improvements", "code cleanup", "better structure", "enhanced quality".
+          These say nothing. Every clause must carry a fact a reader could not
+          have guessed from the commit count alone.
+        - Weak (do not write this): "Several feat and refactor commits improved
+          the API and cleaned up the code."
+          Strong (write like this): "Schema drift detection was reworked to emit
+          human-readable field paths, keep a history of previous versions, and
+          mark schemas as applied; route handlers moved to typed
+          ApiResponse[T] envelopes and DELETE endpoints gained structured
+          response models."
+
+        NARRATIVE ORDER:
+        - The commit list is given oldest first; follow that order when the
+          sequence matters. Anchor the story in TIME, not in commit IDs — refer
+          to days and dates rather than SHAs. Do NOT say "commit abc1234 did X"
+          in the prose.
+        - Chronology is scaffolding, not the point: never let a date-by-date
+          walkthrough replace the technical substance above.
 
         ATTRIBUTION:
-        - Refer to the people by their actual author NAME (given per commit and in
-          "Author(s) in this window"). When one author dominates, use their name.
-          When several contributed, attribute work to the right person by name.
-        - NEVER use generic placeholders like "the developer", "the author", "he",
-          "she", or "they" as a stand-in for a named person. Use the real name(s).
+        - Refer to people by their actual author NAME (given per commit and in
+          "Author(s) in this window"), not "the developer" or "they". When a
+          single author wrote everything, name them once — do not repeat the
+          name in every sentence at the expense of content.
 
         Rules for THEMES:
-        - Group related commits into themes by what they actually change.
+        - Group related commits into themes by the capability or subsystem they
+          change — name the theme after that ("Schema drift tracking", "Auth
+          token rotation"), not after a commit type ("feat", "refactor").
         - In each narrative, name the concrete artifacts involved: file paths,
-          functions, classes, endpoints, dependencies, config keys. Cite the work,
-          do not paraphrase it generically. Attribute by author name where relevant.
-        - Explain WHY, not just what: the apparent intent and the engineering effect.
+          functions, classes, endpoints, dependencies, config keys, and what
+          they now do differently. Cite the work, do not paraphrase it
+          generically.
+        - Explain WHY, not just what: the apparent intent and the engineering
+          effect (what got built, safer, faster, simpler).
 
         Rules for SYNTHESIS:
-        - A thorough, detailed prose overview of the period told as a chronological
-          story: what was worked on first, how it progressed day by day, how the
-          pieces connect, and where the bulk of the work went. Use author names and
-          dates/days. Use as many sentences as the activity warrants. Name concrete
-          areas (modules, features, files). Neutral and descriptive.
+        - A thorough, detailed prose overview of the period: which capabilities
+          and subsystems the work centred on, what was actually introduced or
+          reworked inside them, how the pieces connect, and where the bulk of
+          the effort went. Lead with the substance; weave in sequence and author
+          names where they add information.
+        - Use as many sentences as the activity warrants — a busy period
+          deserves a full paragraph or more. Neutral and descriptive.
 
         Rules for OBSERVATIONS:
         - Optional and secondary. Include only genuinely useful, evidence-backed
@@ -60,11 +85,11 @@ def _system_prompt(lang_code: str) -> str:
 
         Respond ONLY with valid JSON, no markdown fences, in this exact shape:
         {
-          "headline": "one sentence naming the main thrust of the period",
-          "synthesis": "detailed neutral chronological prose, naming authors and dates",
+          "headline": "one sentence naming the specific capability or subsystem the period centred on",
+          "synthesis": "detailed prose: the capabilities and subsystems worked on and what was concretely introduced or reworked inside them",
           "themes": [
-            {"title": "Theme name",
-             "narrative": "3-5 sentences citing concrete files/symbols, dates, and author names",
+            {"title": "Capability or subsystem name, not a commit type",
+             "narrative": "3-5 sentences citing concrete files/symbols/fields and what they now do differently",
              "commits": ["short_sha", ...]}
           ],
           "observations": ["specific, evidence-backed note (optional)", ...]
@@ -150,6 +175,8 @@ class Summary:
 
 
 MAX_PAYLOAD_COMMITS = 300
+DIFF_EXCERPT_COMMITS = 6
+DIFF_EXCERPT_CHARS = 2000
 
 
 def _build_payload(activity: RepoActivity) -> str:
@@ -207,6 +234,8 @@ def _build_payload(activity: RepoActivity) -> str:
         )
         lines.extend(f"- {s}" for s in signals)
 
+    lines.extend(_diff_section(activity, commits))
+
     lines.append("")
     lines.append(
         "Reminder: reply with ONLY the JSON object from the system prompt "
@@ -216,6 +245,43 @@ def _build_payload(activity: RepoActivity) -> str:
     )
 
     return "\n".join(lines)
+
+
+def _diff_section(activity: RepoActivity, commits: list) -> list[str]:
+    candidates = [c for c in commits if not c.is_merge and c.churn > 0]
+    notable = sorted(candidates, key=lambda c: c.churn, reverse=True)[
+        :DIFF_EXCERPT_COMMITS
+    ]
+    if not notable or not activity.repo_path:
+        return []
+
+    try:
+        excerpts = collector.diff_excerpts(
+            activity.repo_path,
+            [c.sha for c in notable],
+            max_chars_each=DIFF_EXCERPT_CHARS,
+        )
+    except Exception:
+        return []
+    if not excerpts:
+        return []
+
+    out = [
+        "",
+        "Diff excerpts from the largest commits. Mine these for the CONCRETE "
+        "technical substance of the work — the actual function, class, field, "
+        "schema, endpoint and config names being introduced or changed. Your "
+        "themes and synthesis must describe what these changes DO, in domain "
+        "terms, not restate the commit subjects and not settle for generic "
+        "labels like 'refactoring' or 'improvements':",
+    ]
+    for c in notable:
+        text = excerpts.get(c.sha)
+        if not text:
+            continue
+        out.append(f"--- [{c.short_sha}] {c.summary} ---")
+        out.append(text)
+    return out if len(out) > 1 else []
 
 
 def _signals(activity: RepoActivity) -> list[str]:

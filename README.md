@@ -10,11 +10,13 @@ work-pattern detection (hotspots, off-hours commits, productivity heatmaps).
 ## Why it's different
 
 Most git-stat tools count commits. GitPulse _reads_ them: it sends commit
-messages, full bodies, per-file diff stats, and a precomputed signals block
-(churn hotspots, off-hours commits, fix/revert chains, large diffs) to a
-language model, which clusters the work into themes and writes a code-review-
-style digest. The collection layer (pygit2) is the boring part — the value is
-the semantic layer on top.
+messages, full bodies, per-file diff stats, real diff excerpts from the largest
+commits, and a precomputed signals block (churn hotspots, off-hours commits,
+fix/revert chains, large diffs) to a language model, which clusters the work
+into themes and writes a code-review-style digest. The diff excerpts are what
+let it name the actual subsystems and fields that changed, rather than
+paraphrasing commit subjects. The collection layer (pygit2) is the boring part
+— the value is the semantic layer on top.
 
 The digest leads with a synthesis (a neutral Overview of what the period was
 about), then detailed themes citing concrete files and symbols, then optional
@@ -168,6 +170,7 @@ Restart the terminal afterwards so the variable is picked up.
 | Variable                    | Purpose                                     | Default                  |
 | --------------------------- | ------------------------------------------- | ------------------------ |
 | `ANTHROPIC_API_KEY`         | Enables the Claude provider                 | —                        |
+| `ANTHROPIC_WORKSPACE_ID`    | Workspace id, if your Claude key needs one  | —                        |
 | `GITPULSE_MODEL`            | Claude model                                | `claude-sonnet-4-6`      |
 | `GITPULSE_LANG`             | Default output language (code or name)      | `en`                     |
 | `GITPULSE_GIT_TOKEN`        | Access token for private HTTPS remotes      | —                        |
@@ -178,7 +181,8 @@ Restart the terminal afterwards so the variable is picked up.
 | `GITPULSE_SSH_PASSPHRASE`   | Passphrase for the SSH key, if any          | —                        |
 | `GITPULSE_CACHE_DIR`        | Where remote clones are cached              | `~/.gitpulse/remotes`    |
 | `OLLAMA_HOST`               | Ollama server URL                           | `http://localhost:11434` |
-| `GITPULSE_OLLAMA_MODEL`     | Default Ollama model (else first installed) | —                        |
+| `GITPULSE_OLLAMA_MODEL`     | Default Ollama model (else auto-picked)     | —                        |
+| `GITPULSE_OLLAMA_MAX_CTX`   | Ceiling for the Ollama context window       | `32768`                  |
 | `GITPULSE_SLACK_WEBHOOK`    | Slack incoming webhook URL                  | —                        |
 | `GITPULSE_TELEGRAM_TOKEN`   | Telegram bot token (via @BotFather)         | —                        |
 | `GITPULSE_TELEGRAM_CHAT_ID` | Telegram chat ID                            | —                        |
@@ -220,16 +224,25 @@ Install Ollama, pull a model, and GitPulse finds it automatically:
 
 ```bash
 ollama pull llama3.1            # or qwen2.5-coder, mistral, etc.
-gitpulse summary -p ollama      # uses the first installed model
+gitpulse summary -p ollama      # auto-picks an installed model
 gitpulse summary -p ollama -m qwen2.5-coder:7b
 ```
 
-If `--model` is omitted for Ollama, the first installed model is used. Set
-`GITPULSE_OLLAMA_MODEL` to fix a default. A non-default server location can be
-set with `OLLAMA_HOST`.
+If `--model` is omitted, GitPulse picks among your installed models, preferring
+ones that answer directly over "thinking" models (which follow a strict JSON
+schema less reliably) and skipping embedding-only models, which cannot write
+text at all. Set `GITPULSE_OLLAMA_MODEL` to pin one. A non-default server
+location can be set with `OLLAMA_HOST`.
 
 Coder-tuned models (qwen2.5-coder, deepseek-coder) tend to produce the best
 commit summaries. Quality is lower than Claude but the run is free and offline.
+
+**Context window.** Ollama's own default context is small and it silently
+discards any prompt beyond it — a digest sent to it would be written from a
+fragment of your history. GitPulse therefore sets `num_ctx` per request, sized
+to the payload and capped by both the model's limit and
+`GITPULSE_OLLAMA_MAX_CTX` (32k by default, since a large window costs real
+memory). Raise it if you analyze long windows on a machine that can afford it.
 
 ### Forcing a provider
 

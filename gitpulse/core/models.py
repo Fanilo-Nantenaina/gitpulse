@@ -26,6 +26,7 @@ class Commit:
     body: str
     files: list[FileChange] = field(default_factory=list)
     branch: str | None = None
+    is_merge: bool = False
 
     @property
     def short_sha(self) -> str:

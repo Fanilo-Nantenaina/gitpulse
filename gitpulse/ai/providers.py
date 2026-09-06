@@ -72,6 +72,10 @@ _GEMINI_PRICES = {
 }
 DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
 
+OLLAMA_MIN_CTX = 4096
+OLLAMA_CTX_FALLBACK = 8192
+OLLAMA_MAX_CTX = int(os.environ.get("GITPULSE_OLLAMA_MAX_CTX", "32768"))
+
 
 @dataclass
 class ClaudeProvider(Provider):
@@ -321,6 +325,20 @@ class OllamaProvider(Provider):
 
         return sorted(models, key=rank)[0]["name"]
 
+    def model_context_limit(self, model: str) -> int:
+        data = self._get("/api/tags")
+        for m in (data or {}).get("models", []):
+            if m.get("name") == model:
+                limit = (m.get("details") or {}).get("context_length")
+                if isinstance(limit, int) and limit > 0:
+                    return limit
+        return OLLAMA_CTX_FALLBACK
+
+    def _num_ctx(self, model: str, system: str, prompt: str, max_tokens: int) -> int:
+        estimated = (len(system) + len(prompt)) // 3 + max_tokens + 512
+        ceiling = min(self.model_context_limit(model), OLLAMA_MAX_CTX)
+        return max(OLLAMA_MIN_CTX, min(estimated, ceiling))
+
     def generate(self, system, prompt, max_tokens):
         model = self.resolve_model()
         if not model:
@@ -334,7 +352,11 @@ class OllamaProvider(Provider):
                 "prompt": prompt,
                 "stream": False,
                 "format": "json",
-                "options": {"num_predict": max_tokens, "temperature": 0.2},
+                "options": {
+                    "num_predict": max_tokens,
+                    "num_ctx": self._num_ctx(model, system, prompt, max_tokens),
+                    "temperature": 0.2,
+                },
             }
         ).encode()
         req = urllib.request.Request(

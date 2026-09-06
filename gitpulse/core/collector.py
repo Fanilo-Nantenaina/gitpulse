@@ -73,6 +73,51 @@ def _file_changes(repo: pygit2.Repository, commit: pygit2.Commit) -> list[FileCh
     return list(cached)
 
 
+def _diff_excerpt(
+    repo: pygit2.Repository, commit: pygit2.Commit, max_chars: int
+) -> str:
+    if commit.parents:
+        diff = repo.diff(commit.parents[0].tree, commit.tree)
+    else:
+        diff = commit.tree.diff_to_tree(swap=True)
+
+    parts: list[str] = []
+    total = 0
+    for patch in diff:
+        text = patch.text or ""
+        if not text:
+            continue
+        room = max_chars - total
+        if len(text) > room:
+            if room > 200:
+                parts.append(text[:room] + "\n... [diff truncated] ...")
+            break
+        parts.append(text)
+        total += len(text)
+    return "".join(parts)
+
+
+def diff_excerpts(
+    repo_path: str | os.PathLike, shas: list[str], max_chars_each: int = 1500
+) -> dict[str, str]:
+    discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
+    if discovered is None:
+        return {}
+    repo = pygit2.Repository(discovered)
+    out: dict[str, str] = {}
+    for sha in shas:
+        try:
+            commit = repo.revparse_single(sha)
+        except (KeyError, ValueError):
+            continue
+        if not isinstance(commit, pygit2.Commit):
+            continue
+        text = _diff_excerpt(repo, commit, max_chars_each)
+        if text:
+            out[sha] = text
+    return out
+
+
 def collect_activity(
     repo_path: str | os.PathLike,
     since: datetime,
@@ -150,6 +195,7 @@ def collect_activity(
                 body=rest.strip(),
                 files=_file_changes(repo, c),
                 branch=branch_label,
+                is_merge=len(c.parents) > 1,
             )
         )
 
