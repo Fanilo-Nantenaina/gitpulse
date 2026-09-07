@@ -7,9 +7,9 @@ from dataclasses import dataclass
 from typing import TypedDict
 
 from ..core import collector, config
+from ..core.jsonio import JsonValue
 from ..core.models import Commit, RepoActivity
 from . import providers
-from ._json import JsonValue
 
 DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", providers.DEFAULT_CLAUDE_MODEL)
 

@@ -19,6 +19,7 @@ class AuthorCount(TypedDict):
     email: str
     commits: int
 
+
 _STATUS = {
     pygit2.GIT_DELTA_ADDED: "added",
     pygit2.GIT_DELTA_DELETED: "deleted",

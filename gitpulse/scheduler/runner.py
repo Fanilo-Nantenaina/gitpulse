@@ -8,7 +8,6 @@ from ..core.dateparse import parse_interval
 
 
 class _Scheduler(Protocol):
-
     def add_job(
         self,
         func: Callable[[], None],

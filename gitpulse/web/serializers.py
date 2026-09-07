@@ -51,7 +51,6 @@ class SummaryDict(_SummaryDictBase, total=False):
 
 
 class RepoSourceReq(Protocol):
-
     path: str | None
     url: str | None
     refresh: bool

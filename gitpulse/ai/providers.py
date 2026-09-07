@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 from typing import TypedDict
 
 from ..core import config as _config
-from ._json import JsonValue, as_array, as_int, as_object, as_str
+from ..core.jsonio import JsonValue, as_array, as_int, as_object, as_str
 
 
 @dataclass
@@ -304,7 +304,6 @@ class GeminiProvider(Provider):
 
 
 class OllamaModel(TypedDict):
-
     name: str
     capabilities: list[str] | None
     context_length: int | None

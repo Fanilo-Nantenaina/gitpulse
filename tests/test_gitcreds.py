@@ -14,7 +14,6 @@ URL = "https://github.com/acme/private.git"
 
 
 class Captured:
-
     argv: list[str]
     env: dict[str, str]
 

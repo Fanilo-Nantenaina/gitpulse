@@ -12,6 +12,7 @@ from ..core import config as gp_config
 from ..core.changelog import generate_changelog
 from ..core.collector import collect_activity
 from ..core.dateparse import parse_interval, parse_range, suggestions
+from ..core.jsonio import as_str
 from ..notifiers.dispatch import dispatch
 from ..scheduler.runner import run_scheduler
 from ._shared import LANG_HELP, MODEL_HELP, PROVIDER_HELP, app, console
@@ -106,7 +107,7 @@ def config(
     table.add_column("Source", style="dim")
     if gp_config.normalize_lang(os.environ.get("GITPULSE_LANG")):
         src = "env GITPULSE_LANG"
-    elif gp_config.normalize_lang(cfg.get("lang")):
+    elif gp_config.normalize_lang(as_str(cfg.get("lang"))):
         src = "config file"
     else:
         src = "default"

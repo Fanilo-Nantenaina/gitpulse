@@ -14,6 +14,7 @@ import pygit2
 from .gitcreds import git_config_env, redact
 
 if TYPE_CHECKING:
+
     def _clone_repository(
         url: str,
         path: str,

@@ -5,7 +5,9 @@ import os
 import stat
 import tempfile
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict
+
+from .jsonio import JsonValue, as_array, as_object, as_str
 
 
 class _TrackedBase(TypedDict):
@@ -41,17 +43,17 @@ def config_dir() -> Path:
     return Path(base) if base else Path.home() / ".gitpulse"
 
 
-def load_config() -> dict[str, Any]:
+def load_config() -> dict[str, JsonValue]:
     p = _config_path()
     if not p.exists():
         return {}
     try:
-        return json.loads(p.read_text(encoding="utf-8"))
+        return as_object(json.loads(p.read_text(encoding="utf-8")))
     except (json.JSONDecodeError, OSError):
         return {}
 
 
-def save_config(cfg: dict[str, Any]) -> Path:
+def save_config(cfg: dict[str, JsonValue]) -> Path:
     p = _config_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     _restrict(p.parent, stat.S_IRWXU)
@@ -80,9 +82,31 @@ def _restrict(path: Path, mode: int) -> None:
         pass
 
 
+def _read_tracked(cfg: dict[str, JsonValue]) -> list[TrackedRepo]:
+    out: list[TrackedRepo] = []
+    for entry in as_array(cfg.get("tracked")):
+        obj = as_object(entry)
+        url = as_str(obj.get("url"))
+        if not url:
+            continue
+        label = as_str(obj.get("label"))
+        out.append({"url": url, "label": label} if label else {"url": url})
+    return out
+
+
+def _write_tracked(cfg: dict[str, JsonValue], tracked: list[TrackedRepo]) -> None:
+    payload: list[JsonValue] = []
+    for t in tracked:
+        entry: dict[str, JsonValue] = {"url": t["url"]}
+        label = t.get("label")
+        if label:
+            entry["label"] = label
+        payload.append(entry)
+    cfg["tracked"] = payload
+
+
 def list_tracked() -> list[TrackedRepo]:
-    tracked: list[TrackedRepo] = load_config().get("tracked", [])
-    return tracked
+    return _read_tracked(load_config())
 
 
 _KEY_FIELDS = {
@@ -92,17 +116,24 @@ _KEY_FIELDS = {
 }
 
 
+def _read_keys(cfg: dict[str, JsonValue]) -> dict[str, JsonValue]:
+    return {
+        name: value
+        for name, value in as_object(cfg.get("keys")).items()
+        if isinstance(value, str)
+    }
+
+
 def get_api_key(provider: str) -> str | None:
     env_name = _KEY_FIELDS.get(provider)
     if env_name and os.environ.get(env_name):
         return os.environ[env_name]
-    keys: dict[str, str] = load_config().get("keys", {})
-    return keys.get(provider)
+    return as_str(_read_keys(load_config()).get(provider)) or None
 
 
 def set_api_key(provider: str, key: str) -> None:
     cfg = load_config()
-    keys: dict[str, str] = cfg.get("keys", {})
+    keys = _read_keys(cfg)
     if key:
         keys[provider] = key
     else:
@@ -112,28 +143,27 @@ def set_api_key(provider: str, key: str) -> None:
 
 
 def has_stored_key(provider: str) -> bool:
-    keys: dict[str, str] = load_config().get("keys", {})
-    return bool(keys.get(provider))
+    return bool(as_str(_read_keys(load_config()).get(provider)))
 
 
 def add_tracked(url: str, label: str | None = None) -> tuple[bool, list[TrackedRepo]]:
     cfg = load_config()
-    tracked: list[TrackedRepo] = cfg.get("tracked", [])
+    tracked = _read_tracked(cfg)
     if any(t["url"] == url for t in tracked):
         return False, tracked
     tracked.append({"url": url, "label": label} if label else {"url": url})
-    cfg["tracked"] = tracked
+    _write_tracked(cfg, tracked)
     save_config(cfg)
     return True, tracked
 
 
 def remove_tracked(needle: str) -> tuple[bool, list[TrackedRepo]]:
     cfg = load_config()
-    tracked: list[TrackedRepo] = cfg.get("tracked", [])
+    tracked = _read_tracked(cfg)
     kept = [t for t in tracked if t["url"] != needle and t.get("label") != needle]
     changed = len(kept) != len(tracked)
     if changed:
-        cfg["tracked"] = kept
+        _write_tracked(cfg, kept)
         save_config(cfg)
     return changed, kept
 
@@ -157,7 +187,7 @@ def resolve_lang(cli_value: str | None = None) -> str:
     candidate = normalize_lang(os.environ.get("GITPULSE_LANG"))
     if candidate:
         return candidate
-    candidate = normalize_lang(load_config().get("lang"))
+    candidate = normalize_lang(as_str(load_config().get("lang")))
     if candidate:
         return candidate
     return DEFAULT_LANG
