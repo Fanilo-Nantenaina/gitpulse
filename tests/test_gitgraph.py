@@ -69,3 +69,24 @@ def test_graph_empty_on_unborn(tmp_path: Path) -> None:
     g = graph(repo)
     assert g["returned"] == 0
     assert g["nodes"] == []
+
+
+def test_graph_pagination_limit(linear_repo: Path) -> None:
+    g = graph(linear_repo, limit=2)
+    assert g["returned"] == 2
+    assert len(g["nodes"]) == 2
+    assert g["has_more"] is True
+
+
+def test_graph_pagination_offset(linear_repo: Path) -> None:
+    full = graph(linear_repo)
+    sliced = graph(linear_repo, limit=2, offset=1)
+    assert sliced["returned"] == 2
+    assert sliced["nodes"][0]["sha"] == full["nodes"][1]["sha"]
+    assert sliced["nodes"][1]["sha"] == full["nodes"][2]["sha"]
+
+
+def test_graph_branch_filter(branched_repo: Path) -> None:
+    g = graph(branched_repo, branch="master", all_commits=False)
+    assert g["returned"] > 0
+    assert "master" in g["branches"]

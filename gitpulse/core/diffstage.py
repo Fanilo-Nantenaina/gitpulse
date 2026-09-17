@@ -58,6 +58,7 @@ def collect_working_changes(
     repo_path: str | os.PathLike[str],
     scope: str = "all",
     max_diff_chars: int = 24000,
+    include_diff: bool = True,
 ) -> WorkingChanges:
     discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
     if discovered is None:
@@ -103,20 +104,21 @@ def collect_working_changes(
             fd.additions = int(add) if add.isdigit() else 0
             fd.deletions = int(dele) if dele.isdigit() else 0
 
-    diff_text = _run(diff_args, workdir)
+    diff_text = _run(diff_args, workdir) if include_diff else ""
 
     if not staged_only:
         untracked = _run(["ls-files", "--others", "--exclude-standard"], workdir)
         for path in untracked.splitlines():
             if path and path not in files:
                 files[path] = FileDelta(path=path, status="untracked")
-                full = Path(workdir) / path
-                try:
-                    if full.is_file() and full.stat().st_size < 8000:
-                        body = full.read_text(encoding="utf-8", errors="replace")
-                        diff_text += f"\n--- new file: {path} ---\n{body}\n"
-                except OSError:
-                    pass
+                if include_diff:
+                    full = Path(workdir) / path
+                    try:
+                        if full.is_file() and full.stat().st_size < 8000:
+                            body = full.read_text(encoding="utf-8", errors="replace")
+                            diff_text += f"\n--- new file: {path} ---\n{body}\n"
+                    except OSError:
+                        pass
 
     truncated = len(diff_text) > max_diff_chars
     if truncated:

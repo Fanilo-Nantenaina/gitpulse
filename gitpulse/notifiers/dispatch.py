@@ -88,6 +88,23 @@ def notify_telegram(markdown: str) -> DeliveryResult:
     return result
 
 
+def notify_discord(markdown: str) -> DeliveryResult:
+    url = os.environ.get("GITPULSE_DISCORD_WEBHOOK")
+    if not url:
+        return _skip("discord", "set GITPULSE_DISCORD_WEBHOOK")
+    content = (
+        markdown if len(markdown) <= 2000 else markdown[:1970] + "\n... [truncated]"
+    )
+    result = _post_json("discord", url, {"content": content})
+    if result.reason and "api/webhooks/" in url:
+        token = url.split("api/webhooks/")[-1]
+        if token in result.reason:
+            result = DeliveryResult(
+                result.channel, result.ok, result.reason.replace(token, "***")
+            )
+    return result
+
+
 def notify_email(markdown: str) -> DeliveryResult:
     host = os.environ.get("GITPULSE_SMTP_HOST")
     to = os.environ.get("GITPULSE_SMTP_TO")
@@ -102,13 +119,20 @@ def notify_email(markdown: str) -> DeliveryResult:
     except ValueError:
         return _skip("email", "GITPULSE_SMTP_PORT is not a number")
     try:
-        with smtplib.SMTP(host, port, timeout=15) as s:
-            s.starttls()
-            user = os.environ.get("GITPULSE_SMTP_USER")
-            pw = os.environ.get("GITPULSE_SMTP_PASS")
-            if user and pw:
-                s.login(user, pw)
-            s.send_message(msg)
+        user = os.environ.get("GITPULSE_SMTP_USER")
+        pw = os.environ.get("GITPULSE_SMTP_PASS")
+        if port == 465:
+            with smtplib.SMTP_SSL(host, port, timeout=15) as s:
+                if user and pw:
+                    s.login(user, pw)
+                s.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=15) as s:
+                if s.has_extn("starttls"):
+                    s.starttls()
+                if user and pw:
+                    s.login(user, pw)
+                s.send_message(msg)
         return DeliveryResult("email", True)
     except (smtplib.SMTPException, OSError) as e:
         return _fail("email", e)
@@ -134,6 +158,7 @@ def notify_desktop(markdown: str) -> DeliveryResult:
 NOTIFIERS: dict[str, Callable[[str], DeliveryResult]] = {
     "slack": notify_slack,
     "telegram": notify_telegram,
+    "discord": notify_discord,
     "email": notify_email,
     "desktop": notify_desktop,
 }

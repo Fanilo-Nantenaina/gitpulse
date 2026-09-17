@@ -78,6 +78,12 @@ def _alive(pid: int) -> bool:
     if pid <= 0:
         return False
     try:
+        import psutil
+
+        return psutil.pid_exists(pid)
+    except Exception:
+        pass
+    try:
         if os.name == "nt":
             from ..core.procutil import run as _prun
 
@@ -86,7 +92,11 @@ def _alive(pid: int) -> bool:
                 capture_output=True,
                 text=True,
             )
-            return str(pid) in out.stdout
+            for line in out.stdout.splitlines():
+                parts = line.split()
+                if len(parts) >= 2 and parts[1] == str(pid):
+                    return True
+            return False
         os.kill(pid, 0)
         return True
     except (OSError, ProcessLookupError):
@@ -114,7 +124,6 @@ def start(host: str = "127.0.0.1", port: int = 8420) -> StartResult:
             "log": log_path,
         }
 
-    log = open(log_file(), "ab")  # noqa: SIM115
     cmd = [
         sys.executable,
         "-m",
@@ -127,14 +136,15 @@ def start(host: str = "127.0.0.1", port: int = 8420) -> StartResult:
         "--no-open",
     ]
 
-    proc = subprocess.Popen(
-        cmd,
-        stdout=log,
-        stderr=log,
-        stdin=subprocess.DEVNULL,
-        creationflags=_DETACHED_FLAGS,
-        start_new_session=_NEW_SESSION,
-    )
+    with open(log_file(), "ab") as log:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=log,
+            stderr=log,
+            stdin=subprocess.DEVNULL,
+            creationflags=_DETACHED_FLAGS,
+            start_new_session=_NEW_SESSION,
+        )
     pid_file().write_text(str(proc.pid))
 
     time.sleep(1.2)

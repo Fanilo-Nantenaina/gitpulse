@@ -24,8 +24,8 @@ def api_changes_count(body: dict[str, object]):
     if not isinstance(path, str) or not path:
         return {"count": 0, "staged": 0}
     try:
-        all_changes = collect_working_changes(path, scope="all")
-        staged = collect_working_changes(path, scope="staged")
+        all_changes = collect_working_changes(path, scope="all", include_diff=False)
+        staged = collect_working_changes(path, scope="staged", include_diff=False)
         return {
             "count": len(all_changes.files),
             "staged": len(staged.files),

@@ -56,3 +56,17 @@ def test_all_time_range() -> None:
     assert parse_range("all-time").label == "all time"
     assert parse_range("tout").label == "all time"
     assert "7" in parse_range("7d").label
+
+
+def test_parse_interval_weeks() -> None:
+    d = parse_interval("2w")
+    assert d == timedelta(weeks=2)
+    r = parse_range("2w")
+    assert 13 <= (r.until - r.since).days <= 15
+
+
+def test_parse_range_avant_hier_to_today() -> None:
+    r = parse_range("avant-hier..today")
+    assert r.since <= r.until
+    assert "->" in r.label
+

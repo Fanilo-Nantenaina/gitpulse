@@ -29,7 +29,7 @@ _WEEKDAYS = {
     "dimanche": 6,
 }
 
-_INTERVAL = re.compile(r"^(\d+)\s*([dhm])$")
+_INTERVAL = re.compile(r"^(\d+)\s*([wdhm])$")
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -48,9 +48,12 @@ def parse_interval(s: str) -> timedelta:
     if not m:
         raise ValueError(f"Invalid interval: {s!r}")
     n, unit = int(m.group(1)), m.group(2)
-    return {"d": timedelta(days=n), "h": timedelta(hours=n), "m": timedelta(minutes=n)}[
-        unit
-    ]
+    return {
+        "w": timedelta(weeks=n),
+        "d": timedelta(days=n),
+        "h": timedelta(hours=n),
+        "m": timedelta(minutes=n),
+    }[unit]
 
 
 def parse_range(spec: str, now: datetime | None = None) -> DateRange:
@@ -135,10 +138,12 @@ def parse_range(spec: str, now: datetime | None = None) -> DateRange:
 
 def _resolve_date(token: str, today: date) -> date:
     token = token.strip().lower()
-    if not token or token == "today":
+    if not token or token in ("today", "aujourd'hui", "aujourdhui"):
         return today
     if token in ("yesterday", "hier"):
         return today - timedelta(days=1)
+    if token in ("day-before-yesterday", "avant-hier", "avant hier"):
+        return today - timedelta(days=2)
     if _ISO.match(token):
         return date.fromisoformat(token)
     if token in _WEEKDAYS:

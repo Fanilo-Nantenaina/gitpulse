@@ -4,15 +4,30 @@ build/
 dist/
 *.egg
 
-# Python caches
+# Python caches & test tools
 __pycache__/
 *.py[cod]
 *.pyo
+.pytest_cache/
+.pytest_tmp/
+.ruff_cache/
+.mypy_cache/
+.pyright/
+.coverage
+htmlcov/
+coverage.xml
+.tox/
 
 # Virtual environments
 .venv/
 venv/
 env/
+
+# Logs & runtime service files
+*.log
+server.log
+*.pid
+server.pid
 
 # Secrets — never commit these
 .env
@@ -22,9 +37,14 @@ env/
 # OS / editor
 .DS_Store
 Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
 .idea/
 .vscode/
 *.swp
+*.sublime-workspace
+*.sublime-project
+
 # Local code-rewriting scratch scripts, root only.
 #
 # This was previously the unanchored glob `*comment*`, which also silently

@@ -142,3 +142,27 @@ def test_insecure_ssl_is_passed_as_config_not_argv() -> None:
     env = git_config_env(None, None, True, for_url=URL)
     keys = {env[k]: env[k.replace("KEY", "VALUE")] for k in env if "KEY_" in k}
     assert keys["http.sslVerify"] == "false"
+
+
+def test_sync_remote_preserves_valid_cache_on_fetch_failure(
+    linear_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cache_dir = tmp_path / "remotes"
+    cache_dir.mkdir()
+    monkeypatch.setenv("GITPULSE_CACHE_DIR", str(cache_dir))
+
+    url = "https://github.com/example/repo.git"
+    cached_dest = R._cache_path(url)
+    import shutil
+
+    shutil.copytree(linear_repo, cached_dest)
+
+    def fail_fetch(*a: object, **k: object) -> tuple[bool, str]:
+        return False, "network unreachable"
+
+    monkeypatch.setattr(R, "_fetch_cli", fail_fetch)
+
+    result = R.sync_remote(url, refresh=True)
+    assert result == cached_dest
+    assert cached_dest.exists()
+

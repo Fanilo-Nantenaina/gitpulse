@@ -57,15 +57,34 @@ def compare(
     name: str | None = None,
 ) -> Comparison:
     now = now or datetime.now().astimezone()
+    total_since = now - period * (periods_back + 1)
+    total_activity = collect_activity(
+        repo_path, total_since, now, branch=branch, name=name
+    )
+
     cur_since = now - period
-    current = collect_activity(repo_path, cur_since, now, branch=branch, name=name)
+    current_commits = [c for c in total_activity.commits if c.when >= cur_since]
+    current = RepoActivity(
+        repo_name=total_activity.repo_name,
+        repo_path=total_activity.repo_path,
+        since=cur_since,
+        until=now,
+        commits=current_commits,
+    )
 
     baselines: list[RepoActivity] = []
     for i in range(1, periods_back + 1):
         until = now - period * i
         since = now - period * (i + 1)
+        b_commits = [c for c in total_activity.commits if since <= c.when < until]
         baselines.append(
-            collect_activity(repo_path, since, until, branch=branch, name=name)
+            RepoActivity(
+                repo_name=total_activity.repo_name,
+                repo_path=total_activity.repo_path,
+                since=since,
+                until=until,
+                commits=b_commits,
+            )
         )
 
     def metric(label: str, fn: Callable[[RepoActivity], float]) -> Metric:

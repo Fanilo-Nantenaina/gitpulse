@@ -180,7 +180,7 @@ def sync_remote(
 
     if valid and refresh:
         ok, _ = _fetch_cli(dest, url, token, username, insecure)
-        if ok:
+        if ok or _is_valid_repo(dest):
             return dest
         shutil.rmtree(dest, ignore_errors=True)
 

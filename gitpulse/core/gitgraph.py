@@ -139,15 +139,30 @@ def graph(
     head = repo.head.shorthand if not repo.head_is_detached else None
 
     flags = SortMode.TIME | SortMode.TOPOLOGICAL
-    walker = repo.walk(repo.head.target, flags)
-    for oid in _tips(repo):
+    tips: list[pygit2.Oid | str] = []
+    if branch and not all_commits:
         try:
-            walker.push(oid)
-        except Exception:
-            continue
+            target = repo.branches[branch]
+        except KeyError:
+            raise ValueError(f"Branch '{branch}' not found")
+        tips = [target.target]
+    else:
+        tips = list(_tips(repo))
+
+    if not tips:
+        walker = repo.walk(repo.head.target, flags)
+    else:
+        walker = repo.walk(tips[0], flags)
+        for oid in tips[1:]:
+            try:
+                walker.push(oid)
+            except Exception:
+                continue
 
     lanes: list[str | None] = []
     nodes: list[GraphNode] = []
+    stop_at = (offset + limit) if limit > 0 else 0
+    has_more = False
 
     def first_free(state: list[str | None]) -> int:
         for i, v in enumerate(state):
@@ -157,6 +172,9 @@ def graph(
         return len(state) - 1
 
     for c in walker:
+        if stop_at > 0 and len(nodes) >= stop_at:
+            has_more = True
+            break
         sha = str(c.id)
         parents = [str(p) for p in c.parent_ids]
 
@@ -247,6 +265,9 @@ def graph(
             n["incoming"] = sorted({e["to"] for e in nodes[i - 1]["edges"]})
         n["tip"] = n["lane"] not in n["incoming"]
 
+    if offset > 0:
+        nodes = nodes[offset:]
+
     max_w = 1
     for n in nodes:
         used = (
@@ -264,5 +285,5 @@ def graph(
         "head": head,
         "returned": len(nodes),
         "lanes": max_w,
-        "has_more": False,
+        "has_more": has_more,
     }

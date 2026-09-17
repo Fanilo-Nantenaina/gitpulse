@@ -71,6 +71,8 @@ def list_dir(path: str | None) -> BrowseResult:
 
 def _is_repo(p: Path) -> bool:
     try:
+        if (p / ".git").exists():
+            return True
         return pygit2.discover_repository(str(p)) is not None
     except Exception:
         return False
@@ -79,8 +81,10 @@ def _is_repo(p: Path) -> bool:
 def drives() -> list[str]:
     if os.name != "nt":
         return ["/"]
+    import string
+
     found: list[str] = []
-    for letter in "CDEFGHIJKLMNOPQRSTUVWXYZ":
+    for letter in string.ascii_uppercase:
         d = f"{letter}:\\"
         if Path(d).exists():
             found.append(d)

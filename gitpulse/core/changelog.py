@@ -36,9 +36,11 @@ def generate_changelog(
     sections: dict[str, list[str]] = {}
     breaking: list[str] = []
 
-    for c in repo.walk(to_oid, SortMode.TIME):
-        if from_oid and c.id == from_oid:
-            break
+    walker = repo.walk(to_oid, SortMode.TIME)
+    if from_oid:
+        walker.hide(from_oid)
+
+    for c in walker:
         first = c.message.strip().splitlines()[0]
         m = _CONV.match(first)
         if not m:

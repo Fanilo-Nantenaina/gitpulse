@@ -16,6 +16,7 @@ MD = "# Digest\n\nsome work happened"
 def no_channel_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for var in (
         "GITPULSE_SLACK_WEBHOOK",
+        "GITPULSE_DISCORD_WEBHOOK",
         "GITPULSE_TELEGRAM_TOKEN",
         "GITPULSE_TELEGRAM_CHAT_ID",
         "GITPULSE_SMTP_HOST",
@@ -25,7 +26,7 @@ def no_channel_env(monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv(var, raising=False)
 
 
-@pytest.mark.parametrize("channel", ["slack", "telegram", "email"])
+@pytest.mark.parametrize("channel", ["slack", "discord", "telegram", "email"])
 def test_unconfigured_channel_is_skipped_with_a_hint(channel: str) -> None:
     r = D.NOTIFIERS[channel](MD)
     assert not r
@@ -134,3 +135,22 @@ def test_results_stay_truthy_falsy_for_existing_callers() -> None:
 def test_summarize_results_mentions_every_channel() -> None:
     text = D.summarize_results(D.dispatch(["slack", "email"], MD))
     assert "slack" in text and "email" in text
+
+
+def test_discord_delivery_success(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GITPULSE_DISCORD_WEBHOOK", "https://discord.com/api/webhooks/123/secret-token")
+
+    class Resp:
+        status: int = 204
+
+        def __enter__(self) -> Resp:
+            return self
+
+        def __exit__(self, *a: object) -> bool:
+            return False
+
+    with mock.patch("urllib.request.urlopen", return_value=Resp()):
+        r = D.notify_discord(MD)
+    assert r
+    assert r.status == "ok"
+
