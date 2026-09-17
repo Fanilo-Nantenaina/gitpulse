@@ -10,6 +10,7 @@ from ...core import gitgraph
 from ...core import remote as gp_remote
 from ...core import standup as gp_standup
 from ...core import trends as gp_trends
+from ...core import workspace as gp_workspace
 from ...core.collector import collect_activity
 from ...core.dateparse import parse_interval, parse_range
 from ...core.gitcreds import redact
@@ -42,8 +43,15 @@ def api_summary(req: SummaryReq):
     try:
         r = parse_range(req.when)
         src, name = resolve_source(req)
-        activity = collect_activity(
-            src, r.since, r.until, branch=req.branch, name=name, authors=req.authors
+        activity, failed = gp_workspace.collect(
+            src,
+            r.since,
+            r.until,
+            branch=req.branch,
+            name=name,
+            authors=req.authors,
+            author_scope=req.author_scope,
+            max_depth=req.depth,
         )
         summ = summarize(
             activity, provider=req.provider, model=req.model, lang=req.lang
@@ -53,6 +61,7 @@ def api_summary(req: SummaryReq):
             "summary": summary_dict(summ),
             "stats": compute_stats(activity),
             "range_label": r.label,
+            "failed_repos": failed,
         }
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
@@ -63,10 +72,21 @@ def api_log(req: LogReq):
     try:
         r = parse_range(req.when)
         src, name = resolve_source(req)
-        activity = collect_activity(
-            src, r.since, r.until, branch=req.branch, name=name, authors=req.authors
+        activity, failed = gp_workspace.collect(
+            src,
+            r.since,
+            r.until,
+            branch=req.branch,
+            name=name,
+            authors=req.authors,
+            author_scope=req.author_scope,
+            max_depth=req.depth,
         )
-        return {"activity": activity_dict(activity), "range_label": r.label}
+        return {
+            "activity": activity_dict(activity),
+            "range_label": r.label,
+            "failed_repos": failed,
+        }
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
 
@@ -78,7 +98,12 @@ def api_authors(req: SummaryReq):
 
         r = parse_range(req.when)
         src, _ = resolve_source(req)
-        return {"authors": list_authors(src, r.since, r.until)}
+        if gp_workspace.is_repo(src):
+            return {"authors": list_authors(src, r.since, r.until), "workspace": False}
+        authors = gp_workspace.list_workspace_authors(
+            src, r.since, r.until, max_depth=req.depth
+        )
+        return {"authors": authors, "workspace": True}
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
 
@@ -90,8 +115,15 @@ def api_stats(req: SummaryReq):
 
         r = parse_range(req.when)
         src, name = resolve_source(req)
-        activity = collect_activity(
-            src, r.since, r.until, branch=req.branch, name=name, authors=req.authors
+        activity, _ = gp_workspace.collect(
+            src,
+            r.since,
+            r.until,
+            branch=req.branch,
+            name=name,
+            authors=req.authors,
+            author_scope=req.author_scope,
+            max_depth=req.depth,
         )
         return {"stats": compute_stats(activity), "range_label": r.label}
     except (ValueError, RuntimeError) as e:
@@ -104,10 +136,18 @@ def api_compare(req: CompareReq):
         src, name = resolve_source(req)
         p = parse_interval(req.period)
         cmp = gp_trends.compare(
-            src, p, periods_back=req.periods, branch=req.branch, name=name
+            src,
+            p,
+            periods_back=req.periods,
+            branch=req.branch,
+            name=name,
+            authors=req.authors,
+            author_scope=req.author_scope,
         )
         return {
             "repo_name": cmp.repo_name,
+            "is_workspace": cmp.current.is_workspace,
+            "repos": [r.name for r in cmp.current.repos],
             "period_days": cmp.period_len.days,
             "periods_back": cmp.periods_back,
             "metrics": [
@@ -129,16 +169,27 @@ def api_compare(req: CompareReq):
 def api_standup(req: SummaryReq):
     try:
         src, name = resolve_source(req)
-        ctx = gp_standup.gather(src, name=name)
+        ctx = gp_standup.gather(src, name=name, max_depth=req.depth)
         prov = "local" if ctx.yesterday.commit_count == 0 else req.provider
         summ = summarize(ctx.yesterday, provider=prov, model=req.model, lang=req.lang)
         return {
             "repo_name": ctx.repo_name,
             "current_branch": ctx.current_branch,
             "uncommitted": ctx.uncommitted,
-            "has_uncommitted": bool(ctx.uncommitted),
+            "has_uncommitted": bool(ctx.uncommitted)
+            or any(s.uncommitted for s in ctx.repos),
             "is_local": bool(req.path),
             "recent_branches": ctx.recent_branches,
+            "is_workspace": ctx.yesterday.is_workspace,
+            "repos": [
+                {
+                    "name": s.name,
+                    "current_branch": s.current_branch,
+                    "uncommitted": s.uncommitted,
+                    "recent_branches": s.recent_branches,
+                }
+                for s in ctx.repos
+            ],
             "yesterday": activity_dict(ctx.yesterday),
             "summary": summary_dict(summ),
         }

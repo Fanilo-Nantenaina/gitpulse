@@ -23,8 +23,40 @@ from ..ai.summarizer import Summary
 from ..core.models import RepoActivity
 from ..core.standup import StandupContext
 from ..core.trends import Comparison
+from ..core.workspace import RepoFailure
 
 console = Console()
+
+_MAX_FAILURES_SHOWN = 5
+
+
+def render_failures(failures: list[RepoFailure]) -> None:
+    for f in failures[:_MAX_FAILURES_SHOWN]:
+        console.print(
+            Text(f"  ! skipped {f['name']}: {f['error']}", style="dim yellow")
+        )
+    extra = len(failures) - _MAX_FAILURES_SHOWN
+    if extra > 0:
+        console.print(Text(f"  ! {extra} more repo(s) skipped", style="dim yellow"))
+
+
+def render_repos(activity: RepoActivity) -> None:
+    if not activity.is_workspace:
+        return
+    counts = activity.commits_per_repo
+    head = Text("  repos  ", style="dim")
+    head.append(f"{len(counts)} scanned", style="dim")
+    head.append(" · ", style="dim")
+    head.append(f"{len(activity.active_repos)} active", style="dim")
+    console.print(head)
+
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Repository")
+    table.add_column("Commits", justify="right")
+    for name, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0].lower())):
+        style = "cyan" if n else "dim"
+        table.add_row(Text(name, style=style), Text(str(n), style=style))
+    console.print(Padding(table, (0, 0, 0, 2)))
 
 
 def render_comparison(cmp: Comparison) -> None:
@@ -67,7 +99,27 @@ def render_comparison(cmp: Comparison) -> None:
             f"[{color}]{arrow}[/]",
         )
     console.print(table)
+    if cmp.current.is_workspace:
+        console.print()
+        render_repos(cmp.current)
     console.print()
+
+
+def _render_workspace_today(ctx: StandupContext) -> None:
+    for state in ctx.repos:
+        bits: list[str] = []
+        if state.current_branch:
+            bits.append(f"on {state.current_branch}")
+        if state.uncommitted:
+            n = len(state.uncommitted)
+            bits.append(f"{n} uncommitted file{'s' if n != 1 else ''}")
+        others = [b for b in state.recent_branches if b != state.current_branch]
+        if others:
+            bits.append("also " + ", ".join(others[:3]))
+        line = Text("• ", style="green")
+        line.append(state.name + ": ")
+        line.append(" · ".join(bits) if bits else "clean", style="dim")
+        console.print(Padding(line, (0, 2, 0, 4)), width=_width())
 
 
 def render_standup(ctx: StandupContext, summary: Summary) -> None:
@@ -96,9 +148,19 @@ def render_standup(ctx: StandupContext, summary: Summary) -> None:
                 Padding(Text(theme.get("narrative", ""), style="dim"), (0, 2, 0, 6)),
                 width=w,
             )
+    if ctx.yesterday.is_workspace:
+        console.print()
+        render_repos(ctx.yesterday)
     console.print()
 
     console.print(Text("  Today", style="bold"))
+    if ctx.repos:
+        _render_workspace_today(ctx)
+        console.print()
+        console.print(Text(f"  {summary.cost_note}", style="dim"))
+        console.print()
+        return
+
     plan: list[tuple[str, str]] = []
     if ctx.current_branch:
         plan.append(("Continue on branch", ctx.current_branch))
@@ -197,6 +259,10 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
     console.print(heat)
     console.print()
 
+    if activity.is_workspace:
+        render_repos(activity)
+        console.print()
+
     if summary.synthesis:
         console.print(Text("  Overview", style="bold"))
         console.print(Padding(Text(summary.synthesis), (0, 2, 0, 4)), width=w)
@@ -243,6 +309,8 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
 def render_log(activity: RepoActivity, show_files: bool = False) -> None:
     w = _width()
     if activity.commit_count == 0:
+        if activity.is_workspace:
+            render_repos(activity)
         console.print(Text("  No commits in this window.", style="dim"))
         return
 
@@ -255,9 +323,15 @@ def render_log(activity: RepoActivity, show_files: bool = False) -> None:
     console.print(header)
     console.print()
 
+    if activity.is_workspace:
+        render_repos(activity)
+        console.print()
+
     for c in activity.commits:
         line = Text("commit ", style="default")
         line.append(c.sha, style="yellow")
+        if c.repo:
+            line.append(f"  [{c.repo}]", style="magenta")
         if c.branch:
             line.append(f"  ({c.branch})", style="cyan")
         console.print(line)

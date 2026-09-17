@@ -24,6 +24,10 @@ function renderControls() {
       + '<div class="author-list" id="authorList"></div>'
       + '</div></div></div>');
   }
+  if (cfg.ws) {
+    add('<div class="field ws-only" style="display:none"><label title="' + t('wsScanDepthHint') + '">' + t('wsScanDepth') + '</label><input id="ctlDepth" type="number" value="3" min="1" max="8"></div>');
+    if (cfg.author) add('<div class="field ws-only" style="display:none"><label>' + t('wsAuthorScope') + '</label><select id="ctlAuthorScope" title="' + t('wsScopeHint') + '" disabled><option value="window">' + t('wsScopeWindow') + '</option><option value="all">' + t('wsScopeAll') + '</option></select></div>');
+  }
   if (cfg.summarize) add('<div class="field"><label>' + t('aiHeadline') + '</label><select id="ctlSummarize"><option value="false">' + t('off') + '</option><option value="true">' + t('on') + '</option></select></div>');
   if (cfg.graphmode) {
     add('<div class="field go"><label>&nbsp;</label><button class="btn ghost" id="refreshBtn">&#8635; ' + t('refresh') + '</button></div>');
@@ -50,7 +54,7 @@ function renderControls() {
   if (ws) ws.onchange = () => { const cu = ws.value === '__custom'; document.getElementById('ctlWhenCustomWrap').style.display = cu ? '' : 'none'; if (!cu) document.getElementById('ctlWhen').value = ws.value; if (cfg.author) loadAuthorsFilter(); };
   if (cfg.branch) fillBranches();
   if (cfg.author) {
-    authorState = { all: [], selected: new Set() };
+    authorState = { all: [], selected: new Set(), workspace: authorState.workspace };
     const tog = document.getElementById('authorToggle');
     const panel = document.getElementById('authorPanel');
     const search = document.getElementById('authorSearch');
@@ -66,9 +70,22 @@ function renderControls() {
     });
     loadAuthorsFilter();
   }
+  const dep = document.getElementById('ctlDepth');
+  if (dep) dep.onchange = () => { if (cfg.author) loadAuthorsFilter(); };
+  applyWorkspaceUI();
 }
 
-let authorState = { all: [], selected: new Set() };
+let authorState = { all: [], selected: new Set(), workspace: false };
+
+function applyWorkspaceUI() {
+  document.querySelectorAll('.ws-only').forEach(el => el.style.display = state.workspace ? '' : 'none');
+  const sc = document.getElementById('ctlAuthorScope'); if (!sc) return;
+  const n = (authorState.selected || new Set()).size;
+  sc.disabled = n === 0;
+  if (!n) sc.value = 'window';
+}
+function depthValue() { const d = document.getElementById('ctlDepth'); return d ? (parseInt(d.value) || 3) : 3; }
+function authorScopeValue() { const s = document.getElementById('ctlAuthorScope'); return s && !s.disabled ? s.value : 'window'; }
 
 async function loadAuthorsFilter() {
   const list = document.getElementById('authorList'); if (!list) return;
@@ -76,9 +93,10 @@ async function loadAuthorsFilter() {
   if (!src) { list.innerHTML = '<div class="author-msg">' + t('authorSelectRepo') + '</div>'; updateAuthorToggle(); return; }
   list.innerHTML = '<div class="author-msg">' + t('authorLoading') + '</div>';
   try {
-    const body = Object.assign({ when: whenValue() }, src);
+    const body = Object.assign({ when: whenValue(), depth: depthValue() }, src);
     const r = await post('/api/authors', body);
     authorState.all = r.authors || [];
+    authorState.workspace = !!r.workspace; state.workspace = authorState.workspace;
     const present = new Set(authorState.all.map(a => a.email || a.name));
     authorState.selected = new Set([...authorState.selected].filter(v => present.has(v)));
     renderAuthorList('');
@@ -99,7 +117,9 @@ function renderAuthorList(filter) {
     return '<label class="author-item">'
       + '<input type="checkbox" data-v="' + esc(v) + '"' + (on ? ' checked' : '') + '>'
       + '<span class="author-info"><span class="author-nm">' + esc(a.name) + '</span>'
-      + '<span class="author-em">' + esc(a.email || '') + '</span></span>'
+      + '<span class="author-em">' + esc(a.email || '') + '</span>'
+      + (authorState.workspace && a.repos && a.repos.length ? '<span class="author-repos" title="' + esc(a.repos.join(', ')) + '">' + esc(a.repos.length) + ' ' + t('wsAuthorRepos') + ' &middot; ' + esc(a.repos.slice(0, 3).join(', ')) + (a.repos.length > 3 ? ' +' + (a.repos.length - 3) : '') + '</span>' : '')
+      + '</span>'
       + '<span class="author-ct">' + a.commits + '</span></label>';
   }).join('');
   list.querySelectorAll('input[type=checkbox]').forEach(cb => {
@@ -116,6 +136,7 @@ function updateAuthorToggle() {
     const a = authorState.all.find(x => (x.email || x.name) === v);
     tog.textContent = a ? a.name : v;
   } else tog.textContent = n + ' ' + t('authorSelectedN');
+  applyWorkspaceUI();
 }
 
 function selectedAuthors() {
@@ -144,12 +165,27 @@ function cloudGuard(onProceed) {
   onProceed();
 }
 
-function headCard(a, headline) {
+function repoStrip(a, failed) {
+  if (!a || !a.is_workspace || !a.repos || !a.repos.length) return '';
+  const bad = {}; (failed || []).forEach(f => { bad[f.name] = f.error || ''; });
+  const chips = a.repos.map(r => {
+    const err = bad[r.name];
+    const ttl = r.name + (err ? ' — ' + err : (r.commits ? '' : ' — ' + t('wsNoCommits')));
+    return '<span class="ws-repo' + (err ? ' fail' : (r.commits ? '' : ' zero')) + '" title="' + esc(ttl) + '">' + esc(r.name) + '<b>' + (err ? '?' : r.commits) + '</b></span>';
+  }).join('');
+  return '<div class="ws-strip"><span class="ws-lbl">' + t('wsRepos') + ' (' + a.repos.length + ')</span>' + chips + '</div>';
+}
+function failedNote(failed) {
+  if (!failed || !failed.length) return '';
+  const names = failed.map(f => '<span class="ws-fail" title="' + esc(f.error || '') + '">' + esc(f.name) + '</span>').join(' ');
+  return '<div class="ws-note">&#9432; ' + t('wsFailedNote') + ' ' + names + '</div>';
+}
+function headCard(a, headline, failed) {
   const max = Math.max(1, ...Object.values(a.hour_histogram));
   const bars = Object.keys(a.hour_histogram).map(h => '<div class="bar" style="height:' + Math.max(2, (a.hour_histogram[h] / max) * 34) + 'px" title="' + esc(h) + 'h: ' + esc(a.hour_histogram[h]) + '"></div>').join('');
   return '<div class="head-card"><div class="title">' + esc(a.repo_name) + ' &middot; ' + a.since.slice(0, 10) + ' &rarr; ' + a.until.slice(0, 10) + '</div>' +
     (headline ? '<div class="headline">' + esc(headline) + '</div>' : '') +
     '<div class="stats"><span><span class="n">' + a.commit_count + '</span> ' + t('commits') + '</span><span class="add"><span class="n">+' + a.additions + '</span></span><span class="del"><span class="n">-' + a.deletions + '</span></span><span><span class="n">' + a.files_touched + '</span> ' + t('files') + '</span><span><span class="n">' + a.active_days + '</span> ' + t('activeDays') + '</span></div>' +
-    '<div class="heat">' + bars + '</div><div class="heat-label">00h &rarr; 23h</div></div>';
+    '<div class="heat">' + bars + '</div><div class="heat-label">00h &rarr; 23h</div>' + repoStrip(a, failed) + failedNote(failed) + '</div>';
 }
-function baseBody(extra) { const src = currentSource(); if (!src) throw new Error(t('selectFirst')); if (src.url) rememberRepo('url', src.url); else rememberRepo('local', src.path); const ins = document.getElementById('insecureChk'); if (src.url && ins && ins.checked) src.insecure = true; return Object.assign({}, src, extra); }
+function baseBody(extra) { const src = currentSource(); if (!src) throw new Error(t('selectFirst')); if (src.url) rememberRepo('url', src.url); else rememberRepo('local', src.path); const ins = document.getElementById('insecureChk'); if (src.url && ins && ins.checked) src.insecure = true; const b = Object.assign({}, src, extra); if (document.getElementById('ctlDepth')) { b.depth = depthValue(); b.author_scope = authorScopeValue(); } return b; }

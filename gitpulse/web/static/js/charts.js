@@ -87,11 +87,24 @@ function topFiles(files) {
   return '<div class="chart"><div class="chart-h">' + t('chartTopFiles') + '</div><div class="hbars">' + rows + '</div></div>';
 }
 
+function repoBars(repos) {
+  if (!repos || !repos.length) return '';
+  const max = Math.max(1, ...repos.map(r => r.commits)), acc = _cssVar('--accent');
+  const rows = repos.map(r => {
+    const pct = (r.commits / max) * 100;
+    return '<div class="hbar-row' + (r.commits ? '' : ' zero') + '"><div class="hbar-lbl" title="' + esc(r.name) + '">' + esc(r.name) + '</div>'
+      + '<div class="hbar-track"><div class="hbar-fill" style="width:' + pct.toFixed(1) + '%;background:' + acc + '"></div></div>'
+      + '<div class="hbar-val">' + r.commits + ' <span class="dim">(+' + r.additions + '/-' + r.deletions + ' &middot; ' + r.authors + ' ' + t('wsRepoAuthors') + ')</span></div></div>';
+  }).join('');
+  return '<div class="chart chart-wide"><div class="chart-h">' + t('chartRepos') + '</div><div class="hbars">' + rows + '</div></div>';
+}
+
 function renderStats(stats) {
   if (!stats || !stats.totals) return '';
   return '<div class="stats-panel">'
     + statCards(stats.totals)
     + '<div class="chart-grid">'
+    + repoBars(stats.repos)
     + barsPerDay(stats.daily)
     + churnPerDay(stats.daily)
     + authorBars(stats.authors)

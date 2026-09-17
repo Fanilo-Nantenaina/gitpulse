@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel
+
+from ..core.workspace import DEFAULT_DEPTH
 
 
 class SummaryReq(BaseModel):
@@ -9,6 +13,8 @@ class SummaryReq(BaseModel):
     when: str = "7d"
     branch: str | None = None
     authors: list[str] | None = None
+    author_scope: Literal["window", "all"] = "window"
+    depth: int = DEFAULT_DEPTH
     provider: str = "auto"
     model: str | None = None
     lang: str | None = None
@@ -22,6 +28,8 @@ class LogReq(BaseModel):
     when: str = "7d"
     branch: str | None = None
     authors: list[str] | None = None
+    author_scope: Literal["window", "all"] = "window"
+    depth: int = DEFAULT_DEPTH
     refresh: bool = True
     insecure: bool = False
 
@@ -32,6 +40,9 @@ class CompareReq(BaseModel):
     period: str = "7d"
     periods: int = 4
     branch: str | None = None
+    authors: list[str] | None = None
+    author_scope: Literal["window", "all"] = "window"
+    depth: int = DEFAULT_DEPTH
     refresh: bool = True
     insecure: bool = False
 

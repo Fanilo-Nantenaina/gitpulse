@@ -8,7 +8,7 @@ from typing import TypedDict
 
 from ..core import collector, config
 from ..core.jsonio import JsonValue
-from ..core.models import Commit, RepoActivity
+from ..core.models import Commit, RepoActivity, qualified_path
 from . import providers
 
 DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", providers.DEFAULT_CLAUDE_MODEL)
@@ -40,6 +40,19 @@ def _system_prompt(lang_code: str) -> str:
           mark schemas as applied; route handlers moved to typed
           ApiResponse[T] envelopes and DELETE endpoints gained structured
           response models."
+
+        MULTIPLE REPOSITORIES:
+        - The payload may cover a WORKSPACE: several independent repositories
+          analysed together. When it does, each commit line is tagged with its
+          repository in parentheses.
+        - Never blend them into one imaginary project. Say which repository
+          each piece of work happened in, and name the repositories.
+        - Organise themes by repository when the work is unrelated across
+          them; use a cross-repo theme only when the same effort genuinely
+          spans several (a shared API contract, a coordinated rename).
+        - The synthesis should say where the effort concentrated — which
+          repositories were busy, which were quiet, and whether anything
+          connects them.
 
         NARRATIVE ORDER:
         - The commit list is given oldest first; follow that order when the
@@ -225,8 +238,17 @@ def _build_payload(activity: RepoActivity) -> str:
     if omitted:
         commits = commits[:MAX_PAYLOAD_COMMITS]
 
-    lines = [
-        f"Repository: {activity.repo_name}",
+    if activity.is_workspace:
+        per_repo = activity.commits_per_repo
+        listed = ", ".join(f"{name} ({n})" for name, n in per_repo.items())
+        lines = [
+            f"Workspace: {activity.repo_name} — {len(activity.repos)} repositories "
+            "analysed together, NOT one project.",
+            f"Repositories (commits in window): {listed}",
+        ]
+    else:
+        lines = [f"Repository: {activity.repo_name}"]
+    lines += [
         f"Window: {activity.since:%Y-%m-%d} to {activity.until:%Y-%m-%d}",
         f"Commits: {activity.commit_count}  "
         f"(+{activity.total_additions} / -{activity.total_deletions} lines)",
@@ -244,8 +266,10 @@ def _build_payload(activity: RepoActivity) -> str:
         "from the start of the period to the end):"
     )
     for c in reversed(commits):
+        where = f" ({c.repo})" if c.repo else ""
         lines.append(
-            f"- [{c.short_sha}] {c.when:%Y-%m-%d %H:%M} by {c.author_name}: {c.summary}"
+            f"- [{c.short_sha}]{where} {c.when:%Y-%m-%d %H:%M} "
+            f"by {c.author_name}: {c.summary}"
         )
         if c.body:
             for bl in c.body.splitlines():
@@ -289,14 +313,20 @@ def _diff_section(activity: RepoActivity, commits: list[Commit]) -> list[str]:
     if not notable or not activity.repo_path:
         return []
 
-    try:
-        excerpts = collector.diff_excerpts(
-            activity.repo_path,
-            [c.sha for c in notable],
-            max_chars_each=DIFF_EXCERPT_CHARS,
-        )
-    except Exception:
-        return []
+    by_repo: dict[str, list[str]] = {}
+    for c in notable:
+        by_repo.setdefault(c.repo_path or activity.repo_path, []).append(c.sha)
+
+    excerpts: dict[str, str] = {}
+    for repo_path, shas in by_repo.items():
+        try:
+            excerpts.update(
+                collector.diff_excerpts(
+                    repo_path, shas, max_chars_each=DIFF_EXCERPT_CHARS
+                )
+            )
+        except Exception:
+            continue
     if not excerpts:
         return []
 
@@ -313,7 +343,8 @@ def _diff_section(activity: RepoActivity, commits: list[Commit]) -> list[str]:
         text = excerpts.get(c.sha)
         if not text:
             continue
-        out.append(f"--- [{c.short_sha}] {c.summary} ---")
+        where = f" ({c.repo})" if c.repo else ""
+        out.append(f"--- [{c.short_sha}]{where} {c.summary} ---")
         out.append(text)
     return out if len(out) > 1 else []
 
@@ -327,7 +358,7 @@ def _signals(activity: RepoActivity) -> list[str]:
         shas = [
             c.short_sha
             for c in activity.commits
-            if any(f.path == path for f in c.files)
+            if any(qualified_path(c, f) == path for f in c.files)
         ]
         out.append(
             f"File {path} changed in {cnt} of {n} commits ({' '.join(shas[:10])})."
@@ -367,6 +398,7 @@ def _signals(activity: RepoActivity) -> list[str]:
 _FALLBACK_STRINGS = {
     "en": {
         "commits_on": "{n} commits on {repo}.",
+        "commits_across": "{n} commits across {r} repo(s) in {repo}.",
         "n_commits": "{n} commit(s).",
         "off_hours": "{n} commit(s) outside working hours.",
         "hotspot": "Hotspot: {path} changed {n}x (possible churn).",
@@ -376,6 +408,7 @@ _FALLBACK_STRINGS = {
     },
     "fr": {
         "commits_on": "{n} commits sur {repo}.",
+        "commits_across": "{n} commits répartis sur {r} dépôt(s) dans {repo}.",
         "n_commits": "{n} commit(s).",
         "off_hours": "{n} commit(s) en dehors des heures de travail.",
         "hotspot": "Point chaud : {path} modifié {n}x (possible instabilité).",
@@ -396,10 +429,27 @@ def _local_fallback(activity: RepoActivity, lang: str = "en") -> Summary:
     for c in activity.commits:
         prefix = c.summary.split(":", 1)[0] if ":" in c.summary[:12] else "other"
         by_prefix.setdefault(prefix, []).append(c.short_sha)
-    themes: list[Theme] = [
-        {"title": k, "narrative": _fb_str(lang, "n_commits", n=len(v)), "commits": v}
-        for k, v in by_prefix.items()
-    ]
+    if activity.is_workspace:
+        by_repo: dict[str, list[str]] = {}
+        for c in activity.commits:
+            by_repo.setdefault(c.repo or activity.repo_name, []).append(c.short_sha)
+        themes: list[Theme] = [
+            {
+                "title": k,
+                "narrative": _fb_str(lang, "n_commits", n=len(v)),
+                "commits": v,
+            }
+            for k, v in sorted(by_repo.items(), key=lambda kv: -len(kv[1]))
+        ]
+    else:
+        themes = [
+            {
+                "title": k,
+                "narrative": _fb_str(lang, "n_commits", n=len(v)),
+                "commits": v,
+            }
+            for k, v in by_prefix.items()
+        ]
     obs: list[str] = []
     late = [c for c in activity.commits if c.hour >= 22 or c.hour < 6]
     if late:
@@ -420,10 +470,20 @@ def _local_fallback(activity: RepoActivity, lang: str = "en") -> Summary:
         dele=activity.total_deletions,
         kinds=kinds,
     )
-    return Summary(
-        headline=_fb_str(
+    if activity.is_workspace:
+        headline = _fb_str(
+            lang,
+            "commits_across",
+            n=activity.commit_count,
+            r=len(activity.active_repos) or len(activity.repos),
+            repo=activity.repo_name,
+        )
+    else:
+        headline = _fb_str(
             lang, "commits_on", n=activity.commit_count, repo=activity.repo_name
-        ),
+        )
+    return Summary(
+        headline=headline,
         synthesis=synthesis,
         themes=themes,
         observations=obs,

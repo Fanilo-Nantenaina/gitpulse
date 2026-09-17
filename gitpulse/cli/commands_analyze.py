@@ -7,20 +7,28 @@ import typer
 from ..ai.summarizer import summarize
 from ..core import standup as gp_standup
 from ..core import trends as gp_trends
+from ..core import workspace
 from ..core.collector import collect_activity
 from ..core.dateparse import parse_interval
 from ..notifiers.dispatch import dispatch
 from ._shared import (
+    AUTHOR_HELP,
+    AUTHOR_SCOPE_HELP,
+    DEPTH_HELP,
     LANG_HELP,
     MODEL_HELP,
+    PATH_HELP,
     PROVIDER_HELP,
     WHEN_HELP,
+    AuthorScopeOption,
     app,
+    collect_scope,
     console,
     resolve_range,
 )
 from .render import (
     render_comparison,
+    render_failures,
     render_log,
     render_markdown,
     render_standup,
@@ -31,16 +39,30 @@ from .render import (
 
 @app.command()
 def summary(
-    path: Path = typer.Argument(Path("."), help="Repository path"),
+    path: Path = typer.Argument(Path("."), help=PATH_HELP),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
     branch: str | None = typer.Option(None, "--branch", "-b"),
+    author: list[str] = typer.Option([], "--author", "-a", help=AUTHOR_HELP),
+    author_scope: AuthorScopeOption = typer.Option(
+        AuthorScopeOption.WINDOW, "--author-scope", help=AUTHOR_SCOPE_HELP
+    ),
+    depth: int = typer.Option(workspace.DEFAULT_DEPTH, "--depth", help=DEPTH_HELP),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ) -> None:
     r = resolve_range(when)
     with status_spinner(f"Reading commits from {path.name}"):
-        activity = collect_activity(path, r.since, r.until, branch=branch)
+        activity, failures = collect_scope(
+            path,
+            r.since,
+            r.until,
+            branch=branch,
+            authors=author,
+            author_scope=author_scope,
+            depth=depth,
+        )
+    render_failures(failures)
     if activity.commit_count == 0:
         render_terminal(activity, summarize(activity, provider="local", lang=lang))
         return
@@ -52,27 +74,46 @@ def summary(
 
 @app.command()
 def log(
-    path: Path = typer.Argument(Path("."), help="Repository path"),
+    path: Path = typer.Argument(Path("."), help=PATH_HELP),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
     branch: str | None = typer.Option(None, "--branch", "-b"),
     files: bool = typer.Option(
         False, "--files", "-f", help="List changed files per commit"
     ),
+    author: list[str] = typer.Option([], "--author", "-a", help=AUTHOR_HELP),
+    author_scope: AuthorScopeOption = typer.Option(
+        AuthorScopeOption.WINDOW, "--author-scope", help=AUTHOR_SCOPE_HELP
+    ),
+    depth: int = typer.Option(workspace.DEFAULT_DEPTH, "--depth", help=DEPTH_HELP),
 ) -> None:
     r = resolve_range(when)
-    activity = collect_activity(path, r.since, r.until, branch=branch)
+    activity, failures = collect_scope(
+        path,
+        r.since,
+        r.until,
+        branch=branch,
+        authors=author,
+        author_scope=author_scope,
+        depth=depth,
+    )
+    render_failures(failures)
     render_log(activity, show_files=files)
 
 
 @app.command()
 def standup(
-    path: Path = typer.Argument(Path("."), help="Repository path"),
+    path: Path = typer.Argument(Path("."), help=PATH_HELP),
+    depth: int = typer.Option(workspace.DEFAULT_DEPTH, "--depth", help=DEPTH_HELP),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ) -> None:
     with status_spinner("Gathering yesterday's work"):
-        ctx = gp_standup.gather(path)
+        try:
+            ctx = gp_standup.gather(path, max_depth=depth)
+        except ValueError as e:
+            console.print(f"[red]{e}[/]")
+            raise typer.Exit(1)
     if ctx.yesterday.commit_count == 0:
         summ = summarize(ctx.yesterday, provider="local", lang=lang)
     else:
@@ -119,7 +160,7 @@ def commit_msg(
 
 @app.command()
 def compare(
-    path: Path = typer.Argument(Path("."), help="Repository path"),
+    path: Path = typer.Argument(Path("."), help=PATH_HELP),
     period: str = typer.Option(
         "7d", "--period", "-w", help="Length of each period: 7d, 24h, 30d"
     ),
@@ -127,10 +168,27 @@ def compare(
         4, "--periods", "-n", help="How many prior periods to average"
     ),
     branch: str | None = typer.Option(None, "--branch", "-b"),
+    author: list[str] = typer.Option([], "--author", "-a", help=AUTHOR_HELP),
+    author_scope: AuthorScopeOption = typer.Option(
+        AuthorScopeOption.WINDOW, "--author-scope", help=AUTHOR_SCOPE_HELP
+    ),
+    depth: int = typer.Option(workspace.DEFAULT_DEPTH, "--depth", help=DEPTH_HELP),
 ) -> None:
     p = parse_interval(period)
     with status_spinner(f"Comparing last {period} against prior {periods}"):
-        cmp = gp_trends.compare(path, p, periods_back=periods, branch=branch)
+        try:
+            cmp = gp_trends.compare(
+                path,
+                p,
+                periods_back=periods,
+                branch=branch,
+                authors=author or None,
+                author_scope=author_scope.scope,
+                max_depth=depth,
+            )
+        except ValueError as e:
+            console.print(f"[red]{e}[/]")
+            raise typer.Exit(1)
     render_comparison(cmp)
 
 

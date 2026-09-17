@@ -18,6 +18,12 @@ class CommitDict(TypedDict):
     additions: int
     deletions: int
     files: int
+    repo: str
+
+
+class RepoBreakdown(TypedDict):
+    name: str
+    commits: int
 
 
 class ActivityDict(TypedDict):
@@ -32,6 +38,8 @@ class ActivityDict(TypedDict):
     hour_histogram: dict[int, int]
     authors: dict[str, int]
     commits: list[CommitDict]
+    is_workspace: bool
+    repos: list[RepoBreakdown]
 
 
 class _SummaryDictBase(TypedDict):
@@ -78,8 +86,13 @@ def activity_dict(a: RepoActivity) -> ActivityDict:
                 "additions": c.additions,
                 "deletions": c.deletions,
                 "files": len(c.files),
+                "repo": c.repo,
             }
             for c in a.commits
+        ],
+        "is_workspace": a.is_workspace,
+        "repos": [
+            {"name": name, "commits": n} for name, n in a.commits_per_repo.items()
         ],
     }
 

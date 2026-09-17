@@ -8,9 +8,11 @@ from rich.table import Table
 from ..ai.summarizer import Summary, summarize
 from ..core import config as gp_config
 from ..core import remote as gp_remote
-from ..core.collector import collect_activity, discover_repos
+from ..core import workspace
+from ..core.collector import collect_activity
 from ..core.models import RepoActivity
 from ._shared import (
+    DEPTH_HELP,
     LANG_HELP,
     MODEL_HELP,
     PROVIDER_HELP,
@@ -26,7 +28,7 @@ from .render import progress_bar
 def dashboard(
     root: Path = typer.Argument(Path("."), help="Directory to scan (local mode)"),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
-    depth: int = typer.Option(3, "--depth"),
+    depth: int = typer.Option(workspace.DEFAULT_DEPTH, "--depth", help=DEPTH_HELP),
     remote: bool = typer.Option(
         False, "--remote", help="Use tracked remote repos instead of a local folder"
     ),
@@ -77,12 +79,12 @@ def dashboard(
             scan = prog.add_task(
                 "Scanning for repositories", total=None, detail=str(root)
             )
-            repos = discover_repos(root, max_depth=depth)
+            repos = workspace.discover(root, max_depth=depth)
             prog.update(scan, total=1, completed=1, detail=f"found {len(repos)}")
         if not repos:
             console.print("[yellow]No git repositories found.[/]")
             raise typer.Exit()
-        sources = [(repo.name, repo) for repo in repos]
+        sources = [(repo.name, repo.path) for repo in repos]
         prefetch_failed = 0
         title = f"Activity: {r.label}"
 

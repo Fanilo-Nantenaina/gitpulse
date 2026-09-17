@@ -16,6 +16,12 @@ class FileChange:
         return self.additions + self.deletions
 
 
+@dataclass(frozen=True)
+class RepoRef:
+    name: str
+    path: str
+
+
 @dataclass
 class Commit:
     sha: str
@@ -27,6 +33,8 @@ class Commit:
     files: list[FileChange] = field(default_factory=list[FileChange])
     branch: str | None = None
     is_merge: bool = False
+    repo: str = ""
+    repo_path: str = ""
 
     @property
     def short_sha(self) -> str:
@@ -49,6 +57,10 @@ class Commit:
         return self.when.hour
 
 
+def qualified_path(commit: Commit, change: FileChange) -> str:
+    return f"{commit.repo}/{change.path}" if commit.repo else change.path
+
+
 @dataclass
 class RepoActivity:
     repo_name: str
@@ -56,10 +68,27 @@ class RepoActivity:
     since: datetime
     until: datetime
     commits: list[Commit] = field(default_factory=list[Commit])
+    repos: list[RepoRef] = field(default_factory=list[RepoRef])
+
+    @property
+    def is_workspace(self) -> bool:
+        return bool(self.repos)
 
     @property
     def commit_count(self) -> int:
         return len(self.commits)
+
+    @property
+    def commits_per_repo(self) -> dict[str, int]:
+        counts = {r.name: 0 for r in self.repos}
+        for c in self.commits:
+            if c.repo:
+                counts[c.repo] = counts.get(c.repo, 0) + 1
+        return counts
+
+    @property
+    def active_repos(self) -> list[str]:
+        return [name for name, n in self.commits_per_repo.items() if n]
 
     @property
     def total_additions(self) -> int:
@@ -81,7 +110,8 @@ class RepoActivity:
         counts: dict[str, int] = {}
         for c in self.commits:
             for f in c.files:
-                counts[f.path] = counts.get(f.path, 0) + 1
+                key = qualified_path(c, f)
+                counts[key] = counts.get(key, 0) + 1
         return dict(sorted(counts.items(), key=lambda kv: kv[1], reverse=True))
 
     @property
@@ -96,7 +126,7 @@ class RepoActivity:
         seen: set[str] = set()
         for c in self.commits:
             for f in c.files:
-                seen.add(f.path)
+                seen.add(qualified_path(c, f))
         return len(seen)
 
     @property

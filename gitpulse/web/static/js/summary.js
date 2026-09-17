@@ -16,7 +16,8 @@ function runSummary() {
     try {
       const d = await post('/api/summary', body, ctrl.signal);
       clearInterval(tick);
-      renderSummary(d.activity, d.summary); showStatsPanel(d.stats, body);
+      noteWorkspace(d.activity);
+      renderSummary(d.activity, d.summary, d.failed_repos); showStatsPanel(d.stats, body);
     } catch (e) {
       clearInterval(tick);
       if (e.name === 'AbortError') out.innerHTML = '<div class="err">' + t('cancelled') + '</div>';
@@ -24,8 +25,9 @@ function runSummary() {
     }
   });
 }
-function renderSummary(a, s) {
-  let h = headCard(a, s.headline);
+function noteWorkspace(a) { if (!a) return; state.workspace = !!a.is_workspace; applyWorkspaceUI(); }
+function renderSummary(a, s, failed) {
+  let h = headCard(a, s.headline, failed);
   h += '<div id="statsMount"></div>';
   if (s.synthesis) h += '<div class="block"><h3>' + t('overview') + '</h3><div class="overview">' + esc(s.synthesis) + '</div></div>';
   if (s.themes.length) h += '<div class="block"><h3>' + t('themes') + '</h3>' + s.themes.map(x => '<div class="theme"><div class="t">' + esc(x.title) + '</div><div class="narr">' + esc(x.narrative) + '</div>' + (x.commits && x.commits.length ? '<div class="shas">' + x.commits.map(esc).join(' ') + '</div>' : '') + '</div>').join('') + '</div>';
@@ -48,7 +50,7 @@ async function loadStatsPanel(body) {
     mount.innerHTML = '<div class="err">' + esc(e && e.message ? e.message : e) + '</div>';
   }
 }
-async function runLog() { try { loading('...'); const d = await post('/api/log', baseBody({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() })); const a = d.activity; let h = headCard(a, null) + '<div class="block"><h3>' + t('log') + '</h3>'; if (!a.commits.length) h += '<div class="placeholder" style="margin-top:20px">' + t('noCommits') + '</div>'; a.commits.forEach(c => { h += '<div class="commit"><span class="sha">' + c.sha + '</span><div class="meta">' + esc(c.author) + ' &middot; ' + c.when.replace('T', ' ').slice(0, 16) + '</div><div class="msg">' + esc(c.summary) + '</div><div class="cstat"><span class="add">+' + c.additions + '</span> / <span class="del">-' + c.deletions + '</span> &middot; ' + c.files + ' ' + t('files') + '</div></div>'; }); out.innerHTML = h + '</div>'; } catch (e) { showErr(e); } }
+async function runLog() { try { loading('...'); const d = await post('/api/log', baseBody({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() })); const a = d.activity; noteWorkspace(a); let h = headCard(a, null, d.failed_repos) + '<div class="block"><h3>' + t('log') + '</h3>'; if (!a.commits.length) h += '<div class="placeholder" style="margin-top:20px">' + t('noCommits') + '</div>'; a.commits.forEach(c => { h += '<div class="commit"><span class="sha">' + c.sha + '</span><div class="meta">' + (a.is_workspace && c.repo ? '<span class="repo-chip">' + esc(c.repo) + '</span>' : '') + esc(c.author) + ' &middot; ' + c.when.replace('T', ' ').slice(0, 16) + '</div><div class="msg">' + esc(c.summary) + '</div><div class="cstat"><span class="add">+' + c.additions + '</span> / <span class="del">-' + c.deletions + '</span> &middot; ' + c.files + ' ' + t('files') + '</div></div>'; }); out.innerHTML = h + '</div>'; } catch (e) { showErr(e); } }
 const LANE_COLORS = ['#f78166', '#58a6ff', '#3fb950', '#d29922', '#bc8cff', '#f85149', '#39c5cf', '#ff7b72'];
 let graphState = { nodes: [], offset: 0, hasMore: false, lanes: 1, loading: false, all: false };
 const PROV_HINTS = {

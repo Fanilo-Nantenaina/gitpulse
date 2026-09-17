@@ -165,4 +165,3 @@ def test_sync_remote_preserves_valid_cache_on_fetch_failure(
     result = R.sync_remote(url, refresh=True)
     assert result == cached_dest
     assert cached_dest.exists()
-

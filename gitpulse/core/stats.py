@@ -4,7 +4,7 @@ from collections import defaultdict
 from datetime import timedelta
 from typing import TypedDict
 
-from .models import RepoActivity
+from .models import RepoActivity, qualified_path
 
 
 class DayStat(TypedDict):
@@ -38,6 +38,14 @@ class Totals(TypedDict):
     authors: int
 
 
+class RepoStat(TypedDict):
+    name: str
+    commits: int
+    additions: int
+    deletions: int
+    authors: int
+
+
 class Stats(TypedDict):
     totals: Totals
     daily: list[DayStat]
@@ -45,6 +53,7 @@ class Stats(TypedDict):
     by_hour: list[int]
     by_weekday: list[int]
     top_files: list[FileChurn]
+    repos: list[RepoStat]
 
 
 def compute_stats(activity: RepoActivity) -> Stats:
@@ -103,7 +112,7 @@ def compute_stats(activity: RepoActivity) -> Stats:
     file_churn: dict[str, int] = defaultdict(int)
     for c in commits:
         for f in c.files:
-            file_churn[f.path] += f.additions + f.deletions
+            file_churn[qualified_path(c, f)] += f.additions + f.deletions
     top_files = sorted(
         (FileChurn(path=p, churn=n) for p, n in file_churn.items()),
         key=lambda x: x["churn"],
@@ -124,4 +133,32 @@ def compute_stats(activity: RepoActivity) -> Stats:
         "by_hour": by_hour,
         "by_weekday": by_weekday,
         "top_files": top_files,
+        "repos": _repo_stats(activity),
     }
+
+
+def _repo_stats(activity: RepoActivity) -> list[RepoStat]:
+    if not activity.is_workspace:
+        return []
+    rows: dict[str, RepoStat] = {
+        r.name: {
+            "name": r.name,
+            "commits": 0,
+            "additions": 0,
+            "deletions": 0,
+            "authors": 0,
+        }
+        for r in activity.repos
+    }
+    seen_authors: dict[str, set[str]] = {r.name: set() for r in activity.repos}
+    for c in activity.commits:
+        row = rows.get(c.repo)
+        if row is None:
+            continue
+        row["commits"] += 1
+        row["additions"] += c.additions
+        row["deletions"] += c.deletions
+        seen_authors[c.repo].add(c.author_name)
+    for name, row in rows.items():
+        row["authors"] = len(seen_authors[name])
+    return sorted(rows.values(), key=lambda r: r["commits"], reverse=True)

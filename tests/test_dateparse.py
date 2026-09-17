@@ -69,4 +69,3 @@ def test_parse_range_avant_hier_to_today() -> None:
     r = parse_range("avant-hier..today")
     assert r.since <= r.until
     assert "->" in r.label
-

@@ -8,8 +8,6 @@ from gitpulse.core.changelog import generate_changelog
 
 
 def test_generate_changelog_linear(linear_repo: Path) -> None:
-    # linear_repo has commits: commit 1, commit 2, ...
-    # They don't match conventional commit format, so sections will be empty but header present
     text = generate_changelog(str(linear_repo), from_ref=None, to_ref="HEAD")
     assert "## HEAD" in text
 
@@ -49,11 +47,13 @@ def test_generate_changelog_conventional(tmp_path: Path) -> None:
     from_ref = p.stdout.strip()
 
     commit("fix(api): handle 404 errors properly", "file2.txt")
-    commit("feat!: redesign core architecture\n\nBREAKING CHANGE: api altered", "file3.txt")
+    commit(
+        "feat!: redesign core architecture\n\nBREAKING CHANGE: api altered", "file3.txt"
+    )
 
     cl = generate_changelog(str(repo), from_ref=from_ref, to_ref="HEAD")
     assert "### Features" in cl
-    assert "add login flow" not in cl  # excluded because from_ref was hidden
+    assert "add login flow" not in cl
     assert "### Bug Fixes" in cl
     assert "handle 404 errors properly" in cl
     assert "### ⚠ BREAKING CHANGES" in cl

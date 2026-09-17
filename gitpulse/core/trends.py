@@ -5,8 +5,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from .collector import collect_activity
 from .models import RepoActivity
+from .workspace import DEFAULT_DEPTH, AuthorScope, collect
 
 
 @dataclass
@@ -55,11 +55,21 @@ def compare(
     branch: str | None = None,
     now: datetime | None = None,
     name: str | None = None,
+    authors: list[str] | None = None,
+    author_scope: AuthorScope = "window",
+    max_depth: int = DEFAULT_DEPTH,
 ) -> Comparison:
     now = now or datetime.now().astimezone()
     total_since = now - period * (periods_back + 1)
-    total_activity = collect_activity(
-        repo_path, total_since, now, branch=branch, name=name
+    total_activity, _ = collect(
+        repo_path,
+        total_since,
+        now,
+        branch=branch,
+        name=name,
+        authors=authors,
+        author_scope=author_scope,
+        max_depth=max_depth,
     )
 
     cur_since = now - period
@@ -70,6 +80,7 @@ def compare(
         since=cur_since,
         until=now,
         commits=current_commits,
+        repos=total_activity.repos,
     )
 
     baselines: list[RepoActivity] = []
@@ -84,6 +95,7 @@ def compare(
                 since=since,
                 until=until,
                 commits=b_commits,
+                repos=total_activity.repos,
             )
         )
 

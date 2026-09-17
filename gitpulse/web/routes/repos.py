@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException
 
 from ...core import config as gp_config
 from ...core import remote as gp_remote
+from ...core import workspace as gp_workspace
 from ...core.gitcreds import git_config_env, redact
 from ..schemas import TrackReq
 
@@ -22,6 +23,7 @@ class _BranchesBase(TypedDict):
 
 class BranchesResult(_BranchesBase, total=False):
     error: str
+    is_workspace: bool
 
 
 @router.get("/config")
@@ -79,6 +81,9 @@ def api_branches(body: dict[str, object]):
 
             disc = pygit2.discover_repository(path)
             if not disc:
+                if gp_workspace.is_workspace(path):
+                    result["is_workspace"] = True
+                    return result
                 raise HTTPException(400, "Not a git repository")
             repo = pygit2.Repository(disc)
 

@@ -109,7 +109,7 @@ def test_summary_collects_the_window_only_once(
 ) -> None:
     body = {"path": str(linear_repo), "when": "all", "provider": "local"}
     with mock.patch(
-        "gitpulse.web.routes.analysis.collect_activity",
+        "gitpulse.core.workspace.collect_activity",
         side_effect=collect_activity,
     ) as spy:
         assert client.post("/api/summary", json=body).status_code == 200

@@ -3,7 +3,7 @@ const _ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39
 function esc(s) { return (s === null || s === undefined ? '' : String(s)).replace(/[&<>"']/g, c => _ESC[c]); }
 const api = async (p, o) => { const r = await fetch(p, o); if (!r.ok) { const e = await r.json().catch(() => ({ detail: r.statusText })); throw new Error(e.detail || 'Error'); } return r.json(); };
 const post = (p, b, signal) => api(p, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b), signal });
-let state = { source: 'local', action: 'summary', providers: [], langs: {}, uiLang: 'en', latency: null };
+let state = { source: 'local', action: 'summary', providers: [], langs: {}, uiLang: 'en', latency: null, workspace: false };
 
 const I18N = {
   en: {
@@ -25,6 +25,9 @@ const I18N = {
     metered: 'A metered/limited connection may apply data charges for cloud models.',
     highLatency: 'High latency to cloud APIs detected. Cloud runs risk timeouts and wasted tokens.',
     switchLocal: 'Switch to local', proceedAnyway: 'Use cloud anyway', loadBranches: 'Load remote branches', allowInsecure: 'Allow insecure SSL (expired/self-signed cert)',
+    wsRepos: 'Repositories scanned', wsNoCommits: 'no commits', wsScanDepth: 'Scan depth', wsScanDepthHint: 'How many folder levels to search for repositories.',
+    wsAuthorScope: 'Repos', wsScopeWindow: 'Active in period', wsScopeAll: 'All repos where they worked', wsScopeHint: 'Select an author to choose which repos are counted.',
+    wsFailedNote: 'Skipped, could not be read:', chartRepos: 'Commits by repository', wsAuthorRepos: 'repos', wsRepoAuthors: 'authors',
     windows: { 'all': 'All time', '7d': 'Last 7 days', '24h': 'Last 24 hours', '30d': 'Last 30 days', 'today': 'Today', 'yesterday': 'Yesterday', 'this-week': 'This week', 'last-week': 'Last week' }
   },
   fr: {
@@ -46,6 +49,9 @@ const I18N = {
     metered: 'Une connexion limitée peut entraîner des frais de données pour les modèles cloud.',
     highLatency: 'Latence élevée vers les API cloud. Risque de coupures et de gaspillage de tokens.',
     switchLocal: 'Passer en local', proceedAnyway: 'Utiliser le cloud quand même', loadBranches: 'Charger les branches distantes', allowInsecure: 'Autoriser SSL non sécurisé (certificat expiré/auto-signé)',
+    wsRepos: 'Dépôts analysés', wsNoCommits: 'aucun commit', wsScanDepth: 'Profondeur de recherche', wsScanDepthHint: 'Nombre de niveaux de dossiers à explorer pour trouver les dépôts.',
+    wsAuthorScope: 'Dépôts', wsScopeWindow: 'Actifs sur la période', wsScopeAll: 'Tous les dépôts où ils ont travaillé', wsScopeHint: 'Sélectionnez un auteur pour choisir les dépôts pris en compte.',
+    wsFailedNote: 'Ignorés, lecture impossible :', chartRepos: 'Commits par dépôt', wsAuthorRepos: 'dépôts', wsRepoAuthors: 'auteurs',
     windows: { 'all': 'Tout l\'historique', '7d': '7 derniers jours', '24h': '24 dernières heures', '30d': '30 derniers jours', 'today': 'Aujourd\'hui', 'yesterday': 'Hier', 'this-week': 'Cette semaine', 'last-week': 'Semaine dernière' }
   }
 };

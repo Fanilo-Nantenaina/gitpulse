@@ -138,7 +138,9 @@ def test_summarize_results_mentions_every_channel() -> None:
 
 
 def test_discord_delivery_success(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("GITPULSE_DISCORD_WEBHOOK", "https://discord.com/api/webhooks/123/secret-token")
+    monkeypatch.setenv(
+        "GITPULSE_DISCORD_WEBHOOK", "https://discord.com/api/webhooks/123/secret-token"
+    )
 
     class Resp:
         status: int = 204
@@ -153,4 +155,3 @@ def test_discord_delivery_success(monkeypatch: pytest.MonkeyPatch) -> None:
         r = D.notify_discord(MD)
     assert r
     assert r.status == "ok"
-

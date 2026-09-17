@@ -317,6 +317,59 @@ gitpulse summary --when "jeudi dernier"
 
 ---
 
+## Several repositories at once
+
+Point GitPulse at a **parent folder** instead of a repository and it finds the
+git repos underneath, then reports on all of them together. Nothing to
+configure and no separate command: if the path you give is a repo it behaves
+exactly as before, and if it is a folder of repos it switches to workspace
+mode on its own.
+
+```bash
+gitpulse summary ~/code                  # every repo under ~/code, merged
+gitpulse log ~/code --when yesterday
+gitpulse standup ~/code
+gitpulse compare ~/code
+```
+
+The digest stays aware that these are separate projects: each commit is
+tagged with its repository, themes are organised per repo unless an effort
+genuinely spans several, and the synthesis says where the effort concentrated
+and which repos were quiet. Identically-named files do not merge — a dozen
+`README.md` files stay a dozen entries, not one giant hotspot.
+
+`--depth` controls how far down the scan goes (default 3). Nested repos inside
+a checkout are skipped, so vendored copies and submodules are not
+double-counted.
+
+### Filtering by author across repos
+
+The author list is aggregated over every repo, showing who works where.
+Selecting an author narrows the report to the repos that person actually
+worked in — and `--author-scope` decides what "worked in" means:
+
+| Scope              | Keeps                                                 |
+| ------------------ | ----------------------------------------------------- |
+| `window` (default) | repos where they committed **inside the time window** |
+| `all`              | every repo they have **ever** committed to            |
+
+`window` keeps the numbers tight: every repo listed has real content. `all`
+answers a different question — "which of their projects have gone quiet?" —
+by keeping repos they own but did not touch this period, shown with zero
+commits.
+
+```bash
+gitpulse summary ~/code --author alice@example.com                       # active this period
+gitpulse summary ~/code --author alice@example.com --author-scope all    # + her quiet repos
+```
+
+In the web UI the same control sits next to the author picker.
+
+Graph and commit-message generation stay single-repo: one shows a single
+commit DAG, the other needs one working tree.
+
+---
+
 ## Web interface
 
 If you'd rather click than remember commands, GitPulse ships a local web UI
