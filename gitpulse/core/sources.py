@@ -74,10 +74,15 @@ def discover(
     return sorted(found, key=lambda r: r.name.lower())
 
 
-def sync_url(url: str, refresh: bool = True, insecure: bool = False) -> Path:
+def sync_url(
+    url: str,
+    refresh: bool = True,
+    insecure: bool = False,
+    max_age: float | None = None,
+) -> Path:
     tok, user, key = gp_remote.resolve_auth(None, None, None)
     return gp_remote.sync_remote(
-        url, tok, user, key, refresh=refresh, insecure=insecure
+        url, tok, user, key, refresh=refresh, insecure=insecure, max_age=max_age
     )
 
 
@@ -86,13 +91,14 @@ def expand(
     max_depth: int = DEFAULT_DEPTH,
     refresh: bool = True,
     insecure: bool = False,
+    max_age: float | None = None,
 ) -> RepoSet:
     text = str(spec)
     if is_named(text):
-        return _expand_named(text[1:], max_depth, refresh, insecure)
+        return _expand_named(text[1:], max_depth, refresh, insecure, max_age)
     if is_url(text):
         name = gp_remote.repo_name_from_url(text)
-        dest = sync_url(text, refresh, insecure)
+        dest = sync_url(text, refresh, insecure, max_age)
         return RepoSet(name, str(dest), [RepoRef(name, str(dest))], single=True)
     root = Path(text).resolve()
     if is_repo(root):
@@ -103,7 +109,13 @@ def expand(
     return RepoSet(root.name, str(root), refs)
 
 
-def _expand_named(name: str, max_depth: int, refresh: bool, insecure: bool) -> RepoSet:
+def _expand_named(
+    name: str,
+    max_depth: int,
+    refresh: bool,
+    insecure: bool,
+    max_age: float | None = None,
+) -> RepoSet:
     members = config.get_workspace(name)
     if members is None:
         known = ", ".join(f"@{n}" for n in config.list_workspaces()) or "none yet"
@@ -115,7 +127,7 @@ def _expand_named(name: str, max_depth: int, refresh: bool, insecure: bool) -> R
     taken: set[str] = set()
     for member in members:
         try:
-            part = expand(member, max_depth, refresh, insecure)
+            part = expand(member, max_depth, refresh, insecure, max_age)
         except (ValueError, RuntimeError, OSError, pygit2.GitError) as e:
             result.failures.append(
                 {

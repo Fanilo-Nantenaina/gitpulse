@@ -12,6 +12,9 @@ from ..core.models import RepoActivity
 
 class CommitDict(TypedDict):
     sha: str
+    id: str
+    repo_path: str
+    is_merge: bool
     summary: str
     when: str
     author: str
@@ -64,6 +67,7 @@ class RepoSourceReq(Protocol):
     path: str | None
     url: str | None
     refresh: bool
+    force: bool
     insecure: bool
 
 
@@ -82,6 +86,9 @@ def activity_dict(a: RepoActivity) -> ActivityDict:
         "commits": [
             {
                 "sha": c.short_sha,
+                "id": c.sha,
+                "repo_path": c.repo_path or a.repo_path,
+                "is_merge": c.is_merge,
                 "summary": c.summary,
                 "when": c.when.isoformat(),
                 "author": c.author_name,
@@ -126,10 +133,15 @@ def resolve_source(req: RepoSourceReq) -> tuple[str | Path, str | None]:
             tok,
             user,
             key,
-            refresh=req.refresh,
+            refresh=req.refresh or req.force,
             insecure=req.insecure,
+            max_age=0 if req.force else None,
         )
         return dest, gp_remote.repo_name_from_url(req.url)
     if not req.path:
         raise HTTPException(400, "Provide a path or url")
+    if req.force and req.path.startswith("@"):
+        from ..core import sources
+
+        sources.expand(req.path, refresh=True, insecure=req.insecure, max_age=0)
     return req.path, None

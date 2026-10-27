@@ -566,32 +566,69 @@ pip install -e ".[web]"     # or ".[all]"
 gitpulse serve              # opens your browser at http://127.0.0.1:8420
 ```
 
-It runs entirely on your machine (no data leaves it). The UI has:
+It runs entirely on your machine (no data leaves it).
 
-- a repository picker accepting a pasted path **or** a built-in folder browser
-  that also reaches WSL distros, Windows drives and SSH hosts (see
-  [Projects anywhere](#projects-anywhere-wsl-windows-drives-ssh-hosts)), and a
-  toggle for local path vs. remote URL;
-- a memory of recently used repositories;
-- a provider manager (the "Manage" button): see each backend's live status and
-  why it's unavailable, paste API keys for Claude / OpenAI / Gemini (stored in
-  the local config, not system-wide), and start a local Ollama server in one
-  click if it isn't running;
-- provider / model / language selectors, with sub-models populated automatically
-  per provider;
-- a dynamic branch list (local branches, with an option to load the linked
-  remote's branches);
-- a time-window picker with common presets plus a custom field — you don't have
-  to remember the syntax;
-- cloud-safety prompts: on a metered connection or high API latency, the UI
-  warns about possible data charges, timeouts, and wasted tokens, and offers to
-  switch to a local model;
-- a full UI translation (English / French), separate from the summary language;
-- tabs for every action — Summary (with risk flags), Log, Graph, Compare,
-  Standup, Commit, Time (time report + CSV), Dashboard (tracked remotes),
-  Tracked (add/remove remotes);
-- named workspaces in the Browse dialog, accepted wherever a path is;
-- a dedicated output panel, and a dark/light theme toggle.
+**One context, every view.** The bar at the top holds the repository and three
+global filters: period, branches and authors. Summary, Log, Graph, Compare and
+Time all read the same selection, and they mean the same thing everywhere. For
+example, "all branches" is every local branch, remote-tracking branch, tag and
+HEAD, as with `git log --branches --remotes --tags HEAD`. Periods are matched on
+the author date, so a rebase does not move a week of work to the day it was
+rebased. A filter that a view does not use is dimmed. The Graph uses period and
+authors to highlight commits rather than hide them, so the history stays whole.
+The address bar keeps the view and every filter, so a link reopens the same
+screen and Back/Forward move between views.
+
+The views:
+
+- **Summary**: KPIs and charts, then risk flags, update as soon as a filter
+  changes. The AI summary runs only when you ask, with a warning before a cloud
+  call on a slow or metered link, a timer and a Cancel button.
+- **Log**: commits grouped by day, with a text filter. Click a commit for its
+  files and diffs.
+- **Graph**: an IDE-style commit graph (see [the graph](#the-commit-graph)).
+- **Compare**: the current period against the average of the previous ones.
+- **Time**: estimated work sessions, by day, author and repository, with CSV
+  export.
+- **Standup**: yesterday's work and today's context.
+- **Commit**: uncommitted changes with their diffs, and an AI commit message.
+- **Dashboard** and **Tracked**: activity across tracked remotes. These load
+  only on demand, because every remote is fetched.
+- **Settings**: providers with their live status, API keys, Ollama start,
+  default model and summary language, theme and interface language.
+
+Also built in:
+
+- a repository picker for a path, a URL or a `@workspace`, with a folder
+  browser that reaches WSL distros, Windows drives and SSH hosts;
+- recent repositories;
+- `Ctrl K` command palette, number keys `1`…`7` for views, `R` to refresh;
+- English and French, and dark and light themes.
+
+Refresh fetches remotes immediately. Otherwise the server reuses a fetch for 5
+minutes (`GITPULSE_REMOTE_TTL`, in seconds), so moving between views on a
+metered connection does not hit the network each time.
+
+### The commit graph
+
+The Graph view follows the conventions of IDE graph tools such as Git Graph for
+VS Code:
+
+- commits in date order, with parents always below their children;
+- one line per parent link, joining the parent at its node;
+- a branch's first-parent chain keeps one lane and one colour;
+- lanes shift left as space frees up;
+- branches, remote branches, tags and a detached HEAD as distinct badges, with
+  a local branch and its remote twin on the same commit sharing one badge;
+- a dashed "Uncommitted changes" row above HEAD.
+
+It loads 300 commits, then more as you scroll, and only the visible rows are
+rendered. If the repository changes between two pages, the graph reloads
+instead of joining two different histories. `Ctrl F` searches messages,
+authors, hashes and ref names; `/regex/` is accepted. The arrow keys move the
+selection and `Esc` closes the commit panel. The panel shows author and commit
+dates, clickable parents, and every changed file with its diff. A merge is
+shown against its first parent.
 
 `gitpulse serve` options: `--port` (default 8420), `--host`, `--no-open`.
 
@@ -1044,7 +1081,9 @@ gitpulse/
 │   ├── models.py       # plain dataclasses: Commit, FileChange, RepoActivity
 │   ├── collector.py    # pygit2 history walk + per-file diff stats
 │   ├── stats.py        # chart data: per day, per author, per hour, top files
-│   ├── gitgraph.py     # commit DAG lanes for the Graph view
+│   ├── refs.py         # what a branch selection covers, for every view
+│   ├── gitgraph.py     # commit graph layout (lanes, segments), paged walks
+│   ├── commitinfo.py   # files and per-file diff of one commit (or the worktree)
 │   ├── diffstage.py    # working-tree changes for commit messages
 │   ├── remote.py       # bare-clone any git URL into a cache (pygit2 + git CLI)
 │   ├── trends.py       # period-over-period comparison metrics
@@ -1091,11 +1130,11 @@ gitpulse/
     │   ├── commit.py      # changes-count, commit-message
     │   ├── providers.py   # provider status, latency, keys, ollama control
     │   └── repos.py       # branches, browse, locations, ssh browse, tracked, config
-    └── static/
-        ├── index.html      # markup shell (loads css + js modules)
-        ├── css/app.css     # all styles
-        └── js/             # core, providers, repo, actions, summary,
-                            #   graph, commit, insights, init (loaded in order)
+    └── static/         # built web UI (generated from frontend/, do not edit)
+frontend/               # Svelte 5 + TypeScript sources of the web UI
+├── src/lib/            # API client, app state, routing, graph geometry, i18n
+├── src/components/     # context bar, pickers, commit panel, charts, dialogs
+└── src/views/          # one component per view
 ```
 
 The `core` layer has zero AI/CLI dependencies — import the collector in any
@@ -1117,9 +1156,24 @@ skewed dates, tags, detached HEAD, remote-tracking branches, shallow clones,
 pagination and seeded random histories.
 
 ```bash
-pip install -e ".[dev]"
+pip install -e ".[web,dev]"
 pytest
 ```
+
+The web UI lives in `frontend/` (Svelte 5, TypeScript, Vite). The built bundle
+is committed in `gitpulse/web/static`, so installing GitPulse never needs Node.
+To work on the UI:
+
+```bash
+cd frontend
+npm install
+npm run dev     # hot reload on :5173, API proxied to `gitpulse serve` on :8420
+npm run check   # svelte-check (strict TypeScript)
+npm test        # unit tests: routing, graph geometry, search, i18n
+npm run build   # writes gitpulse/web/static (commit the result)
+```
+
+CI fails if the committed bundle does not match the sources.
 
 The fixtures build real disposable git repositories with fixed commit dates, so
 date-window, graph, and diff assertions are deterministic.

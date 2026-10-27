@@ -6,7 +6,7 @@ from typing import Literal, TypedDict
 
 import pygit2
 
-from .collector import ALL_BRANCHES, collect_activity
+from .collector import ALL_BRANCHES, BranchSpec, collect_activity
 from .models import Commit, RepoActivity, RepoRef
 from .sources import DEFAULT_DEPTH, RepoFailure, RepoSet, discover, expand, is_repo
 
@@ -54,7 +54,7 @@ def collect_workspace(
     root: str | os.PathLike[str],
     since: datetime,
     until: datetime | None = None,
-    branch: str | None = None,
+    branch: BranchSpec = None,
     name: str | None = None,
     authors: list[str] | None = None,
     author_scope: AuthorScope = "window",
@@ -76,7 +76,7 @@ def collect_refs(
     repo_set: RepoSet,
     since: datetime,
     until: datetime | None = None,
-    branch: str | None = None,
+    branch: BranchSpec = None,
     name: str | None = None,
     authors: list[str] | None = None,
     author_scope: AuthorScope = "window",
@@ -153,7 +153,7 @@ def collect(
     source: str | os.PathLike[str],
     since: datetime,
     until: datetime | None = None,
-    branch: str | None = None,
+    branch: BranchSpec = None,
     name: str | None = None,
     authors: list[str] | None = None,
     author_scope: AuthorScope = "window",

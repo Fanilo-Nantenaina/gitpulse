@@ -1,12 +1,19 @@
 from __future__ import annotations
 
+import hashlib
 import os
+import sys
+import threading
+from collections import OrderedDict
+from collections.abc import Iterator, Sequence
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TypedDict
 
 import pygit2
 from pygit2.enums import SortMode
+
+from . import refs as gp_refs
 
 
 class RefLabel(TypedDict):
@@ -21,6 +28,7 @@ Segment = TypedDict("Segment", {"from": int, "to": int, "color": int})
 class GraphNode(TypedDict):
     sha: str
     short: str
+    kind: str
     lane: int
     color: int
     parents: list[str]
@@ -42,8 +50,11 @@ class Graph(TypedDict):
     incoming: list[Segment]
     branches: list[str]
     remote_branches: list[str]
+    tags: list[str]
     head: str | None
     head_sha: str | None
+    uncommitted: int
+    version: str
     returned: int
     lanes: int
     has_more: bool
@@ -91,37 +102,7 @@ def _refs_by_oid(repo: pygit2.Repository) -> dict[str, list[RefLabel]]:
     return out
 
 
-def _tips(repo: pygit2.Repository) -> list[pygit2.Oid]:
-    oids: list[pygit2.Oid] = []
-    seen: set[str] = set()
-
-    def add_commit(target: pygit2.Oid | str) -> None:
-        try:
-            commit = repo[target].peel(pygit2.Commit)
-        except Exception:
-            return
-        s = str(commit.id)
-        if s not in seen:
-            seen.add(s)
-            oids.append(commit.id)
-
-    if not repo.head_is_unborn:
-        add_commit(repo.head.target)
-    for ref_name in repo.references:
-        if not ref_name.startswith(("refs/heads/", "refs/remotes/", "refs/tags/")):
-            continue
-        try:
-            ref = repo.references[ref_name]
-            if ref.type == pygit2.enums.ReferenceType.SYMBOLIC:
-                continue
-            add_commit(ref.target)
-        except Exception:
-            continue
-    return oids
-
-
 class _Line:
-
     __slots__ = ("target", "color", "first", "x", "next_x")
 
     def __init__(self, target: str, color: int, first: bool, x: int) -> None:
@@ -133,7 +114,6 @@ class _Line:
 
 
 class _Layout:
-
     def __init__(self) -> None:
         self.active: list[_Line] = []
 
@@ -186,92 +166,196 @@ class _Layout:
         return [(line.x, line.color) for line in self.active]
 
 
+UNCOMMITTED = "uncommitted"
+
+
+class GraphChanged(ValueError):
+    pass
+
+
+def _fingerprint(repo: pygit2.Repository) -> str:
+    h = hashlib.sha1()
+    h.update(str(repo.head.target).encode() if not repo.head_is_unborn else b"-")
+    for name in sorted(repo.references):
+        try:
+            target = repo.references[name].target
+        except Exception:
+            continue
+        h.update(f"{name}={target};".encode())
+    return h.hexdigest()[:16]
+
+
+def _uncommitted_count(repo: pygit2.Repository) -> int:
+    if repo.is_bare or repo.head_is_unborn:
+        return 0
+    try:
+        return sum(
+            1
+            for flags in repo.status().values()
+            if not flags & pygit2.enums.FileStatus.IGNORED
+        )
+    except pygit2.GitError:
+        return 0
+
+
+def _node(c: pygit2.Commit, refs: dict[str, list[RefLabel]]) -> GraphNode:
+    sha = str(c.id)
+    msg = c.message.strip()
+    parents = [str(p) for p in c.parent_ids]
+    return {
+        "sha": sha,
+        "short": sha[:8],
+        "kind": "commit",
+        "lane": 0,
+        "color": 0,
+        "parents": parents,
+        "segments": [],
+        "is_merge": len(parents) > 1,
+        "summary": msg.splitlines()[0] if msg else "",
+        "body": msg,
+        "author": c.author.name,
+        "email": c.author.email,
+        "committer": c.committer.name,
+        "committer_email": c.committer.email,
+        "when": _when(c.commit_time, c.commit_time_offset),
+        "author_when": _when(c.author.time, c.author.offset),
+        "refs": refs.get(sha, []),
+    }
+
+
+class _Session:
+
+    def __init__(
+        self,
+        repo: pygit2.Repository,
+        tips: list[pygit2.Oid],
+        uncommitted: int,
+        version: str,
+    ) -> None:
+        self.lock = threading.Lock()
+        self.version = version
+        self.uncommitted = uncommitted
+        self.refs = _refs_by_oid(repo)
+        self.nodes: list[GraphNode] = []
+        self.final = 0
+        self.done = False
+        self._layout = _Layout()
+        self._rows = self._walk(repo, tips)
+
+    def _walk(
+        self, repo: pygit2.Repository, tips: list[pygit2.Oid]
+    ) -> Iterator[GraphNode]:
+        if self.uncommitted:
+            now = datetime.now().astimezone().isoformat()
+            row = _node(repo.head.peel(pygit2.Commit), {})
+            row["sha"] = UNCOMMITTED
+            row["short"] = ""
+            row["kind"] = UNCOMMITTED
+            row["parents"] = [str(repo.head.target)]
+            row["is_merge"] = False
+            row["summary"] = f"Uncommitted changes ({self.uncommitted})"
+            row["body"] = ""
+            for field in ("author", "email", "committer", "committer_email"):
+                row[field] = ""
+            row["when"] = row["author_when"] = now
+            yield row
+        walker = repo.walk(tips[0], SortMode.TOPOLOGICAL | SortMode.TIME)
+        for oid in tips[1:]:
+            walker.push(oid)
+        for c in walker:
+            yield _node(c, self.refs)
+
+    def ensure(self, rows: int, repo: pygit2.Repository) -> None:
+        shallow = repo.is_shallow
+        while self.final < rows and not self.done:
+            node = next(self._rows, None)
+            if node is None:
+                if self.nodes:
+                    self.nodes[-1]["segments"] = [
+                        {"from": x, "to": x, "color": col}
+                        for x, col in self._layout.leaving()
+                    ]
+                self.final = len(self.nodes)
+                self.done = True
+                break
+            drawn = (
+                [p for p in node["parents"] if p in repo]
+                if shallow
+                else node["parents"]
+            )
+            node["lane"], node["color"], entering = self._layout.row(node["sha"], drawn)
+            if self.nodes:
+                self.nodes[-1]["segments"] = entering
+                self.final = len(self.nodes)
+            self.nodes.append(node)
+
+
+_SESSIONS: OrderedDict[tuple[str, tuple[str, ...], bool], _Session] = OrderedDict()
+_SESSIONS_LOCK = threading.Lock()
+_SESSIONS_MAX = 4
+
+
+def clear_sessions() -> None:
+    with _SESSIONS_LOCK:
+        _SESSIONS.clear()
+
+
 def graph(
     repo_path: str | os.PathLike[str],
     limit: int = 0,
     offset: int = 0,
-    branch: str | None = None,
-    all_commits: bool = True,
+    branches: Sequence[str] | None = None,
+    uncommitted: bool = False,
+    version: str | None = None,
 ) -> Graph:
     discovered = pygit2.discover_repository(str(Path(repo_path).resolve()))
     if discovered is None:
         raise ValueError("No git repository found")
     repo = pygit2.Repository(discovered)
+    ref_list = gp_refs.list_refs(repo)
+    base: Graph = {
+        "nodes": [],
+        "incoming": [],
+        "branches": sorted(ref_list["local"]),
+        "remote_branches": ref_list["remote"],
+        "tags": ref_list["tags"],
+        "head": ref_list["head"],
+        "head_sha": ref_list["head_sha"],
+        "uncommitted": 0,
+        "version": "",
+        "returned": 0,
+        "lanes": 1,
+        "has_more": False,
+    }
     if repo.head_is_unborn:
-        return {
-            "nodes": [],
-            "incoming": [],
-            "branches": sorted(repo.branches.local),
-            "remote_branches": [],
-            "head": None,
-            "head_sha": None,
-            "returned": 0,
-            "lanes": 1,
-            "has_more": False,
-        }
+        return base
 
-    refs = _refs_by_oid(repo)
-    head = repo.head.shorthand if not repo.head_is_detached else None
+    names = tuple(branches or ())
+    tips = gp_refs.tips_for(repo, list(names) if names else gp_refs.ALL_BRANCHES)
+    current = _fingerprint(repo)
+    if version is not None and version != current:
+        raise GraphChanged("The repository changed: reload the graph.")
+    key = (discovered, names, uncommitted)
+    with _SESSIONS_LOCK:
+        session = _SESSIONS.get(key)
+        if session is None or offset == 0 or session.version != current:
+            count = 0
+            if uncommitted and _head_is_shown(repo, tips):
+                count = _uncommitted_count(repo)
+            session = _Session(repo, tips, count, current)
+            _SESSIONS[key] = session
+        _SESSIONS.move_to_end(key)
+        while len(_SESSIONS) > _SESSIONS_MAX:
+            _SESSIONS.popitem(last=False)
 
-    tips: list[pygit2.Oid]
-    if branch and not all_commits:
-        try:
-            target = repo.branches[branch]
-        except KeyError:
-            raise ValueError(f"Branch '{branch}' not found")
-        tips = [target.peel(pygit2.Commit).id]
-    else:
-        tips = _tips(repo)
-
-    walker = repo.walk(tips[0], SortMode.TOPOLOGICAL | SortMode.TIME)
-    for oid in tips[1:]:
-        walker.push(oid)
-
-    shallow = repo.is_shallow
-    layout = _Layout()
-    stop_at = offset + limit if limit > 0 else 0
-    nodes: list[GraphNode] = []
-    incoming: list[Segment] = []
-    has_more = False
-    for index, c in enumerate(walker):
-        sha = str(c.id)
-        parents = [str(p) for p in c.parent_ids]
-        drawn = [p for p in parents if p in repo] if shallow else parents
-        lane, color, entering = layout.row(sha, drawn, segments=index >= offset)
-        if index > 0 and index - 1 >= offset:
-            nodes[-1]["segments"] = entering
-        elif index == offset:
-            incoming = entering
-        if stop_at and index >= stop_at:
-            has_more = True
-            break
-        if index < offset:
-            continue
-        msg = c.message.strip()
-        nodes.append(
-            {
-                "sha": sha,
-                "short": sha[:8],
-                "lane": lane,
-                "color": color,
-                "parents": parents,
-                "segments": [],
-                "is_merge": len(parents) > 1,
-                "summary": msg.splitlines()[0] if msg else "",
-                "body": msg,
-                "author": c.author.name,
-                "email": c.author.email,
-                "committer": c.committer.name,
-                "committer_email": c.committer.email,
-                "when": _when(c.commit_time, c.commit_time_offset),
-                "author_when": _when(c.author.time, c.author.offset),
-                "refs": refs.get(sha, []),
-            }
+    with session.lock:
+        session.ensure(offset + limit + 1 if limit > 0 else sys.maxsize, repo)
+        end = offset + limit if limit > 0 else session.final
+        nodes = session.nodes[offset : min(end, session.final)]
+        incoming = (
+            session.nodes[offset - 1]["segments"] if 0 < offset <= session.final else []
         )
-    if nodes and not has_more:
-        nodes[-1]["segments"] = [
-            {"from": x, "to": x, "color": col} for x, col in layout.leaving()
-        ]
+        has_more = session.final > end or not session.done
 
     lanes = 1
     for n in nodes:
@@ -280,17 +364,20 @@ def graph(
             lanes = max(lanes, s["from"] + 1, s["to"] + 1)
     for s in incoming:
         lanes = max(lanes, s["from"] + 1, s["to"] + 1)
+    base.update(
+        {
+            "nodes": nodes,
+            "incoming": incoming,
+            "uncommitted": session.uncommitted,
+            "version": current,
+            "returned": len(nodes),
+            "lanes": lanes,
+            "has_more": has_more and bool(nodes),
+        }
+    )
+    return base
 
-    return {
-        "nodes": nodes,
-        "incoming": incoming,
-        "branches": sorted(repo.branches.local),
-        "remote_branches": sorted(
-            b for b in repo.branches.remote if not b.endswith("/HEAD")
-        ),
-        "head": head,
-        "head_sha": str(repo.head.target),
-        "returned": len(nodes),
-        "lanes": lanes,
-        "has_more": has_more,
-    }
+
+def _head_is_shown(repo: pygit2.Repository, tips: list[pygit2.Oid]) -> bool:
+    head = repo.head.target
+    return any(t == head or repo.descendant_of(t, head) for t in tips)

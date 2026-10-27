@@ -86,3 +86,26 @@ def test_default_branch_renamed_upstream(upstream: Repo) -> None:
     g = graph(dest)
     assert g["returned"] == 1
     assert g["head"] in {"dev", "doomed", "trunk"}
+
+
+def test_refresh_reuses_a_recent_fetch_unless_forced(
+    upstream: Repo, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    url = upstream.path.as_uri()
+    R.sync_remote(url)
+    calls: list[str] = []
+    real_fetch = R._fetch_cli
+
+    def counting_fetch(*a: object, **k: object) -> tuple[bool, str]:
+        calls.append("fetch")
+        return real_fetch(*a, **k)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(R, "_fetch_cli", counting_fetch)
+    monkeypatch.setattr(R, "DEFAULT_MAX_AGE", 300.0)
+    R.sync_remote(url, refresh=True)
+    assert calls == []
+    R.sync_remote(url, refresh=True, max_age=0)
+    assert calls == ["fetch"]
+    monkeypatch.setattr(R, "DEFAULT_MAX_AGE", None)
+    R.sync_remote(url, refresh=True)
+    assert calls == ["fetch", "fetch"]

@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import os
@@ -6,7 +5,12 @@ import subprocess
 from pathlib import Path
 
 
-def _git(repo: Path, *args: str, date: str | None = None) -> str:
+def _git(
+    repo: Path,
+    *args: str,
+    date: str | None = None,
+    committer_date: str | None = None,
+) -> str:
     env = dict(os.environ)
     env.update(
         {
@@ -18,6 +22,8 @@ def _git(repo: Path, *args: str, date: str | None = None) -> str:
     )
     if date:
         env["GIT_AUTHOR_DATE"] = env["GIT_COMMITTER_DATE"] = date
+    if committer_date:
+        env["GIT_COMMITTER_DATE"] = committer_date
     proc = subprocess.run(
         ["git", "-C", str(repo), *args],
         capture_output=True,
@@ -30,7 +36,6 @@ def _git(repo: Path, *args: str, date: str | None = None) -> str:
 
 
 class Repo:
-
     def __init__(self, path: Path) -> None:
         self.path = path
         path.mkdir()

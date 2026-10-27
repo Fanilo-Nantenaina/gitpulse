@@ -5,6 +5,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse, urlunparse
@@ -25,6 +26,24 @@ if TYPE_CHECKING:
 
 else:
     _clone_repository = pygit2.clone_repository
+
+
+DEFAULT_MAX_AGE: float | None = None
+_FETCHED_MARK = "gitpulse-fetched"
+
+
+def _mark_fetched(dest: Path) -> None:
+    try:
+        (dest / _FETCHED_MARK).touch()
+    except OSError:
+        pass
+
+
+def _fetched_within(dest: Path, seconds: float) -> bool:
+    try:
+        return time.time() - (dest / _FETCHED_MARK).stat().st_mtime < seconds
+    except OSError:
+        return False
 
 
 def cache_dir() -> Path:
@@ -185,6 +204,11 @@ def _normalize_cache(dest: Path, fresh_clone: bool) -> None:
                 pass
 
 
+def cached_path(url: str) -> Path | None:
+    dest = _cache_path(url)
+    return dest if _is_valid_repo(dest) else None
+
+
 def _is_valid_repo(dest: Path) -> bool:
     if not dest.exists():
         return False
@@ -201,11 +225,15 @@ def sync_remote(
     ssh_key: str | None = None,
     refresh: bool = True,
     insecure: bool = False,
+    max_age: float | None = None,
 ) -> Path:
     dest = _cache_path(url)
     dest.parent.mkdir(parents=True, exist_ok=True)
 
     valid = _is_valid_repo(dest)
+    age = DEFAULT_MAX_AGE if max_age is None else max_age
+    if valid and refresh and age and _fetched_within(dest, age):
+        refresh = False
 
     if valid and not refresh:
         _normalize_cache(dest, fresh_clone=False)
@@ -213,6 +241,8 @@ def sync_remote(
 
     if valid and refresh:
         ok, _ = _fetch_cli(dest, url, token, username, insecure)
+        if ok:
+            _mark_fetched(dest)
         if ok or _is_valid_repo(dest):
             _normalize_cache(dest, fresh_clone=False)
             return dest
@@ -223,6 +253,7 @@ def sync_remote(
 
     if not insecure and _clone_pygit2(url, dest, token, username, ssh_key):
         _normalize_cache(dest, fresh_clone=True)
+        _mark_fetched(dest)
         return dest
 
     if dest.exists():
@@ -230,6 +261,7 @@ def sync_remote(
 
     ok, msg = _clone_cli(url, dest, token, username, insecure)
     if ok:
+        _mark_fetched(dest)
         return dest
 
     if dest.exists():

@@ -2,6 +2,54 @@
 
 ## Unreleased
 
+### New web interface
+
+- The UI is rewritten in Svelte 5 and TypeScript (`frontend/`). The build ships
+  inside the Python package, so installing GitPulse does not need Node.
+- **Global context.** Repository, period, branches (multi-select: local, remote,
+  tags, HEAD) and authors are chosen once, in a bar shared by every view. They
+  are kept in the address bar, so links and Back/Forward work. A filter that
+  the current view does not use is dimmed.
+- Summary shows KPIs, charts and risk flags straight away. The AI summary runs
+  on demand and can be cancelled.
+- The Log groups commits by day and opens a commit's files and diffs.
+- The graph is virtualized. It adds search (`Ctrl F`), keyboard navigation, a
+  resizable commit panel with per-file diffs, an "Uncommitted changes" row, and
+  optional dimming of commits outside the period and authors.
+- Commit lists working changes with their diffs next to the generated message.
+- Dashboard loads on demand, since it fetches every tracked remote.
+- Settings gathers providers, keys, model, summary language, theme and
+  interface language.
+- Also new: a `Ctrl K` command palette, keyboard shortcuts, toasts, skeleton
+  loading states, auto-detected interface language, and light and dark themes
+  that follow the system.
+
+### One meaning for filters everywhere
+
+- New `core/refs.py`: "all branches" now means every local branch,
+  remote-tracking branch, tag and HEAD in Summary, Log, Time, Compare and the
+  Graph alike. Before, Summary and Log read local branches only while the
+  Graph read everything. Each request can also name several branches.
+- Periods match the **author date**. A rebase, amend or cherry-pick no longer
+  moves past work into today, and the time report no longer collapses it into
+  one session.
+- The history walk tolerates up to a day of clock skew between machines,
+  instead of stopping at the first commit older than the period.
+
+### API
+
+- New: `/api/commit/files`, `/api/commit/diff` and `/api/range`.
+- `/api/graph` changes:
+  - it takes `branches`, `uncommitted` and `version`;
+  - later pages reuse the first page's walk;
+  - it answers 409 when the history changed in between.
+- Analysis routes accept `branches` (list) next to the older `branch`, and
+  `force` to fetch a remote now. Otherwise the web server reuses a fetch for 5
+  minutes (`GITPULSE_REMOTE_TTL`).
+- `/api/branches`, `/api/changes-count`, `/api/keys` and `/api/config/lang`
+  validate their bodies with Pydantic models. `/api/branches` also returns tags
+  and the HEAD commit.
+
 ### Commit graph
 
 - New layout: each parent link is its own line from the child down to the

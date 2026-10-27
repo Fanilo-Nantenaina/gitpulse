@@ -5,6 +5,7 @@ from typing import TypedDict
 from fastapi import APIRouter, HTTPException
 
 from ...ai.summarizer import summarize
+from ...core import commitinfo as gp_commitinfo
 from ...core import config as gp_config
 from ...core import gitgraph
 from ...core import remote as gp_remote
@@ -13,10 +14,12 @@ from ...core import standup as gp_standup
 from ...core import timesheet as gp_timesheet
 from ...core import trends as gp_trends
 from ...core import workspace as gp_workspace
-from ...core.collector import ALL_BRANCHES, collect_activity
+from ...core.collector import collect_activity
 from ...core.dateparse import parse_interval, parse_range
 from ...core.gitcreds import redact
 from ..schemas import (
+    CommitDiffReq,
+    CommitReq,
     CompareReq,
     DashboardReq,
     GraphReq,
@@ -45,6 +48,19 @@ class DashboardFailure(TypedDict):
     error: str
 
 
+@router.get("/range")
+def api_range(when: str = "7d"):
+    try:
+        r = parse_range(when)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {
+        "since": r.since.isoformat(),
+        "until": r.until.isoformat(),
+        "label": r.label,
+    }
+
+
 @router.post("/summary")
 def api_summary(req: SummaryReq):
     from ...core.stats import compute_stats
@@ -56,7 +72,7 @@ def api_summary(req: SummaryReq):
             src,
             r.since,
             r.until,
-            branch=req.branch,
+            branch=req.branch_spec(),
             name=name,
             authors=req.authors,
             author_scope=req.author_scope,
@@ -92,7 +108,7 @@ def api_log(req: LogReq):
             src,
             r.since,
             r.until,
-            branch=req.branch,
+            branch=req.branch_spec(),
             name=name,
             authors=req.authors,
             author_scope=req.author_scope,
@@ -116,7 +132,7 @@ def api_risks(req: LogReq):
             src,
             r.since,
             r.until,
-            branch=req.branch,
+            branch=req.branch_spec(),
             name=name,
             authors=req.authors,
             max_depth=req.depth,
@@ -140,7 +156,7 @@ def api_timesheet(req: TimesheetReq):
             src,
             r.since,
             r.until,
-            branch=ALL_BRANCHES,
+            branch=req.branch_spec(),
             name=name,
             authors=req.authors,
             max_depth=req.depth,
@@ -197,7 +213,7 @@ def api_stats(req: SummaryReq):
             src,
             r.since,
             r.until,
-            branch=req.branch,
+            branch=req.branch_spec(),
             name=name,
             authors=req.authors,
             author_scope=req.author_scope,
@@ -217,7 +233,7 @@ def api_compare(req: CompareReq):
             src,
             p,
             periods_back=req.periods,
-            branch=req.branch,
+            branch=req.branch_spec(),
             name=name,
             authors=req.authors,
             author_scope=req.author_scope,
@@ -276,16 +292,42 @@ def api_standup(req: SummaryReq):
 
 
 @router.post("/graph")
-def api_graph(req: GraphReq):
+def api_graph(req: GraphReq) -> gitgraph.Graph:
     try:
         src, _ = resolve_source(req)
+        branches = (
+            req.branches
+            if req.branches is not None
+            else ([req.branch] if req.branch else None)
+        )
         return gitgraph.graph(
             src,
             limit=req.limit,
             offset=req.offset,
-            branch=req.branch,
-            all_commits=req.all_commits,
+            branches=branches,
+            uncommitted=req.uncommitted,
+            version=req.version,
         )
+    except gitgraph.GraphChanged as e:
+        raise HTTPException(409, str(e))
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/commit/files")
+def api_commit_files(req: CommitReq) -> gp_commitinfo.CommitFiles:
+    try:
+        src, _ = resolve_source(req)
+        return gp_commitinfo.files(src, req.sha)
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/commit/diff")
+def api_commit_diff(req: CommitDiffReq) -> gp_commitinfo.FileDiff:
+    try:
+        src, _ = resolve_source(req)
+        return gp_commitinfo.diff(src, req.sha, req.file)
     except (ValueError, RuntimeError) as e:
         raise HTTPException(400, str(e))
 

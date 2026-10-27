@@ -9,9 +9,23 @@ from typing import TypedDict
 import pygit2
 from pygit2.enums import ObjectType, SortMode
 
+from . import refs as gp_refs
 from .models import Commit, FileChange, RepoActivity
+from .refs import ALL_BRANCHES, BranchSpec
 
-ALL_BRANCHES = "__all__"
+__all__ = [
+    "ALL_BRANCHES",
+    "AuthorCount",
+    "BranchSpec",
+    "clear_diff_cache",
+    "collect_activity",
+    "diff_cache_info",
+    "diff_excerpts",
+    "discover_repos",
+    "list_authors",
+]
+
+_CLOCK_SKEW = timedelta(days=1)
 
 
 class AuthorCount(TypedDict):
@@ -32,6 +46,11 @@ _STATUS = {
 def _commit_datetime(c: pygit2.Commit) -> datetime:
     tz = timezone(timedelta(minutes=c.commit_time_offset))
     return datetime.fromtimestamp(c.commit_time, tz)
+
+
+def _author_datetime(c: pygit2.Commit) -> datetime:
+    tz = timezone(timedelta(minutes=c.author.offset))
+    return datetime.fromtimestamp(c.author.time, tz)
 
 
 _DIFF_CACHE: OrderedDict[tuple[str, str], tuple[FileChange, ...]] = OrderedDict()
@@ -137,7 +156,7 @@ def collect_activity(
     repo_path: str | os.PathLike[str],
     since: datetime,
     until: datetime | None = None,
-    branch: str | None = None,
+    branch: BranchSpec = None,
     name: str | None = None,
     authors: list[str] | None = None,
 ) -> RepoActivity:
@@ -156,45 +175,23 @@ def collect_activity(
 
     author_set = {a.lower() for a in authors} if authors else None
 
-    all_branches = branch == ALL_BRANCHES
-    if all_branches:
-        if repo.head_is_unborn:
-            return RepoActivity(repo_name, str(repo_path), since, until, [])
-        tips: list[pygit2.Oid | str] = []
-        for bname in repo.branches.local:
-            try:
-                tips.append(repo.branches[bname].target)
-            except KeyError:
-                continue
-        if not tips:
-            tips = [repo.head.target]
-        branch_label = None
-    elif branch:
-        try:
-            target = repo.branches[branch]
-        except KeyError:
-            raise ValueError(f"Branch '{branch}' not found")
-        tips = [target.target]
-        branch_label = branch
-    else:
-        if repo.head_is_unborn:
-            return RepoActivity(repo_name, str(repo_path), since, until, [])
-        tips = [repo.head.target]
-        branch_label = repo.head.shorthand if not repo.head_is_detached else None
+    tips = gp_refs.tips_for(repo, branch)
+    if not tips:
+        return RepoActivity(repo_name, str(repo_path), since, until, [])
+    branch_label = gp_refs.label_for(repo, branch)
 
     walker = repo.walk(tips[0], SortMode.TIME)
     for extra in tips[1:]:
         walker.push(extra)
 
+    stop_before = since - _CLOCK_SKEW
     commits: list[Commit] = []
     for c in walker:
-        when = _commit_datetime(c)
-        if when > until:
-            continue
-        if when < since:
-            if all_branches:
-                continue
+        if _commit_datetime(c) < stop_before:
             break
+        when = _author_datetime(c)
+        if when > until or when < since:
+            continue
         if author_set is not None:
             name_l = (c.author.name or "").lower()
             email_l = (c.author.email or "").lower()
@@ -216,6 +213,7 @@ def collect_activity(
             )
         )
 
+    commits.sort(key=lambda c: c.when, reverse=True)
     return RepoActivity(
         repo_name=repo_name,
         repo_path=str(repo_path),

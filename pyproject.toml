@@ -33,7 +33,7 @@ build-backend = "setuptools.build_meta"
 include = ["gitpulse*"]
 
 [tool.setuptools.package-data]
-gitpulse = ["web/static/*", "web/static/css/*", "web/static/js/*"]
+gitpulse = ["web/static/*", "web/static/assets/*"]
 
 [tool.ruff]
 target-version = "py310"

@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from .models import RepoActivity
+from .refs import BranchSpec
 from .workspace import DEFAULT_DEPTH, AuthorScope, collect
 
 
@@ -52,7 +53,7 @@ def compare(
     repo_path: str | os.PathLike[str],
     period: timedelta,
     periods_back: int = 4,
-    branch: str | None = None,
+    branch: BranchSpec = None,
     now: datetime | None = None,
     name: str | None = None,
     authors: list[str] | None = None,

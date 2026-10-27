@@ -153,7 +153,7 @@ def test_graph_pagination_offset(linear_repo: Path) -> None:
 
 
 def test_graph_branch_filter(branched_repo: Path) -> None:
-    g = graph(branched_repo, branch="master", all_commits=False)
+    g = graph(branched_repo, branches=["master"])
     assert g["returned"] > 0
     assert "master" in g["branches"]
     assert graph_problems(g) == []
@@ -161,7 +161,7 @@ def test_graph_branch_filter(branched_repo: Path) -> None:
 
 def test_graph_unknown_branch_is_an_error(branched_repo: Path) -> None:
     with pytest.raises(ValueError):
-        graph(branched_repo, branch="nope", all_commits=False)
+        graph(branched_repo, branches=["nope"])
 
 
 def test_branch_lines_join_at_the_fork_commit(repo: Repo) -> None:
@@ -349,7 +349,7 @@ def test_local_and_remote_branches(tmp_path: Path) -> None:
         ("remote", "origin/main"),
         ("remote", "origin/dev"),
     } <= kinds
-    assert graph(clone.path, branch="origin/dev", all_commits=False)["returned"] == 2
+    assert graph(clone.path, branches=["origin/dev"])["returned"] == 2
 
 
 def test_shallow_clone_boundary(tmp_path: Path) -> None:

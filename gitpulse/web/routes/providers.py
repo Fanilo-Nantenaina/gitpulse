@@ -6,6 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from ...ai import providers as ai_providers
 from ...core import config as gp_config
+from ..schemas import KeyReq
 
 router = APIRouter(prefix="/api")
 
@@ -46,12 +47,10 @@ def api_keys():
 
 
 @router.post("/keys")
-def api_set_key(body: dict[str, object]):
-    prov = body.get("provider")
-    if not isinstance(prov, str) or prov not in _KEYED_PROVIDERS:
+def api_set_key(body: KeyReq):
+    if body.provider not in _KEYED_PROVIDERS:
         raise HTTPException(400, "Unknown provider")
-    key = body.get("key", "")
-    gp_config.set_api_key(prov, key.strip() if isinstance(key, str) else "")
+    gp_config.set_api_key(body.provider, body.key.strip())
     return {"ok": True}
 
 

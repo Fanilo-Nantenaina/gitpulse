@@ -6,10 +6,12 @@ from typing import TypedDict
 from fastapi import APIRouter, HTTPException
 
 from ...core import config as gp_config
+from ...core import refs as gp_refs
 from ...core import remote as gp_remote
 from ...core import workspace as gp_workspace
 from ...core.gitcreds import git_config_env, redact
-from ..schemas import SshBrowseReq, TrackReq, WorkspaceReq
+from ..schemas import BranchesReq, LangReq, SshBrowseReq, TrackReq, WorkspaceReq
+from ..serializers import resolve_source
 
 router = APIRouter(prefix="/api")
 
@@ -17,8 +19,10 @@ router = APIRouter(prefix="/api")
 class _BranchesBase(TypedDict):
     local: list[str]
     remote: list[str]
+    tags: list[str]
     remote_url: str | None
     head: str | None
+    head_sha: str | None
 
 
 class BranchesResult(_BranchesBase, total=False):
@@ -36,9 +40,8 @@ def api_get_config():
 
 
 @router.post("/config/lang")
-def api_set_lang(body: dict[str, object]):
-    lang = body.get("lang")
-    code = gp_config.normalize_lang(lang if isinstance(lang, str) else None)
+def api_set_lang(body: LangReq):
+    code = gp_config.normalize_lang(body.lang)
     if not code:
         raise HTTPException(400, "Unknown language")
     cfg = gp_config.load_config()
@@ -77,56 +80,55 @@ def api_browse_ssh(body: SshBrowseReq):
     return locations.ssh_list_dir(body.host, body.path)
 
 
-@router.post("/branches")
-def api_branches(body: dict[str, object]):
+def _put_refs(result: BranchesResult, refs: gp_refs.RefList) -> None:
+    result["local"] = refs["local"]
+    result["remote"] = refs["remote"]
+    result["tags"] = refs["tags"]
+    result["head"] = refs["head"]
+    result["head_sha"] = refs["head_sha"]
 
-    path = body.get("path")
-    raw_url = body.get("url")
-    url = raw_url if isinstance(raw_url, str) else None
-    include_remote = bool(body.get("include_remote", False))
+
+@router.post("/branches")
+def api_branches(req: BranchesReq) -> BranchesResult:
     result: BranchesResult = {
         "local": [],
         "remote": [],
+        "tags": [],
         "remote_url": None,
         "head": None,
+        "head_sha": None,
     }
     tok: str | None = None
     try:
-        if isinstance(path, str) and path:
+        if req.force and (req.url or (req.path or "").startswith("@")):
+            resolve_source(req)
+        if req.path:
             import pygit2
 
-            disc = pygit2.discover_repository(path)
+            disc = pygit2.discover_repository(req.path)
             if not disc:
-                if gp_workspace.is_workspace(path):
+                if gp_workspace.is_workspace(req.path):
                     result["is_workspace"] = True
                     return result
                 raise HTTPException(400, "Not a git repository")
             repo = pygit2.Repository(disc)
-
-            def _branch_time(bn: str) -> int:
-                try:
-                    return repo.branches.get(bn).peel(pygit2.Commit).commit_time
-                except Exception:
-                    return 0
-
-            result["local"] = sorted(
-                repo.branches.local, key=_branch_time, reverse=True
-            )
-            if not repo.head_is_unborn and not repo.head_is_detached:
-                result["head"] = repo.head.shorthand
+            _put_refs(result, gp_refs.list_refs(repo))
             try:
                 result["remote_url"] = repo.remotes["origin"].url
             except Exception:
                 pass
-            if include_remote:
-                result["remote"] = sorted(
-                    b for b in repo.branches.remote if not b.endswith("/HEAD")
-                )
             return result
-        if include_remote and url:
+        if req.url:
+            cached = gp_remote.cached_path(req.url)
+            if cached is not None:
+                import pygit2
+
+                _put_refs(result, gp_refs.list_refs(pygit2.Repository(str(cached))))
+                result["remote_url"] = gp_remote.strip_userinfo(req.url)
+                return result
             tok, user, _ = gp_remote.resolve_auth(None, None, None)
-            ls_url = gp_remote.strip_userinfo(url)
-            env = git_config_env(tok, user, bool(body.get("insecure")), for_url=ls_url)
+            ls_url = gp_remote.strip_userinfo(req.url)
+            env = git_config_env(tok, user, req.insecure, for_url=ls_url)
             from ...core.procutil import run as _prun
 
             proc = _prun(
@@ -139,7 +141,8 @@ def api_branches(body: dict[str, object]):
             if proc.returncode == 0:
                 for line in proc.stdout.strip().splitlines():
                     if "refs/heads/" in line:
-                        result["remote"].append(line.split("refs/heads/")[-1])
+                        result["local"].append(line.split("refs/heads/")[-1])
+            result["remote_url"] = ls_url
     except HTTPException:
         raise
     except Exception as e:

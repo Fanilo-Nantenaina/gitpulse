@@ -1,3 +1,7 @@
+# Frontend sources live in frontend/; `npm install` fills node_modules and
+# `npm run build` writes the bundle into gitpulse/web/static (tracked).
+frontend/node_modules/
+
 # Packaging / build artifacts
 *.egg-info/
 build/

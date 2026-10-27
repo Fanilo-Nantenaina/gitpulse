@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException
 
 from ...ai.commitmsg import generate_commit_message
 from ...core.diffstage import collect_working_changes
-from ..schemas import CommitMsgReq
+from ..schemas import ChangesCountReq, CommitMsgReq
 
 router = APIRouter(prefix="/api")
 
@@ -19,9 +19,9 @@ class ChangedFileDict(TypedDict):
 
 
 @router.post("/changes-count")
-def api_changes_count(body: dict[str, object]):
-    path = body.get("path")
-    if not isinstance(path, str) or not path:
+def api_changes_count(body: ChangesCountReq):
+    path = body.path
+    if not path:
         return {"count": 0, "staged": 0}
     try:
         all_changes = collect_working_changes(path, scope="all", include_diff=False)

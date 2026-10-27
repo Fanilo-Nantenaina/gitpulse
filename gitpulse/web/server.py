@@ -30,7 +30,7 @@ def _asset_version() -> str:
     except Exception:
         ver = "dev"
     h = hashlib.sha1()
-    for sub in ("css", "js"):
+    for sub in ("assets",):
         d = _STATIC / sub
         if not d.exists():
             continue
@@ -66,7 +66,13 @@ if _STATIC.exists():
 
 
 def serve(host: str = "127.0.0.1", port: int = 8420, open_browser: bool = True):
+    import os
+
     import uvicorn
+
+    from ..core import remote
+
+    remote.DEFAULT_MAX_AGE = float(os.environ.get("GITPULSE_REMOTE_TTL", "300"))
 
     app.user_middleware = [
         m for m in app.user_middleware if m.cls is not LocalOriginGuard

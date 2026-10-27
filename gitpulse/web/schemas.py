@@ -4,60 +4,68 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from ..core.refs import ALL_BRANCHES, BranchSpec
 from ..core.workspace import DEFAULT_DEPTH
 
 
-class SummaryReq(BaseModel):
+class SourceReq(BaseModel):
+
     path: str | None = None
     url: str | None = None
+    refresh: bool = True
+    force: bool = False
+    insecure: bool = False
+
+
+class ScopeReq(SourceReq):
+
     when: str = "7d"
+    branches: list[str] | None = None
     branch: str | None = None
     authors: list[str] | None = None
     author_scope: Literal["window", "all"] = "window"
     depth: int = DEFAULT_DEPTH
+
+    def branch_spec(self) -> BranchSpec:
+        if self.branches is not None:
+            return self.branches
+        return self.branch
+
+
+class SummaryReq(ScopeReq):
     provider: str = "auto"
     model: str | None = None
     lang: str | None = None
-    refresh: bool = True
-    insecure: bool = False
     use_cache: bool = True
     risks: bool = True
 
 
-class LogReq(BaseModel):
-    path: str | None = None
-    url: str | None = None
-    when: str = "7d"
-    branch: str | None = None
-    authors: list[str] | None = None
-    author_scope: Literal["window", "all"] = "window"
-    depth: int = DEFAULT_DEPTH
-    refresh: bool = True
-    insecure: bool = False
+class LogReq(ScopeReq):
+    pass
 
 
-class CompareReq(BaseModel):
-    path: str | None = None
-    url: str | None = None
+class CompareReq(ScopeReq):
     period: str = "7d"
     periods: int = 4
-    branch: str | None = None
-    authors: list[str] | None = None
-    author_scope: Literal["window", "all"] = "window"
-    depth: int = DEFAULT_DEPTH
-    refresh: bool = True
-    insecure: bool = False
 
 
-class GraphReq(BaseModel):
-    path: str | None = None
-    url: str | None = None
+class GraphReq(SourceReq):
     limit: int = 150
     offset: int = 0
-    all_commits: bool = False
+    branches: list[str] | None = None
     branch: str | None = None
-    refresh: bool = True
-    insecure: bool = False
+    uncommitted: bool = False
+    version: str | None = None
+    refresh: bool = False
+
+
+class CommitReq(SourceReq):
+    sha: str
+    refresh: bool = False
+
+
+class CommitDiffReq(CommitReq):
+    file: str
 
 
 class TrackReq(BaseModel):
@@ -84,21 +92,37 @@ class CommitMsgReq(BaseModel):
     lang: str | None = None
 
 
+class ChangesCountReq(BaseModel):
+    path: str | None = None
+
+
+class BranchesReq(SourceReq):
+    include_remote: bool = False
+    refresh: bool = False
+
+
+class LangReq(BaseModel):
+    lang: str | None = None
+
+
+class KeyReq(BaseModel):
+    provider: str
+    key: str = ""
+
+
 class SshBrowseReq(BaseModel):
     host: str
     path: str | None = None
 
 
-class TimesheetReq(BaseModel):
-    path: str | None = None
-    url: str | None = None
+class TimesheetReq(ScopeReq):
     when: str = "this-week"
-    authors: list[str] | None = None
-    depth: int = DEFAULT_DEPTH
     gap: int = 120
     warmup: int = 30
-    refresh: bool = True
-    insecure: bool = False
+
+    def branch_spec(self) -> BranchSpec:
+        spec = super().branch_spec()
+        return ALL_BRANCHES if spec is None else spec
 
 
 class WorkspaceReq(BaseModel):

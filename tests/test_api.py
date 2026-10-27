@@ -126,7 +126,7 @@ def test_index_has_cache_busting_and_no_cache_header() -> None:
     import re
 
     assets = re.findall(r'/static/[^"\']+\.(?:js|css)\?v=([^"\']+)', r.text)
-    assert len(assets) >= 9
+    assert len(assets) >= 2
     assert all(v == _VERSION for v in assets)
 
 
