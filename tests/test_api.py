@@ -165,3 +165,25 @@ def test_dashboard_reports_failed_with_reason(
     d = r.json()
     assert "failed" in d
     assert any(f["name"] == "Bogus" and "reason" in f for f in d["failed"])
+
+
+def test_remote_branches_offered_for_a_local_clone_are_analysable(
+    tmp_path: Path,
+) -> None:
+    import subprocess
+
+    from gitrepo import Repo
+
+    up = Repo(tmp_path / "up")
+    up.commit("u1")
+    up("branch", "dev")
+    clone = tmp_path / "clone"
+    subprocess.run(["git", "clone", "-q", str(up.path), str(clone)], check=True)
+    r = client.post("/api/branches", json={"path": str(clone), "include_remote": True})
+    assert r.json()["remote"] == ["origin/dev", "origin/main"]
+    for name in r.json()["remote"]:
+        log = client.post(
+            "/api/log", json={"path": str(clone), "branch": name, "when": "all"}
+        )
+        assert log.status_code == 200, log.json()
+        assert log.json()["activity"]["commit_count"] == 1

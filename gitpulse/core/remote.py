@@ -147,10 +147,52 @@ def _fetch_cli(
         str(dest),
         "fetch",
         "--quiet",
+        "--prune",
         fetch_url,
         "+refs/heads/*:refs/heads/*",
+        "+refs/tags/*:refs/tags/*",
     ]
     return _run_git(args, env, secret=token)
+
+
+def _normalize_cache(dest: Path, fresh_clone: bool) -> None:
+    """Keep the cache a mirror of the remote's branches and tags.
+
+    Refreshes fetch straight into refs/heads, so refs/remotes would freeze at
+    clone time and show stale or deleted branches. A libgit2 clone only
+    creates the default branch locally: its other branches are moved to
+    refs/heads first.
+    """
+    try:
+        repo = pygit2.Repository(str(dest))
+    except Exception:
+        return
+    # Another request may normalise the same cache concurrently: every step
+    # tolerates the ref having been moved or deleted meanwhile.
+    for name in list(repo.references):
+        if not name.startswith("refs/remotes/"):
+            continue
+        try:
+            ref = repo.references[name]
+            branch = name.split("/", 3)[-1]
+            if (
+                fresh_clone
+                and ref.type == pygit2.enums.ReferenceType.DIRECT
+                and f"refs/heads/{branch}" not in repo.references
+            ):
+                repo.references.create(f"refs/heads/{branch}", ref.target)
+            repo.references.delete(name)
+        except (KeyError, ValueError, pygit2.GitError):
+            continue
+    if repo.head_is_unborn:
+        # The default branch was deleted or renamed upstream and pruned.
+        local = sorted(repo.branches.local)
+        pick = next((b for b in ("main", "master") if b in local), None)
+        if pick or local:
+            try:
+                repo.set_head(f"refs/heads/{pick or local[0]}")
+            except pygit2.GitError:
+                pass
 
 
 def _is_valid_repo(dest: Path) -> bool:
@@ -176,11 +218,13 @@ def sync_remote(
     valid = _is_valid_repo(dest)
 
     if valid and not refresh:
+        _normalize_cache(dest, fresh_clone=False)
         return dest
 
     if valid and refresh:
         ok, _ = _fetch_cli(dest, url, token, username, insecure)
         if ok or _is_valid_repo(dest):
+            _normalize_cache(dest, fresh_clone=False)
             return dest
         shutil.rmtree(dest, ignore_errors=True)
 
@@ -188,6 +232,7 @@ def sync_remote(
         shutil.rmtree(dest, ignore_errors=True)
 
     if not insecure and _clone_pygit2(url, dest, token, username, ssh_key):
+        _normalize_cache(dest, fresh_clone=True)
         return dest
 
     if dest.exists():

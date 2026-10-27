@@ -198,3 +198,32 @@ def test_compute_stats(tmp_path: Path) -> None:
     assert day10["commits"] == 2
     assert st["authors"][0]["name"] == "Alice"
     assert sum(st["by_hour"]) == 3
+
+
+def test_merge_commits_do_not_count_merged_work_twice(tmp_path: Path) -> None:
+    from gitrepo import Repo
+
+    from gitpulse.core.stats import compute_stats
+
+    repo = Repo(tmp_path / "m")
+    (repo.path / "a.txt").write_text("x\n")
+    repo("add", "-A")
+    repo.commit("base")
+    repo("checkout", "-q", "-b", "feat")
+    (repo.path / "f.txt").write_text("".join(f"{i}\n" for i in range(100)))
+    repo("add", "-A")
+    repo.commit("feat: 100 lines")
+    repo("checkout", "-q", "main")
+    (repo.path / "a.txt").write_text("x\ny\n")
+    repo("add", "-A")
+    repo.commit("main: 1 line")
+    repo.merge("feat", msg="merge feat")
+
+    act = collect_activity(repo.path, datetime(2000, 1, 1, tzinfo=timezone.utc))
+    numstat = repo("log", "--numstat", "--format=")
+    git_added = sum(int(line.split()[0]) for line in numstat.splitlines() if line)
+    assert act.total_additions == git_added == 102
+    merge = next(c for c in act.commits if c.is_merge)
+    assert merge.files == []
+    top = compute_stats(act)["top_files"]
+    assert {f["path"]: f["churn"] for f in top}["f.txt"] == 100

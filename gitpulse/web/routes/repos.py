@@ -118,9 +118,14 @@ def api_branches(body: dict[str, object]):
                 result["remote_url"] = repo.remotes["origin"].url
             except Exception:
                 pass
-            remote_url = result["remote_url"]
-            if include_remote and remote_url:
-                url = remote_url
+            if include_remote:
+                # Remote-tracking branches, named as the analysis resolves
+                # them ("origin/dev"); a bare `ls-remote` name such as "dev"
+                # is not a ref of this repository.
+                result["remote"] = sorted(
+                    b for b in repo.branches.remote if not b.endswith("/HEAD")
+                )
+            return result
         if include_remote and url:
             tok, user, _ = gp_remote.resolve_auth(None, None, None)
             ls_url = gp_remote.strip_userinfo(url)

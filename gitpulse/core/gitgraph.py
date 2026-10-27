@@ -15,39 +15,45 @@ class RefLabel(TypedDict):
     head: bool
 
 
-GraphEdge = TypedDict("GraphEdge", {"from": int, "to": int, "kind": str})
+# One line between this row's centre and the next row's centre. ``from`` is
+# the column on this row, ``to`` the column on the next row, ``color`` the
+# index of the branch line it belongs to (stable for the whole line).
+Segment = TypedDict("Segment", {"from": int, "to": int, "color": int})
 
 
-class _GraphNodeBase(TypedDict):
+class GraphNode(TypedDict):
     sha: str
     short: str
     lane: int
+    color: int
     parents: list[str]
-    incoming: list[int]
-    edges: list[GraphEdge]
+    segments: list[Segment]
     is_merge: bool
     summary: str
     body: str
     author: str
     email: str
     committer: str
+    committer_email: str
     when: str
+    author_when: str
     refs: list[RefLabel]
-    width: int
-
-
-class GraphNode(_GraphNodeBase, total=False):
-    tip: bool
 
 
 class Graph(TypedDict):
     nodes: list[GraphNode]
+    incoming: list[Segment]
     branches: list[str]
     remote_branches: list[str]
     head: str | None
+    head_sha: str | None
     returned: int
     lanes: int
     has_more: bool
+
+
+def _when(t: int, offset: int) -> str:
+    return datetime.fromtimestamp(t, timezone(timedelta(minutes=offset))).isoformat()
 
 
 def _refs_by_oid(repo: pygit2.Repository) -> dict[str, list[RefLabel]]:
@@ -57,42 +63,47 @@ def _refs_by_oid(repo: pygit2.Repository) -> dict[str, list[RefLabel]]:
         head = repo.head.shorthand
     for bname in repo.branches.local:
         try:
-            out.setdefault(str(repo.branches[bname].target), []).append(
-                {"name": bname, "kind": "local", "head": bname == head}
-            )
+            target = repo.branches.local[bname].peel(pygit2.Commit).id
         except Exception:
             continue
+        out.setdefault(str(target), []).append(
+            {"name": bname, "kind": "local", "head": bname == head}
+        )
     for bname in repo.branches.remote:
         try:
-            out.setdefault(str(repo.branches[bname].target), []).append(
-                {"name": bname, "kind": "remote", "head": False}
-            )
+            target = repo.branches.remote[bname].peel(pygit2.Commit).id
         except Exception:
             continue
-    try:
-        for ref_name in repo.references:
-            if ref_name.startswith("refs/tags/"):
-                target = repo.references[ref_name].peel(pygit2.Commit).id
-                out.setdefault(str(target), []).append(
-                    {
-                        "name": ref_name.split("refs/tags/")[-1],
-                        "kind": "tag",
-                        "head": False,
-                    }
-                )
-    except Exception:
-        pass
+        out.setdefault(str(target), []).append(
+            {"name": bname, "kind": "remote", "head": False}
+        )
+    for ref_name in repo.references:
+        if not ref_name.startswith("refs/tags/"):
+            continue
+        try:
+            target = repo.references[ref_name].peel(pygit2.Commit).id
+        except Exception:
+            # A tag may point at a tree or blob: it has no place in a commit
+            # graph, but it must not hide the tags that follow it.
+            continue
+        out.setdefault(str(target), []).append(
+            {"name": ref_name[len("refs/tags/") :], "kind": "tag", "head": False}
+        )
+    if repo.head_is_detached:
+        out.setdefault(str(repo.head.target), []).insert(
+            0, {"name": "HEAD", "kind": "head", "head": True}
+        )
     return out
 
 
 def _tips(repo: pygit2.Repository) -> list[pygit2.Oid]:
+    """Every commit `git log --branches --remotes --tags HEAD` starts from."""
     oids: list[pygit2.Oid] = []
     seen: set[str] = set()
 
     def add_commit(target: pygit2.Oid | str) -> None:
         try:
-            obj = repo[target]
-            commit = obj.peel(pygit2.Commit)
+            commit = repo[target].peel(pygit2.Commit)
         except Exception:
             return
         s = str(commit.id)
@@ -102,15 +113,99 @@ def _tips(repo: pygit2.Repository) -> list[pygit2.Oid]:
 
     if not repo.head_is_unborn:
         add_commit(repo.head.target)
-    for coll in (repo.branches.local, repo.branches.remote):
-        for bname in coll:
-            if bname.endswith("/HEAD"):
+    for ref_name in repo.references:
+        if not ref_name.startswith(("refs/heads/", "refs/remotes/", "refs/tags/")):
+            continue
+        try:
+            ref = repo.references[ref_name]
+            if ref.type == pygit2.enums.ReferenceType.SYMBOLIC:
                 continue
-            try:
-                add_commit(repo.branches[bname].target)
-            except Exception:
-                continue
+            add_commit(ref.target)
+        except Exception:
+            continue
     return oids
+
+
+class _Line:
+    """A line heading down to ``target``; keeps its colour for its whole life."""
+
+    __slots__ = ("target", "color", "first", "x", "next_x")
+
+    def __init__(self, target: str, color: int, first: bool, x: int) -> None:
+        self.target = target
+        self.color = color
+        self.first = first
+        self.x = x
+        self.next_x = x
+
+
+class _Layout:
+    """Streaming column assignment, one commit per row, children before parents.
+
+    Invariants (checked by tests/test_gitgraph.py):
+    - every parent edge is its own line from the child's row to the parent's
+      row and joins the parent at its node, never earlier;
+    - a commit sits on the line of its first-parent child that was claimed
+      first, so a branch's first-parent chain keeps one line and one colour;
+    - on each row, columns are the rank of the lines present in claim order,
+      so lines only move left when a line to their left has ended, and a line
+      that passes a row never shares a column with that row's node.
+    """
+
+    def __init__(self) -> None:
+        self.active: list[_Line] = []
+
+    def _free_color(self, ended: set[int]) -> int:
+        # A colour is reused only on a later row than the line that ended,
+        # so two unrelated lines never meet in the same colour at one node.
+        used = {line.color for line in self.active} | ended
+        c = 0
+        while c in used:
+            c += 1
+        return c
+
+    def row(
+        self, sha: str, parents: list[str], segments: bool = True
+    ) -> tuple[int, int, list[Segment]]:
+        """Place commit ``sha``. Returns (column, colour, segments entering it)."""
+        arriving = [line for line in self.active if line.target == sha]
+        node_line = next((line for line in arriving if line.first), None)
+        if node_line is None and arriving:
+            node_line = arriving[0]
+        present = [
+            line for line in self.active if line.target != sha or line is node_line
+        ]
+        for x, line in enumerate(present):
+            line.next_x = x
+        ended = {line.color for line in arriving if line is not node_line}
+        if node_line is None:
+            node_x = len(present)
+            color = self._free_color(ended)
+        else:
+            node_x = node_line.next_x
+            color = node_line.color
+
+        entering: list[Segment] = []
+        for line in self.active:
+            to = node_x if line.target == sha else line.next_x
+            if segments:
+                entering.append({"from": line.x, "to": to, "color": line.color})
+            line.x = to
+
+        self.active = [line for line in present if line is not node_line]
+        if parents:
+            if node_line is None:
+                node_line = _Line(parents[0], color, True, node_x)
+            else:
+                node_line.target, node_line.first = parents[0], True
+            self.active.insert(node_x, node_line)
+            for p in parents[1:]:
+                self.active.append(_Line(p, self._free_color(ended), False, node_x))
+        return node_x, color, entering
+
+    def leaving(self) -> list[tuple[int, int]]:
+        """(column, colour) of the lines leaving the last placed row."""
+        return [(line.x, line.color) for line in self.active]
 
 
 def graph(
@@ -127,9 +222,11 @@ def graph(
     if repo.head_is_unborn:
         return {
             "nodes": [],
-            "branches": [],
+            "incoming": [],
+            "branches": sorted(repo.branches.local),
             "remote_branches": [],
             "head": None,
+            "head_sha": None,
             "returned": 0,
             "lanes": 1,
             "has_more": False,
@@ -138,152 +235,90 @@ def graph(
     refs = _refs_by_oid(repo)
     head = repo.head.shorthand if not repo.head_is_detached else None
 
-    flags = SortMode.TIME | SortMode.TOPOLOGICAL
-    tips: list[pygit2.Oid | str] = []
+    tips: list[pygit2.Oid]
     if branch and not all_commits:
         try:
             target = repo.branches[branch]
         except KeyError:
             raise ValueError(f"Branch '{branch}' not found")
-        tips = [target.target]
+        tips = [target.peel(pygit2.Commit).id]
     else:
-        tips = list(_tips(repo))
+        tips = _tips(repo)
 
-    if not tips:
-        walker = repo.walk(repo.head.target, flags)
-    else:
-        walker = repo.walk(tips[0], flags)
-        for oid in tips[1:]:
-            try:
-                walker.push(oid)
-            except Exception:
-                continue
+    # Topological order with commit-time priority, like `git log --date-order`:
+    # a parent is never listed above one of its children.
+    walker = repo.walk(tips[0], SortMode.TOPOLOGICAL | SortMode.TIME)
+    for oid in tips[1:]:
+        walker.push(oid)
 
-    lanes: list[str | None] = []
+    shallow = repo.is_shallow
+    layout = _Layout()
+    stop_at = offset + limit if limit > 0 else 0
     nodes: list[GraphNode] = []
-    stop_at = (offset + limit) if limit > 0 else 0
+    incoming: list[Segment] = []
     has_more = False
-
-    def first_free(state: list[str | None]) -> int:
-        for i, v in enumerate(state):
-            if v is None:
-                return i
-        state.append(None)
-        return len(state) - 1
-
-    for c in walker:
-        if stop_at > 0 and len(nodes) >= stop_at:
-            has_more = True
-            break
+    for index, c in enumerate(walker):
         sha = str(c.id)
         parents = [str(p) for p in c.parent_ids]
-
-        before = list(lanes)
-
-        waiting = [i for i, v in enumerate(before) if v == sha]
-        if waiting:
-            my_lane = waiting[0]
-        else:
-            my_lane = first_free(lanes)
-            before = list(lanes)
-            lanes[my_lane] = sha
-            before[my_lane] = sha
-
-        after = list(before)
-        for i in waiting:
-            after[i] = None
-        if my_lane < len(after):
-            after[my_lane] = None
-
-        first_parent_lane = my_lane
-        if parents:
-            p0 = parents[0]
-            existing0 = next((i for i, v in enumerate(after) if v == p0), None)
-            if existing0 is not None:
-                first_parent_lane = existing0
-            else:
-                after[my_lane] = p0
-                first_parent_lane = my_lane
-
-        merge_targets: list[int] = []
-        for p in parents[1:]:
-            tgt = next((i for i, v in enumerate(after) if v == p), None)
-            if tgt is None:
-                tgt = first_free(after)
-            after[tgt] = p
-            merge_targets.append(tgt)
-
-        lanes = list(after)
-
-        incoming = [i for i, v in enumerate(before) if v is not None]
-
-        edges: list[GraphEdge] = []
-        for i, v in enumerate(before):
-            if v is None:
-                continue
-            if i == my_lane:
-                if parents:
-                    edges.append(
-                        {"from": my_lane, "to": first_parent_lane, "kind": "commit"}
-                    )
-            elif v == sha:
-                edges.append({"from": i, "to": my_lane, "kind": "converge"})
-            else:
-                to = next((j for j, w in enumerate(after) if w == v), None)
-                if to is not None:
-                    edges.append({"from": i, "to": to, "kind": "pass"})
-        for tgt in merge_targets[: max(0, len(parents) - 1)]:
-            edges.append({"from": my_lane, "to": tgt, "kind": "merge"})
-
+        # In a shallow clone the boundary commits list parents that are not in
+        # the object store; a line to them would never end.
+        drawn = [p for p in parents if p in repo] if shallow else parents
+        lane, color, entering = layout.row(sha, drawn, segments=index >= offset)
+        if index > 0 and index - 1 >= offset:
+            nodes[-1]["segments"] = entering
+        elif index == offset:
+            incoming = entering
+        if stop_at and index >= stop_at:
+            has_more = True
+            break
+        if index < offset:
+            continue
         msg = c.message.strip()
         nodes.append(
             {
                 "sha": sha,
                 "short": sha[:8],
-                "lane": my_lane,
+                "lane": lane,
+                "color": color,
                 "parents": parents,
-                "incoming": incoming,
-                "edges": edges,
+                "segments": [],
                 "is_merge": len(parents) > 1,
                 "summary": msg.splitlines()[0] if msg else "",
                 "body": msg,
                 "author": c.author.name,
                 "email": c.author.email,
                 "committer": c.committer.name,
-                "when": datetime.fromtimestamp(
-                    c.commit_time, timezone(timedelta(minutes=c.commit_time_offset))
-                ).isoformat(),
+                "committer_email": c.committer.email,
+                "when": _when(c.commit_time, c.commit_time_offset),
+                "author_when": _when(c.author.time, c.author.offset),
                 "refs": refs.get(sha, []),
-                "width": len([v for v in lanes if v is not None]) or 1,
             }
         )
+    if nodes and not has_more:
+        # Nothing below the last row except lines to commits outside the
+        # walk (shallow boundary); draw them straight down.
+        nodes[-1]["segments"] = [
+            {"from": x, "to": x, "color": col} for x, col in layout.leaving()
+        ]
 
-    for i, n in enumerate(nodes):
-        if i == 0:
-            n["incoming"] = []
-        else:
-            n["incoming"] = sorted({e["to"] for e in nodes[i - 1]["edges"]})
-        n["tip"] = n["lane"] not in n["incoming"]
-
-    if offset > 0:
-        nodes = nodes[offset:]
-
-    max_w = 1
+    lanes = 1
     for n in nodes:
-        used = (
-            set(n["incoming"])
-            | {e["from"] for e in n["edges"]}
-            | {e["to"] for e in n["edges"]}
-            | {n["lane"]}
-        )
-        max_w = max(max_w, (max(used) + 1) if used else 1)
+        lanes = max(lanes, n["lane"] + 1)
+        for s in n["segments"]:
+            lanes = max(lanes, s["from"] + 1, s["to"] + 1)
+    for s in incoming:
+        lanes = max(lanes, s["from"] + 1, s["to"] + 1)
 
     return {
         "nodes": nodes,
+        "incoming": incoming,
         "branches": sorted(repo.branches.local),
-        "remote_branches": sorted(repo.branches.remote),
+        "remote_branches": sorted(
+            b for b in repo.branches.remote if not b.endswith("/HEAD")
+        ),
         "head": head,
+        "head_sha": str(repo.head.target),
         "returned": len(nodes),
-        "lanes": max_w,
+        "lanes": lanes,
         "has_more": has_more,
     }

@@ -17,11 +17,7 @@ function fillBranches() {
     if (b === branchList.head) s += ' \u25cf (' + t('currentBranch') + ')';
     return s;
   };
-  if (state.action === 'graph') {
-    sel.innerHTML = '<option value="">' + t('allBranches') + '</option>' + all.map(b => '<option value="' + esc(b) + '">' + esc(b) + (b === branchList.head ? ' \u25cf' : '') + (b === latest ? ' \u2605' : '') + '</option>').join('');
-  } else {
-    sel.innerHTML = '<option value="__all__">' + t('allBranches') + '</option>' + all.map(b => '<option value="' + esc(b) + '">' + esc(b) + tag(b) + '</option>').join('');
-  }
+  sel.innerHTML = '<option value="__all__">' + t('allBranches') + '</option>' + all.map(b => '<option value="' + esc(b) + '">' + esc(b) + tag(b) + '</option>').join('');
   if (branchList.remote_url) sel.innerHTML += '<option value="" disabled>──</option><option value="__loadremote">' + t('loadBranches') + '</option>';
   if (cur) sel.value = cur;
   sel.onchange = () => { if (sel.value === '__loadremote') { sel.value = ''; loadRemoteBranches(); } else { loadAuthorsFilter(); } };

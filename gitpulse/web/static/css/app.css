@@ -11,6 +11,14 @@
   --red: #f85149;
   --blue: #58a6ff;
   --yellow: #d29922;
+  --lane-0: #f78166;
+  --lane-1: #58a6ff;
+  --lane-2: #3fb950;
+  --lane-3: #d29922;
+  --lane-4: #bc8cff;
+  --lane-5: #39c5cf;
+  --lane-6: #f778ba;
+  --lane-7: #a3c24a;
   --mono: ui-monospace, "SF Mono", "Cascadia Code", "Fira Code", monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
@@ -28,6 +36,14 @@
   --red: #cf222e;
   --blue: #0969da;
   --yellow: #9a6700;
+  --lane-0: #d4471f;
+  --lane-1: #0969da;
+  --lane-2: #1a7f37;
+  --lane-3: #9a6700;
+  --lane-4: #8250df;
+  --lane-5: #1b7c83;
+  --lane-6: #bf3989;
+  --lane-7: #5a7a0a;
 }
 
 * {
@@ -597,6 +613,7 @@ table.grid tr:hover td {
 }
 
 .graph-wrap {
+  container-type: inline-size;
   overflow: auto;
   max-height: calc(100vh - 230px);
   border: 1px solid var(--border);
@@ -614,6 +631,55 @@ table.grid tr:hover td {
 
 .graph-row:hover {
   background: var(--panel)
+}
+
+.graph-row.selected {
+  background: var(--panel-2);
+  box-shadow: inset 2px 0 0 var(--accent)
+}
+
+.graph-wrap:focus {
+  outline: none
+}
+
+@container (max-width: 640px) {
+  .graph-row .gauthor {
+    display: none
+  }
+}
+
+.graph-lanes {
+  width: var(--gw);
+  flex-shrink: 0;
+  align-self: stretch
+}
+
+.graph-svg {
+  display: block;
+  overflow: visible
+}
+
+.graph-row.is-merge .gmsg {
+  color: var(--muted)
+}
+
+.graph-footer {
+  padding: 10px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 8px
+}
+
+.graph-footer:empty {
+  display: none
+}
+
+.graph-more-note {
+  color: var(--yellow);
+  text-transform: none;
+  letter-spacing: 0
 }
 
 .graph-info {
@@ -674,6 +740,7 @@ table.grid tr:hover td {
 }
 
 .cd-grid {
+  margin-left: var(--gw);
   display: grid;
   grid-template-columns: 90px 1fr;
   gap: 6px 14px;
@@ -707,6 +774,11 @@ table.grid tr:hover td {
   color: var(--yellow)
 }
 
+.cd-parent {
+  text-decoration: underline dotted;
+  cursor: pointer
+}
+
 .ref {
   font-family: var(--mono);
   font-size: 11px;
@@ -735,6 +807,19 @@ table.grid tr:hover td {
 .ref-head {
   outline: 2px solid var(--accent);
   outline-offset: 1px
+}
+
+.ref-detached {
+  color: var(--bg);
+  background: var(--accent)
+}
+
+.ref-remote-part {
+  margin-left: 6px;
+  padding-left: 6px;
+  border-left: 1px solid currentColor;
+  font-weight: 400;
+  opacity: .85
 }
 
 .cost {
@@ -1684,3 +1769,7 @@ button.btn.sm {
   color: var(--muted)
 }
 
+
+.err-inline {
+  color: var(--red)
+}

@@ -1,5 +1,5 @@
-function setAction(a) { state.action = a; document.querySelectorAll('.action').forEach(x => x.classList.toggle('active', x.dataset.act === a)); renderControls(); }
-document.querySelectorAll('.action').forEach(a => a.onclick = () => setAction(a.dataset.act));
+function setAction(a) { state.action = a; state.freshGraph = true; document.querySelectorAll('.action').forEach(x => x.classList.toggle('active', x.dataset.act === a)); renderControls(); state.freshGraph = false; }
+document.querySelectorAll('.action').forEach(a => a.onclick = () => { state.actionChosen = true; setAction(a.dataset.act); });
 const WINDOWS = ['all', '7d', '24h', '30d', 'today', 'yesterday', 'this-week', 'last-week'];
 function renderControls() {
   const cfg = ACTIONS[state.action], c = $('#controls'); if (!c) return; c.innerHTML = '';
@@ -34,10 +34,12 @@ function renderControls() {
   }
   if (cfg.summarize) add('<div class="field"><label>' + t('aiHeadline') + '</label><select id="ctlSummarize"><option value="false">' + t('off') + '</option><option value="true">' + t('on') + '</option></select></div>');
   if (cfg.graphmode) {
+    const gb = graphState.branch || '';
+    add('<div class="field"><label>' + t('branch') + '</label><select id="graphBranch" disabled><option value="">' + t('allBranches') + '</option>' + (gb ? '<option value="' + esc(gb) + '" selected>' + esc(gb) + '</option>' : '') + '</select></div>');
     add('<div class="field go"><label>&nbsp;</label><button class="btn ghost" id="refreshBtn">&#8635; ' + t('refresh') + '</button></div>');
+    $('#graphBranch').onchange = () => runGraph(false);
     $('#refreshBtn').onclick = () => runGraph(true);
-    if (currentSource()) runGraph(false);
-    else out.innerHTML = '<div class="placeholder">' + t('selectRepoGraph') + '</div>';
+    showGraph(!!state.freshGraph);
     return;
   }
   if (cfg.commitmode) {

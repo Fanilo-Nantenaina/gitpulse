@@ -52,8 +52,8 @@ async function loadStatsPanel(body) {
   }
 }
 async function runLog() { try { loading('...'); const d = await post('/api/log', baseBody({ when: whenValue(), branch: document.getElementById('ctlBranch').value || null, authors: selectedAuthors() })); const a = d.activity; noteWorkspace(a); let h = headCard(a, null, d.failed_repos) + '<div class="block"><h3>' + t('log') + '</h3>'; if (!a.commits.length) h += '<div class="placeholder" style="margin-top:20px">' + t('noCommits') + '</div>'; a.commits.forEach(c => { h += '<div class="commit"><span class="sha">' + c.sha + '</span><div class="meta">' + (a.is_workspace && c.repo ? '<span class="repo-chip">' + esc(c.repo) + '</span>' : '') + esc(c.author) + ' &middot; ' + c.when.replace('T', ' ').slice(0, 16) + '</div><div class="msg">' + esc(c.summary) + '</div><div class="cstat"><span class="add">+' + c.additions + '</span> / <span class="del">-' + c.deletions + '</span> &middot; ' + c.files + ' ' + t('files') + '</div></div>'; }); out.innerHTML = h + '</div>'; } catch (e) { showErr(e); } }
-const LANE_COLORS = ['#f78166', '#58a6ff', '#3fb950', '#d29922', '#bc8cff', '#f85149', '#39c5cf', '#ff7b72'];
-let graphState = { nodes: [], offset: 0, hasMore: false, lanes: 1, loading: false, all: false };
+let graphState = { nodes: [], lanes: 1, rendered: 0, loading: false, hasMore: false, key: '', branch: '', data: null, selected: null };
+let graphReq = 0;
 const PROV_HINTS = {
   gemini: 'Free tier available: get a key at aistudio.google.com/apikey. Use gemini-2.5-flash or gemini-2.0-flash (free with rate limits).',
   claude: 'Paid (pay-as-you-go): console.anthropic.com → API Keys. No free tier.',

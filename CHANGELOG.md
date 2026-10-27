@@ -1,5 +1,43 @@
 # Changelog
 
+## Unreleased
+
+### Commit graph
+
+- New layout: each parent link is its own line from the child down to the
+  parent and joins at the parent commit, instead of merging into another
+  column earlier. A branch's first-parent chain keeps one line and one colour.
+  Lines move left when space frees up, and a colour belongs to a line rather
+  than to a column. API nodes now carry `color` and `segments`, replacing
+  `edges`/`incoming`/`width`/`tip`.
+- The graph lists commits reachable only from tags (like
+  `git log --branches --remotes --tags HEAD`). A tag on a tree or blob no
+  longer hides every tag after it, and a detached HEAD gets a `HEAD` label.
+- The web view loads 300 commits, then more on scroll or with "Load more".
+  Before, it stopped at 150 commits without saying so. Other changes:
+  - a branch filter;
+  - author dates in local time;
+  - local and remote branches on one commit share a badge;
+  - clickable parents;
+  - Up/Down/Escape keys;
+  - the detail panel keeps the lines that leave the commit.
+- Fixed: picking the Graph tab while providers were still loading was reset
+  to Summary. Switching the UI language no longer reloads the graph, and a
+  slow answer for a previous repository no longer replaces the current one.
+
+### Data fixes
+
+- Remote caches now mirror the remote's branches and tags with pruning. Before,
+  `refs/remotes/origin/*` stayed frozen at clone time, so the graph showed
+  stale and deleted branches. A libgit2 clone also exposed only the default
+  branch to "All branches" until the first refresh.
+- Merge commits no longer carry their first-parent diff, so the merged
+  branch's work is not counted twice in totals, hotspots, charts and "large
+  commit" notes. This matches `git log --stat`.
+- "Load remote branches" for a local repository lists remote-tracking
+  branches (`origin/dev`) that analysis can resolve, instead of `ls-remote`
+  names that failed with "Branch not found".
+
 ## 0.2.0 (2026-10-27)
 
 ### One argument for any source

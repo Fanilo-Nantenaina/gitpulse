@@ -1107,8 +1107,14 @@ is split into domain routers so each slice of the API stays small and testable.
 ## Testing
 
 GitPulse ships a pytest suite that locks the behavior of the core logic and the
-web API — including the commit-graph lane-continuity contract, which is easy to
-regress on.
+web API. `tests/test_gitgraph.py` checks the commit graph against git itself:
+every line drawn from a commit is followed row by row and must land on one of
+its real parents (`git rev-parse <sha>^@`), the commit set must equal
+`git rev-list --branches --remotes --tags HEAD`, and lines may not merge,
+vanish, change colour or cross a commit on the way. Scenarios cover merges of
+several active branches, octopus and criss-cross merges, unrelated roots,
+skewed dates, tags, detached HEAD, remote-tracking branches, shallow clones,
+pagination and seeded random histories.
 
 ```bash
 pip install -e ".[dev]"
