@@ -156,19 +156,10 @@ def _fetch_cli(
 
 
 def _normalize_cache(dest: Path, fresh_clone: bool) -> None:
-    """Keep the cache a mirror of the remote's branches and tags.
-
-    Refreshes fetch straight into refs/heads, so refs/remotes would freeze at
-    clone time and show stale or deleted branches. A libgit2 clone only
-    creates the default branch locally: its other branches are moved to
-    refs/heads first.
-    """
     try:
         repo = pygit2.Repository(str(dest))
     except Exception:
         return
-    # Another request may normalise the same cache concurrently: every step
-    # tolerates the ref having been moved or deleted meanwhile.
     for name in list(repo.references):
         if not name.startswith("refs/remotes/"):
             continue
@@ -185,7 +176,6 @@ def _normalize_cache(dest: Path, fresh_clone: bool) -> None:
         except (KeyError, ValueError, pygit2.GitError):
             continue
     if repo.head_is_unborn:
-        # The default branch was deleted or renamed upstream and pruned.
         local = sorted(repo.branches.local)
         pick = next((b for b in ("main", "master") if b in local), None)
         if pick or local:

@@ -1,4 +1,3 @@
-"""Scratch git repositories with deterministic dates, shared by tests."""
 
 from __future__ import annotations
 
@@ -31,7 +30,6 @@ def _git(repo: Path, *args: str, date: str | None = None) -> str:
 
 
 class Repo:
-    """A scratch repository whose commits get strictly increasing dates."""
 
     def __init__(self, path: Path) -> None:
         self.path = path

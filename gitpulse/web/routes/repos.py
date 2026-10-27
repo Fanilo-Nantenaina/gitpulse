@@ -119,9 +119,6 @@ def api_branches(body: dict[str, object]):
             except Exception:
                 pass
             if include_remote:
-                # Remote-tracking branches, named as the analysis resolves
-                # them ("origin/dev"); a bare `ls-remote` name such as "dev"
-                # is not a ref of this repository.
                 result["remote"] = sorted(
                     b for b in repo.branches.remote if not b.endswith("/HEAD")
                 )

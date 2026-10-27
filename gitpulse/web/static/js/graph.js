@@ -10,9 +10,6 @@ function graphBody(src, offset, limit, refresh) {
   return body;
 }
 
-// Shows the graph for the selected repository. Reuses what is already loaded
-// unless asked to refetch, so re-rendering the controls (language switch,
-// late init) does not reload or lose the selection.
 function showGraph(refetch) {
   const src = currentSource();
   if (!src) { out.innerHTML = '<div class="placeholder">' + t('selectRepoGraph') + '</div>'; return; }
@@ -111,8 +108,6 @@ function renderMoreRows(upTo) {
 }
 
 function combinedRefs(refs) {
-  // A local branch and its remote counterpart on the same commit share one
-  // badge, as in IDE graph views: "main  origin".
   const remotes = (refs || []).filter(r => r.kind === 'remote');
   const used = new Set();
   const outRefs = [];
@@ -141,9 +136,6 @@ function localDate(iso, seconds) {
   return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + (seconds ? ':' + pad2(d.getSeconds()) : '');
 }
 
-// Row i covers [centre(i-1), centre(i+1)] split at its borders. A line
-// moving right bends just below the upper commit, a line moving left bends
-// just above the lower one, so bends always hug the commit they belong to.
 function segIn(s, H, lx) {
   if (s.to > s.from) return '<line x1="' + lx(s.to) + '" y1="0" x2="' + lx(s.to) + '" y2="' + (H / 2) + '" stroke="' + laneColor(s.color) + '"/>';
   if (s.to === s.from) return '<line x1="' + lx(s.from) + '" y1="0" x2="' + lx(s.from) + '" y2="' + (H / 2) + '" stroke="' + laneColor(s.color) + '"/>';

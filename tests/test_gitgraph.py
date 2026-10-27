@@ -12,7 +12,6 @@ from gitpulse.core.gitgraph import Graph, graph
 
 
 def graph_problems(g: Graph) -> list[str]:
-    """Check that the drawn lines say exactly what the parent links say."""
     nodes = g["nodes"]
     idx = {n["sha"]: i for i, n in enumerate(nodes)}
     probs: list[str] = []
@@ -139,7 +138,6 @@ def test_graph_pagination_limit(linear_repo: Path) -> None:
     g = graph(linear_repo, limit=2)
     assert g["returned"] == 2
     assert g["has_more"] is True
-    # the last row already knows where its lines go next
     assert g["nodes"][-1]["segments"] == [{"from": 0, "to": 0, "color": 0}]
 
 
@@ -179,7 +177,6 @@ def test_branch_lines_join_at_the_fork_commit(repo: Repo) -> None:
     assert_faithful(repo, g)
     nodes = g["nodes"]
     base_row = next(i for i, n in enumerate(nodes) if n["sha"] == base)
-    # base has two children: both lines must still be apart on the row above
     above = nodes[base_row - 1]["segments"]
     assert sorted(s["to"] for s in above).count(nodes[base_row]["lane"]) == 2
 
@@ -203,7 +200,7 @@ def test_first_parent_chain_keeps_its_lane_and_colour(repo: Repo) -> None:
     assert_faithful(repo, g)
     main_chain = rev_list(repo, "--first-parent", "main")
     assert lanes_of(g, main_chain) == {(0, 0)}
-    b_chain = rev_list(repo, "--first-parent", "b")[:-1]  # base belongs to main
+    b_chain = rev_list(repo, "--first-parent", "b")[:-1]
     assert len(lanes_of(g, b_chain)) == 1
     assert lanes_of(g, b_chain) != {(0, 0)}
 
@@ -398,8 +395,6 @@ def test_dense_history_is_faithful(repo: Repo, seed: int) -> None:
     _dense(repo, 120, seed)
     g = graph(repo.path)
     assert_faithful(repo, g)
-    # The leftmost line is claimed first, so it keeps every commit of its
-    # first-parent chain; other branches end where their fork commit is.
     top = g["nodes"][0]["sha"]
     assert lanes_of(g, rev_list(repo, "--first-parent", top)) == {(0, 0)}
 

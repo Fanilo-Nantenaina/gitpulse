@@ -15,9 +15,6 @@ class RefLabel(TypedDict):
     head: bool
 
 
-# One line between this row's centre and the next row's centre. ``from`` is
-# the column on this row, ``to`` the column on the next row, ``color`` the
-# index of the branch line it belongs to (stable for the whole line).
 Segment = TypedDict("Segment", {"from": int, "to": int, "color": int})
 
 
@@ -83,8 +80,6 @@ def _refs_by_oid(repo: pygit2.Repository) -> dict[str, list[RefLabel]]:
         try:
             target = repo.references[ref_name].peel(pygit2.Commit).id
         except Exception:
-            # A tag may point at a tree or blob: it has no place in a commit
-            # graph, but it must not hide the tags that follow it.
             continue
         out.setdefault(str(target), []).append(
             {"name": ref_name[len("refs/tags/") :], "kind": "tag", "head": False}
@@ -97,7 +92,6 @@ def _refs_by_oid(repo: pygit2.Repository) -> dict[str, list[RefLabel]]:
 
 
 def _tips(repo: pygit2.Repository) -> list[pygit2.Oid]:
-    """Every commit `git log --branches --remotes --tags HEAD` starts from."""
     oids: list[pygit2.Oid] = []
     seen: set[str] = set()
 
@@ -127,7 +121,6 @@ def _tips(repo: pygit2.Repository) -> list[pygit2.Oid]:
 
 
 class _Line:
-    """A line heading down to ``target``; keeps its colour for its whole life."""
 
     __slots__ = ("target", "color", "first", "x", "next_x")
 
@@ -140,24 +133,11 @@ class _Line:
 
 
 class _Layout:
-    """Streaming column assignment, one commit per row, children before parents.
-
-    Invariants (checked by tests/test_gitgraph.py):
-    - every parent edge is its own line from the child's row to the parent's
-      row and joins the parent at its node, never earlier;
-    - a commit sits on the line of its first-parent child that was claimed
-      first, so a branch's first-parent chain keeps one line and one colour;
-    - on each row, columns are the rank of the lines present in claim order,
-      so lines only move left when a line to their left has ended, and a line
-      that passes a row never shares a column with that row's node.
-    """
 
     def __init__(self) -> None:
         self.active: list[_Line] = []
 
     def _free_color(self, ended: set[int]) -> int:
-        # A colour is reused only on a later row than the line that ended,
-        # so two unrelated lines never meet in the same colour at one node.
         used = {line.color for line in self.active} | ended
         c = 0
         while c in used:
@@ -167,7 +147,6 @@ class _Layout:
     def row(
         self, sha: str, parents: list[str], segments: bool = True
     ) -> tuple[int, int, list[Segment]]:
-        """Place commit ``sha``. Returns (column, colour, segments entering it)."""
         arriving = [line for line in self.active if line.target == sha]
         node_line = next((line for line in arriving if line.first), None)
         if node_line is None and arriving:
@@ -204,7 +183,6 @@ class _Layout:
         return node_x, color, entering
 
     def leaving(self) -> list[tuple[int, int]]:
-        """(column, colour) of the lines leaving the last placed row."""
         return [(line.x, line.color) for line in self.active]
 
 
@@ -245,8 +223,6 @@ def graph(
     else:
         tips = _tips(repo)
 
-    # Topological order with commit-time priority, like `git log --date-order`:
-    # a parent is never listed above one of its children.
     walker = repo.walk(tips[0], SortMode.TOPOLOGICAL | SortMode.TIME)
     for oid in tips[1:]:
         walker.push(oid)
@@ -260,8 +236,6 @@ def graph(
     for index, c in enumerate(walker):
         sha = str(c.id)
         parents = [str(p) for p in c.parent_ids]
-        # In a shallow clone the boundary commits list parents that are not in
-        # the object store; a line to them would never end.
         drawn = [p for p in parents if p in repo] if shallow else parents
         lane, color, entering = layout.row(sha, drawn, segments=index >= offset)
         if index > 0 and index - 1 >= offset:
@@ -295,8 +269,6 @@ def graph(
             }
         )
     if nodes and not has_more:
-        # Nothing below the last row except lines to commits outside the
-        # walk (shallow boundary); draw them straight down.
         nodes[-1]["segments"] = [
             {"from": x, "to": x, "color": col} for x, col in layout.leaving()
         ]

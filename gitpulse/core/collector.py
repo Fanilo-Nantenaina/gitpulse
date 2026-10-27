@@ -50,8 +50,6 @@ def _compute_file_changes(
     repo: pygit2.Repository, commit: pygit2.Commit
 ) -> tuple[FileChange, ...]:
     if len(commit.parents) > 1:
-        # Like `git log --stat`: a merge's diff against its first parent is
-        # the merged branch's work, already counted on that branch's commits.
         return ()
     if commit.parents:
         diff = repo.diff(commit.parents[0], commit)
