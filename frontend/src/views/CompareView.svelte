@@ -102,7 +102,6 @@
 <style>
   .view {
     padding: 20px 24px 40px;
-    max-width: 1080px;
   }
   .seg {
     display: flex;

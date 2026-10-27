@@ -143,9 +143,6 @@
     flex-shrink: 0;
     border-left: 1px solid var(--border);
   }
-  .card {
-    max-width: 980px;
-  }
   .controls {
     display: flex;
     align-items: end;

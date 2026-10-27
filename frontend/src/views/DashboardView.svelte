@@ -100,7 +100,6 @@
 <style>
   .view {
     padding: 20px 24px 40px;
-    max-width: 1180px;
   }
   .loading {
     opacity: 0.6;

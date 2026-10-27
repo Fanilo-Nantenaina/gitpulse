@@ -91,7 +91,6 @@
 <style>
   .view {
     padding: 20px 24px 40px;
-    max-width: 1080px;
   }
   .repos {
     display: flex;
@@ -112,6 +111,7 @@
     margin-bottom: 8px;
   }
   .prose {
+    max-width: 110ch;
     line-height: 1.65;
     color: var(--text-2);
   }

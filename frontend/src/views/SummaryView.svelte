@@ -139,7 +139,6 @@
 <style>
   .view {
     padding: 20px 24px 40px;
-    max-width: 1280px;
   }
   .stack {
     display: grid;
@@ -155,6 +154,7 @@
     margin: 14px 0 6px;
   }
   .prose {
+    max-width: 110ch;
     line-height: 1.65;
     color: var(--text-2);
     white-space: pre-wrap;

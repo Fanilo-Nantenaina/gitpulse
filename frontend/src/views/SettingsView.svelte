@@ -154,7 +154,6 @@
 <style>
   .view {
     padding: 20px 24px 40px;
-    max-width: 980px;
     display: grid;
     gap: 14px;
     align-content: start;
