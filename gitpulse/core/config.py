@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import stat
 import tempfile
 from pathlib import Path
@@ -195,3 +196,69 @@ def resolve_lang(cli_value: str | None = None) -> str:
 
 def lang_name(code: str) -> str:
     return LANGUAGES.get(code, code)
+
+
+_WORKSPACE_NAME_RE = re.compile(r"[A-Za-z0-9][\w.-]{0,63}")
+
+
+def valid_workspace_name(name: str) -> bool:
+    return _WORKSPACE_NAME_RE.fullmatch(name) is not None
+
+
+def _read_workspaces(cfg: dict[str, JsonValue]) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for name, members in as_object(cfg.get("workspaces")).items():
+        if not valid_workspace_name(name):
+            continue
+        out[name] = [m for m in (as_str(x) for x in as_array(members)) if m]
+    return out
+
+
+def _write_workspaces(cfg: dict[str, JsonValue], ws: dict[str, list[str]]) -> None:
+    cfg["workspaces"] = {name: list[JsonValue](members) for name, members in ws.items()}
+
+
+def list_workspaces() -> dict[str, list[str]]:
+    return _read_workspaces(load_config())
+
+
+def get_workspace(name: str) -> list[str] | None:
+    return _read_workspaces(load_config()).get(name.removeprefix("@"))
+
+
+def add_to_workspace(name: str, members: list[str]) -> list[str]:
+    name = name.removeprefix("@")
+    if not valid_workspace_name(name):
+        raise ValueError(
+            f"Invalid workspace name {name!r}: use letters, digits, '.', '_' or '-'."
+        )
+    bad = [m for m in members if m.startswith("@")]
+    if bad:
+        raise ValueError(f"A workspace cannot contain another workspace: {bad[0]}")
+    cfg = load_config()
+    ws = _read_workspaces(cfg)
+    current = ws.setdefault(name, [])
+    for m in members:
+        if m not in current:
+            current.append(m)
+    _write_workspaces(cfg, ws)
+    save_config(cfg)
+    return current
+
+
+def remove_from_workspace(name: str, members: list[str] | None = None) -> bool:
+    name = name.removeprefix("@")
+    cfg = load_config()
+    ws = _read_workspaces(cfg)
+    if name not in ws:
+        return False
+    if members:
+        kept = [m for m in ws[name] if m not in members]
+        if len(kept) == len(ws[name]):
+            return False
+        ws[name] = kept
+    else:
+        del ws[name]
+    _write_workspaces(cfg, ws)
+    save_config(cfg)
+    return True

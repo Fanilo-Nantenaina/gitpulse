@@ -16,20 +16,24 @@ EXPECTED_COMMANDS = {
     "dashboard",
     "dates",
     "digest",
+    "doctor",
     "gui",
+    "locations",
     "log",
     "providers",
     "remote",
+    "risks",
     "serve",
     "shutdown",
     "standup",
     "summary",
+    "timesheet",
     "track",
     "tracked",
     "untrack",
     "watch",
 }
-EXPECTED_GROUPS = {"service"}
+EXPECTED_GROUPS = {"history", "service", "workspace"}
 
 CLI_DIR = Path(cli_main.__file__).parent
 

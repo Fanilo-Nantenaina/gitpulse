@@ -32,6 +32,7 @@ server.pid
 # Secrets — never commit these
 .env
 .env.*
+!.env.example
 *.key
 
 # OS / editor

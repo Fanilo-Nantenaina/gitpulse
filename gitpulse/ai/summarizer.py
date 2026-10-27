@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import os
 import textwrap
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import TypedDict
 
-from ..core import collector, config
-from ..core.jsonio import JsonValue
+from ..core import collector, config, history, scrub
+from ..core.jsonio import JsonValue, as_array
 from ..core.models import Commit, RepoActivity, qualified_path
+from ..core.risks import Risk
 from . import providers
 
 DEFAULT_MODEL = os.environ.get("GITPULSE_MODEL", providers.DEFAULT_CLAUDE_MODEL)
@@ -161,9 +162,19 @@ class Summary:
     output_tokens: int = 0
     cost_usd: float = 0.0
     stop_reason: str = ""
+    cached: bool = False
+    redactions: int = 0
 
     @property
     def cost_note(self) -> str:
+        note = self._base_cost_note()
+        if self.redactions:
+            note += f" · {self.redactions} secret(s) redacted"
+        return note
+
+    def _base_cost_note(self) -> str:
+        if self.cached:
+            return f"{self.source} · cached · $0.00"
         if self.source.startswith("local"):
             if self.input_tokens or self.output_tokens:
                 return (
@@ -226,7 +237,53 @@ DIFF_EXCERPT_COMMITS = 6
 DIFF_EXCERPT_CHARS = 2000
 
 
-def _build_payload(activity: RepoActivity) -> str:
+def summary_to_json(s: Summary) -> dict[str, JsonValue]:
+    return {
+        "headline": s.headline,
+        "synthesis": s.synthesis,
+        "themes": [
+            {
+                "title": t["title"],
+                "narrative": t["narrative"],
+                "commits": list(t["commits"]),
+            }
+            for t in s.themes
+        ],
+        "observations": list(s.observations),
+        "source": s.source,
+        "input_tokens": s.input_tokens,
+        "output_tokens": s.output_tokens,
+        "cost_usd": s.cost_usd,
+    }
+
+
+def summary_from_json(data: dict[str, JsonValue]) -> Summary | None:
+    headline = data.get("headline")
+    if not isinstance(headline, str) or not headline:
+        return None
+    synthesis = data.get("synthesis")
+    source = data.get("source")
+    themes = [t for t in (_coerce_theme(x) for x in as_array(data.get("themes"))) if t]
+    observations = [o for o in as_array(data.get("observations")) if isinstance(o, str)]
+
+    def _int(key: str) -> int:
+        v = data.get(key)
+        return v if isinstance(v, int) else 0
+
+    cost = data.get("cost_usd")
+    return Summary(
+        headline=headline,
+        themes=themes,
+        observations=observations,
+        synthesis=synthesis if isinstance(synthesis, str) else "",
+        source=source if isinstance(source, str) else "unknown",
+        input_tokens=_int("input_tokens"),
+        output_tokens=_int("output_tokens"),
+        cost_usd=float(cost) if isinstance(cost, (int, float)) else 0.0,
+    )
+
+
+def _build_payload(activity: RepoActivity, risks: list[Risk] | None = None) -> str:
     seen: list[str] = []
     for c in activity.commits:
         if c.author_name and c.author_name not in seen:
@@ -291,6 +348,17 @@ def _build_payload(activity: RepoActivity) -> str:
             "data fields from it):"
         )
         lines.extend(f"- {s}" for s in signals)
+
+    if risks:
+        lines.append("")
+        lines.append(
+            "Deterministic risk flags (already verified by GitPulse; mention the "
+            "high and medium ones in observations, citing their commits, without "
+            "inflating their severity):"
+        )
+        lines.extend(
+            f"- [{r['severity']}] {r['title']}: {r['detail']}" for r in risks[:12]
+        )
 
     lines.extend(_diff_section(activity, commits))
 
@@ -490,11 +558,74 @@ def _local_fallback(activity: RepoActivity, lang: str = "en") -> Summary:
     )
 
 
+@dataclass
+class PreparedRequest:
+    provider: providers.Provider | None
+    lang: str
+    system: str
+    payload: str
+    max_tokens: int
+    redacted: dict[str, int] = field(default_factory=dict[str, int])
+
+    @property
+    def redactions(self) -> int:
+        return sum(self.redacted.values())
+
+    @property
+    def est_input_tokens(self) -> int:
+        return (len(self.system) + len(self.payload)) // 4
+
+    @property
+    def est_cost_usd(self) -> float:
+        if self.provider is None:
+            return 0.0
+        pin, pout = self.provider.price()
+        return self.est_input_tokens * pin / 1e6 + self.max_tokens * pout / 1e6
+
+    @property
+    def cache_key(self) -> str:
+        p = self.provider
+        return history.cache_key(
+            p.name if p else "local",
+            p.model if p else "",
+            self.lang,
+            self.system,
+            self.payload,
+        )
+
+
+def prepare(
+    activity: RepoActivity,
+    provider: str = "auto",
+    model: str | None = None,
+    lang: str | None = None,
+    risks: list[Risk] | None = None,
+) -> PreparedRequest:
+    lang = config.resolve_lang(lang)
+    prov = providers.detect(provider) if activity.commit_count else None
+    if prov is not None and model:
+        prov.model = model
+    req = PreparedRequest(
+        provider=prov,
+        lang=lang,
+        system=_system_prompt(lang),
+        payload=_build_payload(activity, risks) if activity.commit_count else "",
+        max_tokens=min(16000, max(4000, activity.commit_count * 170)),
+    )
+    if prov is not None and scrub.should_redact(prov.kind):
+        cleaned = scrub.scrub(req.payload)
+        req.payload = cleaned.text
+        req.redacted = dict(cleaned.findings)
+    return req
+
+
 def summarize(
     activity: RepoActivity,
     provider: str = "auto",
     model: str | None = None,
     lang: str | None = None,
+    risks: list[Risk] | None = None,
+    use_cache: bool = True,
 ) -> Summary:
     lang = config.resolve_lang(lang)
     if activity.commit_count == 0:
@@ -502,20 +633,44 @@ def summarize(
             headline=_fb_str(lang, "no_activity"), themes=[], observations=[]
         )
 
-    prov = providers.detect(provider)
+    req = prepare(activity, provider, model, lang, risks)
+    prov = req.provider
     if prov is None:
         return _local_fallback(activity, lang)
 
-    if model:
-        prov.model = model
+    caching = use_cache and history.enabled()
+    key = req.cache_key if caching else ""
+    if caching:
+        hit = history.load(key)
+        restored = summary_from_json(hit["summary"]) if hit else None
+        if restored is not None:
+            restored.cached = True
+            restored.redactions = req.redactions
+            return restored
 
-    max_tokens = min(16000, max(4000, activity.commit_count * 170))
-    system = _system_prompt(lang)
-    payload = _build_payload(activity)
+    summ = _generate(activity, prov, req)
+    summ.redactions = req.redactions
+    if caching and not summ.source.startswith("local"):
+        history.store(
+            key,
+            scope=activity.repo_name,
+            since=activity.since,
+            until=activity.until,
+            commits=activity.commit_count,
+            source=summ.source,
+            summary=summary_to_json(summ),
+        )
+    return summ
 
+
+def _generate(
+    activity: RepoActivity, prov: providers.Provider, req: PreparedRequest
+) -> Summary:
+    lang = req.lang
+    payload = req.payload
     for attempt in range(2):
         try:
-            result = prov.generate(system, payload, max_tokens)
+            result = prov.generate(req.system, payload, req.max_tokens)
         except Exception as e:
             fb = _local_fallback(activity, lang)
             fb.source = f"local({prov.name}-error)"

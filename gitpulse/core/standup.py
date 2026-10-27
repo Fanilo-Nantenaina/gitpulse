@@ -79,8 +79,6 @@ def gather(
     max_depth: int = workspace.DEFAULT_DEPTH,
 ) -> StandupContext:
     now = now or datetime.now().astimezone()
-    root = Path(repo_path).resolve()
-    repo_name = name or root.name
 
     yesterday = now - timedelta(days=1)
     if yesterday.weekday() == 6:
@@ -89,8 +87,9 @@ def gather(
         yesterday = now - timedelta(days=2)
     y_start, y_end = _day_window(yesterday)
     activity, _ = workspace.collect(
-        root, y_start, y_end, name=repo_name, max_depth=max_depth
+        repo_path, y_start, y_end, name=name, max_depth=max_depth
     )
+    repo_name = activity.repo_name
 
     if activity.is_workspace:
         states: list[RepoState] = []
@@ -106,7 +105,7 @@ def gather(
             repos=states,
         )
 
-    state = _repo_state(root, repo_name)
+    state = _repo_state(Path(activity.repo_path), repo_name)
     return StandupContext(
         repo_name=repo_name,
         yesterday=activity,

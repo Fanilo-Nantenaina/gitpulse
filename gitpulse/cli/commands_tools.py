@@ -9,13 +9,13 @@ from rich.table import Table
 from ..ai import providers as ai_providers
 from ..ai.summarizer import summarize
 from ..core import config as gp_config
+from ..core import workspace
 from ..core.changelog import generate_changelog
-from ..core.collector import collect_activity
 from ..core.dateparse import parse_interval, parse_range, suggestions
 from ..core.jsonio import as_str
 from ..notifiers.dispatch import dispatch
 from ..scheduler.runner import run_scheduler
-from ._shared import LANG_HELP, MODEL_HELP, PROVIDER_HELP, app, console
+from ._shared import LANG_HELP, MODEL_HELP, PATH_HELP, PROVIDER_HELP, app, console
 from .render import render_markdown
 
 
@@ -42,7 +42,7 @@ def changelog(
 
 @app.command()
 def watch(
-    path: Path = typer.Argument(Path(".")),
+    source: str = typer.Argument(".", help=PATH_HELP),
     every: str = typer.Option("24h", "--every", "-e", help="Cadence: 24h, 7d, 30m"),
     when: str = typer.Option("24h", "--when", "-w", help="Window each digest covers"),
     to: list[str] = typer.Option(["desktop"], "--to"),
@@ -54,7 +54,7 @@ def watch(
 
     def job() -> None:
         r = parse_range(when)
-        activity = collect_activity(path, r.since, r.until)
+        activity, _ = workspace.collect(source, r.since, r.until)
         summ = summarize(activity, provider=provider, model=model, lang=lang)
         md = render_markdown(activity, summ)
         results = dispatch(to, md)
@@ -71,7 +71,7 @@ def watch(
             if not r:
                 console.print(f"{stamp} [red]{r.status}[/] {r.describe()}")
 
-    console.print(f"[cyan]Watching {path} every {every}...[/]")
+    console.print(f"[cyan]Watching {source} every {every}...[/]")
     run_scheduler(job, every)
 
 
@@ -139,6 +139,45 @@ def providers() -> None:
     console.print(
         "[dim]Select with --provider <name> [--model <model>]. "
         "auto picks the first available local model, then cloud.[/]"
+    )
+
+
+_LOCATION_KINDS = {
+    "workspace": "Workspace",
+    "home": "Home",
+    "drive": "Drive",
+    "wsl": "WSL",
+    "windows": "Windows",
+    "ssh": "SSH",
+}
+
+
+@app.command()
+def locations(
+    no_ssh: bool = typer.Option(False, "--no-ssh", help="Skip ~/.ssh/config hosts."),
+) -> None:
+    from ..core import locations as gp_locations
+
+    table = Table(title="Places GitPulse can browse", show_lines=False)
+    table.add_column("Kind", style="cyan")
+    table.add_column("Name", style="bold")
+    table.add_column("Pass this as PATH / URL", overflow="fold")
+    table.add_column("Status", style="dim")
+    for loc in gp_locations.list_locations(include_ssh=not no_ssh):
+        status = loc.get("detail", "")
+        if loc["kind"] == "ssh":
+            target = gp_locations.ssh_url(loc.get("host", loc["label"]), "<path>")
+        else:
+            target = loc["path"]
+        if loc["kind"] == "wsl":
+            status = "running" if loc.get("running") else "stopped (starts on open)"
+            if loc.get("default"):
+                status += ", default"
+        table.add_row(_LOCATION_KINDS[loc["kind"]], loc["label"], target, status)
+    console.print(table)
+    console.print(
+        "[dim]Folders work with summary/log/standup/compare; ssh:// URLs with "
+        "gitpulse remote. The web UI's Browse dialog lists the same places.[/]"
     )
 
 

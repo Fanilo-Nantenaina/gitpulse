@@ -20,6 +20,8 @@ class SummaryReq(BaseModel):
     lang: str | None = None
     refresh: bool = True
     insecure: bool = False
+    use_cache: bool = True
+    risks: bool = True
 
 
 class LogReq(BaseModel):
@@ -80,3 +82,25 @@ class CommitMsgReq(BaseModel):
     provider: str = "auto"
     model: str | None = None
     lang: str | None = None
+
+
+class SshBrowseReq(BaseModel):
+    host: str
+    path: str | None = None
+
+
+class TimesheetReq(BaseModel):
+    path: str | None = None
+    url: str | None = None
+    when: str = "this-week"
+    authors: list[str] | None = None
+    depth: int = DEFAULT_DEPTH
+    gap: int = 120
+    warmup: int = 30
+    refresh: bool = True
+    insecure: bool = False
+
+
+class WorkspaceReq(BaseModel):
+    name: str
+    members: list[str]

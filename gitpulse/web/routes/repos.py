@@ -9,7 +9,7 @@ from ...core import config as gp_config
 from ...core import remote as gp_remote
 from ...core import workspace as gp_workspace
 from ...core.gitcreds import git_config_env, redact
-from ..schemas import TrackReq
+from ..schemas import SshBrowseReq, TrackReq, WorkspaceReq
 
 router = APIRouter(prefix="/api")
 
@@ -59,6 +59,22 @@ def api_drives():
     from .. import browse
 
     return {"drives": browse.drives()}
+
+
+@router.get("/locations")
+def api_locations():
+    from ...core import locations
+
+    return {"locations": locations.list_locations()}
+
+
+@router.post("/browse/ssh")
+def api_browse_ssh(body: SshBrowseReq):
+    from ...core import locations
+
+    if not locations.valid_ssh_host(body.host):
+        raise HTTPException(400, "Invalid SSH host")
+    return locations.ssh_list_dir(body.host, body.path)
 
 
 @router.post("/branches")
@@ -144,3 +160,48 @@ def api_track(body: TrackReq):
 def api_untrack(needle: str):
     removed, tracked = gp_config.remove_tracked(needle)
     return {"removed": removed, "tracked": tracked}
+
+
+@router.get("/workspaces")
+def api_workspaces():
+    return {
+        "workspaces": [
+            {"name": name, "members": members}
+            for name, members in gp_config.list_workspaces().items()
+        ]
+    }
+
+
+@router.post("/workspaces")
+def api_workspace_add(body: WorkspaceReq):
+    try:
+        members = gp_config.add_to_workspace(body.name, body.members)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"name": body.name.removeprefix("@"), "members": members}
+
+
+@router.delete("/workspaces")
+def api_workspace_remove(name: str, member: str | None = None):
+    removed = gp_config.remove_from_workspace(name, [member] if member else None)
+    return {"removed": removed}
+
+
+@router.get("/history")
+def api_history(limit: int = 30):
+    from ...core import history
+
+    return {
+        "entries": [
+            {k: v for k, v in e.items() if k != "summary"}
+            for e in history.entries(limit)
+        ]
+    }
+
+
+@router.get("/doctor")
+def api_doctor():
+    from ...ai import providers
+    from ...core import doctor
+
+    return {"checks": doctor.run_all() + providers.health()}

@@ -2,10 +2,22 @@ from __future__ import annotations
 
 import os
 import subprocess
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def isolated_config(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path_factory.mktemp("gitpulse-home")
+    monkeypatch.setenv("GITPULSE_CONFIG_DIR", str(home))
+    monkeypatch.setenv("GITPULSE_CACHE_DIR", str(home / "remotes"))
+    monkeypatch.delenv("GITPULSE_HISTORY_DIR", raising=False)
+    monkeypatch.delenv("GITPULSE_REDACT", raising=False)
+    monkeypatch.delenv("GITPULSE_CACHE", raising=False)
 
 
 def _git(
@@ -98,3 +110,46 @@ def dirty_repo(tmp_path: Path) -> Path:
     (repo / "config.py").write_text("KEY = None\n")
     (repo / "notes.md").write_text("# notes\n")
     return repo
+
+
+MakeRepo = Callable[..., Path]
+
+
+@pytest.fixture
+def make_repo(tmp_path: Path) -> MakeRepo:
+    def build(
+        name: str,
+        commits: list[tuple[str, str, dict[str, str]]],
+        author: str = "Alice",
+        parent: Path | None = None,
+    ) -> Path:
+        repo = (parent or tmp_path) / name
+        repo.mkdir(parents=True)
+        _git(repo, "init", "-q")
+        _git(repo, "branch", "-M", "master")
+        mail = f"{author.lower()}@example.com"
+        for message, date, files in commits:
+            for rel, content in files.items():
+                target = repo / rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_text(content, encoding="utf-8")
+            _git(repo, "add", "-A")
+            _git(
+                repo,
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                message,
+                env_extra={
+                    "GIT_AUTHOR_NAME": author,
+                    "GIT_AUTHOR_EMAIL": mail,
+                    "GIT_COMMITTER_NAME": author,
+                    "GIT_COMMITTER_EMAIL": mail,
+                    "GIT_AUTHOR_DATE": date,
+                    "GIT_COMMITTER_DATE": date,
+                },
+            )
+        return repo
+
+    return build

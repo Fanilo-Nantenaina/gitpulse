@@ -4,12 +4,13 @@ from pathlib import Path
 
 import typer
 
-from ..ai.summarizer import summarize
+from ..ai.summarizer import prepare, summarize
+from ..core import risks as gp_risks
 from ..core import standup as gp_standup
 from ..core import trends as gp_trends
 from ..core import workspace
-from ..core.collector import collect_activity
 from ..core.dateparse import parse_interval
+from ..core.risks import Risk
 from ..notifiers.dispatch import dispatch
 from ._shared import (
     AUTHOR_HELP,
@@ -25,9 +26,11 @@ from ._shared import (
     collect_scope,
     console,
     resolve_range,
+    source_label,
 )
 from .render import (
     render_comparison,
+    render_dry_run,
     render_failures,
     render_log,
     render_markdown,
@@ -39,7 +42,7 @@ from .render import (
 
 @app.command()
 def summary(
-    path: Path = typer.Argument(Path("."), help=PATH_HELP),
+    source: str = typer.Argument(".", help=PATH_HELP),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
     branch: str | None = typer.Option(None, "--branch", "-b"),
     author: list[str] = typer.Option([], "--author", "-a", help=AUTHOR_HELP),
@@ -50,11 +53,20 @@ def summary(
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
+    dry_run: bool = typer.Option(
+        False,
+        "--dry-run",
+        help="Print the exact payload and cost estimate; send nothing.",
+    ),
+    no_cache: bool = typer.Option(
+        False, "--no-cache", help="Ignore saved digests and call the model again."
+    ),
+    no_risks: bool = typer.Option(False, "--no-risks", help="Skip risk detection."),
 ) -> None:
     r = resolve_range(when)
-    with status_spinner(f"Reading commits from {path.name}"):
+    with status_spinner(f"Reading commits from {source_label(source)}"):
         activity, failures = collect_scope(
-            path,
+            source,
             r.since,
             r.until,
             branch=branch,
@@ -66,15 +78,29 @@ def summary(
     if activity.commit_count == 0:
         render_terminal(activity, summarize(activity, provider="local", lang=lang))
         return
+    found: list[Risk] = []
+    if not no_risks:
+        with status_spinner("Checking for risks"):
+            found = gp_risks.detect(activity)
+    if dry_run:
+        render_dry_run(activity, prepare(activity, provider, model, lang, risks=found))
+        return
     label = "local" if provider == "local" else provider
     with status_spinner(f"Summarizing {activity.commit_count} commits via {label}"):
-        summ = summarize(activity, provider=provider, model=model, lang=lang)
-    render_terminal(activity, summ)
+        summ = summarize(
+            activity,
+            provider=provider,
+            model=model,
+            lang=lang,
+            risks=found,
+            use_cache=not no_cache,
+        )
+    render_terminal(activity, summ, found)
 
 
 @app.command()
 def log(
-    path: Path = typer.Argument(Path("."), help=PATH_HELP),
+    source: str = typer.Argument(".", help=PATH_HELP),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
     branch: str | None = typer.Option(None, "--branch", "-b"),
     files: bool = typer.Option(
@@ -88,7 +114,7 @@ def log(
 ) -> None:
     r = resolve_range(when)
     activity, failures = collect_scope(
-        path,
+        source,
         r.since,
         r.until,
         branch=branch,
@@ -102,7 +128,7 @@ def log(
 
 @app.command()
 def standup(
-    path: Path = typer.Argument(Path("."), help=PATH_HELP),
+    source: str = typer.Argument(".", help=PATH_HELP),
     depth: int = typer.Option(workspace.DEFAULT_DEPTH, "--depth", help=DEPTH_HELP),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
@@ -110,8 +136,8 @@ def standup(
 ) -> None:
     with status_spinner("Gathering yesterday's work"):
         try:
-            ctx = gp_standup.gather(path, max_depth=depth)
-        except ValueError as e:
+            ctx = gp_standup.gather(source, max_depth=depth)
+        except (ValueError, RuntimeError) as e:
             console.print(f"[red]{e}[/]")
             raise typer.Exit(1)
     if ctx.yesterday.commit_count == 0:
@@ -160,7 +186,7 @@ def commit_msg(
 
 @app.command()
 def compare(
-    path: Path = typer.Argument(Path("."), help=PATH_HELP),
+    source: str = typer.Argument(".", help=PATH_HELP),
     period: str = typer.Option(
         "7d", "--period", "-w", help="Length of each period: 7d, 24h, 30d"
     ),
@@ -178,7 +204,7 @@ def compare(
     with status_spinner(f"Comparing last {period} against prior {periods}"):
         try:
             cmp = gp_trends.compare(
-                path,
+                source,
                 p,
                 periods_back=periods,
                 branch=branch,
@@ -186,7 +212,7 @@ def compare(
                 author_scope=author_scope.scope,
                 max_depth=depth,
             )
-        except ValueError as e:
+        except (ValueError, RuntimeError) as e:
             console.print(f"[red]{e}[/]")
             raise typer.Exit(1)
     render_comparison(cmp)
@@ -194,28 +220,36 @@ def compare(
 
 @app.command()
 def digest(
-    path: Path = typer.Argument(Path(".")),
+    source: str = typer.Argument(".", help=PATH_HELP),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
     to: list[str] = typer.Option(
         ["desktop"], "--to", help="Channels: slack,email,telegram,desktop"
     ),
+    author: list[str] = typer.Option([], "--author", "-a", help=AUTHOR_HELP),
+    depth: int = typer.Option(workspace.DEFAULT_DEPTH, "--depth", help=DEPTH_HELP),
     provider: str = typer.Option("auto", "--provider", "-p", help=PROVIDER_HELP),
     model: str | None = typer.Option(None, "--model", "-m", help=MODEL_HELP),
     lang: str | None = typer.Option(None, "--lang", "-l", help=LANG_HELP),
 ) -> None:
     r = resolve_range(when)
-    with status_spinner(f"Reading commits from {path.name}"):
-        activity = collect_activity(path, r.since, r.until)
+    with status_spinner(f"Reading commits from {source_label(source)}"):
+        activity, failures = collect_scope(
+            source, r.since, r.until, authors=author, depth=depth
+        )
+    render_failures(failures)
+    found = gp_risks.detect(activity)
     label = "local" if provider == "local" else provider
     with status_spinner(f"Summarizing {activity.commit_count} commits via {label}"):
-        summ = summarize(activity, provider=provider, model=model, lang=lang)
-    md = render_markdown(activity, summ)
+        summ = summarize(
+            activity, provider=provider, model=model, lang=lang, risks=found
+        )
+    md = render_markdown(activity, summ, found)
     with status_spinner(f"Sending to {', '.join(to)}"):
         results = dispatch(to, md)
     colour = {"ok": "green", "skipped": "yellow", "failed": "red"}
-    for r in results.values():
-        detail = f" [dim]({r.reason})[/]" if r.reason else ""
-        console.print(f"[{colour[r.status]}]{r.status}[/] {r.channel}{detail}")
+    for res in results.values():
+        detail = f" [dim]({res.reason})[/]" if res.reason else ""
+        console.print(f"[{colour[res.status]}]{res.status}[/] {res.channel}{detail}")
     if not any(results.values()):
         console.print("[yellow]Nothing was delivered - printing the digest below.[/]")
         console.print(md)

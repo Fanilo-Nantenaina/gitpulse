@@ -43,7 +43,7 @@ async function checkLatency() {
 const ACTIONS = {
   summary: { when: 1, branch: 1, author: 1, ws: 1, run: 'runSummary' }, log: { when: 1, branch: 1, author: 1, ws: 1, defaultWhen: 'all', run: 'runLog' },
   graph: { graphmode: 1, run: 'runGraph' }, compare: { period: 1, periods: 1, branch: 1, ws: 1, run: 'runCompare' },
-  standup: { ws: 1, run: 'runStandup' }, commit: { commitmode: 1, run: 'runCommit' }, dashboard: { when: 1, summarize: 1, run: 'runDashboard' }, tracked: { run: 'runTracked' },
+  standup: { ws: 1, run: 'runStandup' }, time: { when: 1, author: 1, ws: 1, timeopts: 1, defaultWhen: 'this-week', run: 'runTimesheet' }, commit: { commitmode: 1, run: 'runCommit' }, dashboard: { when: 1, summarize: 1, run: 'runDashboard' }, tracked: { run: 'runTracked' },
 };
 function runAction() {
   const cfg = ACTIONS[state.action]; if (!cfg || !cfg.run) return;

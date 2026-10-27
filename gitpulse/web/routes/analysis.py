@@ -8,13 +8,22 @@ from ...ai.summarizer import summarize
 from ...core import config as gp_config
 from ...core import gitgraph
 from ...core import remote as gp_remote
+from ...core import risks as gp_risks
 from ...core import standup as gp_standup
+from ...core import timesheet as gp_timesheet
 from ...core import trends as gp_trends
 from ...core import workspace as gp_workspace
-from ...core.collector import collect_activity
+from ...core.collector import ALL_BRANCHES, collect_activity
 from ...core.dateparse import parse_interval, parse_range
 from ...core.gitcreds import redact
-from ..schemas import CompareReq, DashboardReq, GraphReq, LogReq, SummaryReq
+from ..schemas import (
+    CompareReq,
+    DashboardReq,
+    GraphReq,
+    LogReq,
+    SummaryReq,
+    TimesheetReq,
+)
 from ..serializers import activity_dict, resolve_source, summary_dict
 
 router = APIRouter(prefix="/api")
@@ -53,13 +62,20 @@ def api_summary(req: SummaryReq):
             author_scope=req.author_scope,
             max_depth=req.depth,
         )
+        found = gp_risks.detect(activity) if req.risks else []
         summ = summarize(
-            activity, provider=req.provider, model=req.model, lang=req.lang
+            activity,
+            provider=req.provider,
+            model=req.model,
+            lang=req.lang,
+            risks=found,
+            use_cache=req.use_cache,
         )
         return {
             "activity": activity_dict(activity),
             "summary": summary_dict(summ),
             "stats": compute_stats(activity),
+            "risks": found,
             "range_label": r.label,
             "failed_repos": failed,
         }
@@ -85,6 +101,68 @@ def api_log(req: LogReq):
         return {
             "activity": activity_dict(activity),
             "range_label": r.label,
+            "failed_repos": failed,
+        }
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/risks")
+def api_risks(req: LogReq):
+    try:
+        r = parse_range(req.when)
+        src, name = resolve_source(req)
+        activity, failed = gp_workspace.collect(
+            src,
+            r.since,
+            r.until,
+            branch=req.branch,
+            name=name,
+            authors=req.authors,
+            max_depth=req.depth,
+        )
+        return {
+            "risks": gp_risks.detect(activity),
+            "commit_count": activity.commit_count,
+            "range_label": r.label,
+            "failed_repos": failed,
+        }
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(400, str(e))
+
+
+@router.post("/timesheet")
+def api_timesheet(req: TimesheetReq):
+    try:
+        r = parse_range(req.when)
+        src, name = resolve_source(req)
+        activity, failed = gp_workspace.collect(
+            src,
+            r.since,
+            r.until,
+            branch=ALL_BRANCHES,
+            name=name,
+            authors=req.authors,
+            max_depth=req.depth,
+        )
+        report = gp_timesheet.report(activity, req.gap, req.warmup)
+        return {
+            "scope": report.scope,
+            "range_label": r.label,
+            "total_minutes": report.total_minutes,
+            "days": report.days,
+            "sessions": len(report.sessions),
+            "gap": report.gap_minutes,
+            "warmup": report.warmup_minutes,
+            "rows": report.rows,
+            "by_repo": [
+                {"name": n, "minutes": m, "commits": c} for n, m, c in report.by("repo")
+            ],
+            "by_author": [
+                {"name": n, "minutes": m, "commits": c}
+                for n, m, c in report.by("author")
+            ],
+            "csv": report.to_csv(),
             "failed_repos": failed,
         }
     except (ValueError, RuntimeError) as e:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 from contextlib import contextmanager
+from datetime import datetime, timezone
 
 from rich.console import Console
 from rich.padding import Padding
@@ -19,9 +20,13 @@ from rich.status import Status
 from rich.table import Table
 from rich.text import Text
 
-from ..ai.summarizer import Summary
+from ..ai.summarizer import PreparedRequest, Summary, summary_from_json
+from ..core.doctor import Check
+from ..core.history import HistoryEntry
 from ..core.models import RepoActivity
+from ..core.risks import Risk
 from ..core.standup import StandupContext
+from ..core.timesheet import TimeReport, format_hours
 from ..core.trends import Comparison
 from ..core.workspace import RepoFailure
 
@@ -226,10 +231,9 @@ def _width() -> int:
     return min(_MAX_WIDTH, console.size.width)
 
 
-def render_terminal(activity: RepoActivity, summary: Summary) -> None:
+def _render_header(activity: RepoActivity, summary: Summary) -> None:
     w = _width()
     console.print()
-
     header = Panel(
         Text(summary.headline, style="bold cyan"),
         title=f"{activity.repo_name}",
@@ -241,6 +245,12 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
         padding=(0, 1),
     )
     console.print(header)
+
+
+def render_terminal(
+    activity: RepoActivity, summary: Summary, risks: list[Risk] | None = None
+) -> None:
+    _render_header(activity, summary)
 
     stats = Text()
     stats.append(f"  {activity.commit_count} commits", style="bold")
@@ -263,6 +273,11 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
         render_repos(activity)
         console.print()
 
+    render_summary_body(summary, risks)
+
+
+def render_summary_body(summary: Summary, risks: list[Risk] | None = None) -> None:
+    w = _width()
     if summary.synthesis:
         console.print(Text("  Overview", style="bold"))
         console.print(Padding(Text(summary.synthesis), (0, 2, 0, 4)), width=w)
@@ -292,6 +307,10 @@ def render_terminal(activity: RepoActivity, summary: Summary) -> None:
             bullet = Text("• ", style="yellow")
             bullet.append(o, style="default")
             console.print(Padding(bullet, (0, 2, 0, 3)), width=w)
+        console.print()
+
+    if risks:
+        render_risks(risks, limit=5)
         console.print()
 
     console.print(Text(f"  {summary.cost_note}", style="dim"))
@@ -372,7 +391,9 @@ def render_log(activity: RepoActivity, show_files: bool = False) -> None:
         console.print()
 
 
-def render_markdown(activity: RepoActivity, summary: Summary) -> str:
+def render_markdown(
+    activity: RepoActivity, summary: Summary, risks: list[Risk] | None = None
+) -> str:
     lines = [
         f"# {activity.repo_name} — {activity.since:%Y-%m-%d} → {activity.until:%Y-%m-%d}",
         "",
@@ -397,4 +418,182 @@ def render_markdown(activity: RepoActivity, summary: Summary) -> str:
         for o in summary.observations:
             lines.append(f"- ⚠ {o}")
         lines.append("")
+    serious = [r for r in risks or [] if r["severity"] != "low"]
+    if serious:
+        lines.append("## Risk flags")
+        for r in serious:
+            lines.append(f"- **{r['severity']}** · {r['title']}: {r['detail']}")
+        lines.append("")
     return "\n".join(lines)
+
+
+_SEVERITY_STYLE = {"high": "bold red", "medium": "yellow", "low": "dim"}
+
+
+def render_risks(risks: list[Risk], limit: int | None = None) -> None:
+    w = _width()
+    if not risks:
+        console.print(Text("  ✓ No risk flags in this window.", style="green"))
+        return
+    console.print(Text(f"  Risk flags ({len(risks)})", style="bold"))
+    for r in risks[:limit] if limit else risks:
+        line = Text("  ")
+        line.append(
+            f"{r['severity'].upper():<6} ", style=_SEVERITY_STYLE[r["severity"]]
+        )
+        line.append(r["title"], style="bold")
+        console.print(line)
+        console.print(Padding(Text(r["detail"]), (0, 2, 0, 9)), width=w)
+    if limit and len(risks) > limit:
+        console.print(
+            Text(f"  … {len(risks) - limit} more: gitpulse risks", style="dim")
+        )
+
+
+def render_dry_run(activity: RepoActivity, req: PreparedRequest) -> None:
+    prov = req.provider
+    console.print(Text("  System prompt", style="bold"))
+    console.print(Padding(Text(req.system, style="dim"), (0, 2, 0, 4)))
+    console.print(
+        Text("  Payload (exactly what the model would receive)", style="bold")
+    )
+    console.print(Padding(Text(req.payload), (0, 2, 0, 4)))
+    target = f"{prov.name}:{prov.model}" if prov else "local fallback (no model)"
+    cost = f"~${req.est_cost_usd:.4f} max" if req.est_cost_usd else "free"
+    console.print(
+        Text(
+            f"  {activity.commit_count} commits -> {target} · "
+            f"~{req.est_input_tokens} input tok · up to {req.max_tokens} output tok · "
+            f"{cost}",
+            style="cyan",
+        )
+    )
+    if req.redacted:
+        kinds = ", ".join(f"{k}×{n}" for k, n in sorted(req.redacted.items()))
+        console.print(Text(f"  Redacted before sending: {kinds}", style="yellow"))
+    console.print(Text("  Dry run: nothing was sent.", style="dim"))
+
+
+def render_time_report(report: TimeReport) -> None:
+    console.print()
+    head = Text(f"  {report.scope}  ", style="bold")
+    head.append(f"{report.since:%Y-%m-%d} .. {report.until:%Y-%m-%d}", style="dim")
+    console.print(head)
+    if not report.rows:
+        console.print(Text("  No commits in this window.", style="dim"))
+        return
+    total = Text("  ")
+    total.append(format_hours(report.total_minutes), style="bold cyan")
+    total.append(
+        f" estimated over {report.days} day(s) and {len(report.sessions)} session(s)",
+        style="dim",
+    )
+    console.print(total)
+    console.print()
+
+    per_repo = report.by("repo")
+    if len(per_repo) > 1:
+        t = Table(title="By repository", show_lines=False)
+        t.add_column("Repository", style="cyan")
+        t.add_column("Time", justify="right")
+        t.add_column("Commits", justify="right", style="dim")
+        for name, minutes, commits in per_repo:
+            t.add_row(name, format_hours(minutes), str(commits))
+        console.print(t)
+
+    t = Table(title="By day", show_lines=False)
+    t.add_column("Day", style="cyan")
+    t.add_column("Author")
+    if len(per_repo) > 1:
+        t.add_column("Repository", style="dim")
+    t.add_column("Time", justify="right")
+    t.add_column("Commits", justify="right", style="dim")
+    for r in report.rows:
+        cells = [r["day"], r["author"]]
+        if len(per_repo) > 1:
+            cells.append(r["repo"] or "-")
+        cells += [format_hours(r["minutes"]), str(r["commits"])]
+        t.add_row(*cells)
+    console.print(t)
+    console.print(
+        Text(
+            f"  Estimate from commit times: a session ends after "
+            f"{report.gap_minutes} min without a commit, and each session gets "
+            f"+{report.warmup_minutes} min for the work before its first commit.",
+            style="dim",
+        )
+    )
+
+
+def render_history(entries: list[HistoryEntry]) -> None:
+    if not entries:
+        console.print("[yellow]No saved digests yet. Run gitpulse summary.[/]")
+        return
+    t = Table(title="Saved digests", show_lines=False)
+    t.add_column("#", justify="right", style="dim")
+    t.add_column("Created", style="dim")
+    t.add_column("Scope", style="cyan")
+    t.add_column("Window")
+    t.add_column("Commits", justify="right")
+    t.add_column("Headline", max_width=48)
+    for i, e in enumerate(entries, 1):
+        t.add_row(
+            str(i),
+            e["created"][:16].replace("T", " "),
+            e["scope"],
+            f"{e['since'][:10]} -> {e['until'][:10]}",
+            str(e["commits"]),
+            e["headline"],
+        )
+    console.print(t)
+    console.print("[dim]Show one: gitpulse history show <#|key>[/]")
+
+
+def render_history_entry(entry: HistoryEntry) -> None:
+    summ = summary_from_json(entry["summary"])
+    if summ is None:
+        console.print("[red]This entry is unreadable.[/]")
+        return
+    summ.cached = True
+    activity = RepoActivity(
+        repo_name=entry["scope"],
+        repo_path="",
+        since=_parse_iso(entry["since"]),
+        until=_parse_iso(entry["until"]),
+    )
+    console.print(
+        Text(
+            f"  Saved {entry['created'][:16].replace('T', ' ')} · {entry['commits']} commits",
+            style="dim",
+        )
+    )
+    _render_header(activity, summ)
+    render_summary_body(summ)
+
+
+def _parse_iso(value: str) -> datetime:
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return datetime.now(timezone.utc)
+
+
+_CHECK_STYLE = {"ok": ("✓", "green"), "warn": ("!", "yellow"), "fail": ("✗", "red")}
+
+
+def render_checks(checks: list[Check]) -> None:
+    t = Table(title="GitPulse doctor", show_lines=False)
+    t.add_column("", justify="center")
+    t.add_column("Check", style="bold")
+    t.add_column("Detail", overflow="fold")
+    t.add_column("Fix", style="dim", overflow="fold")
+    for c in checks:
+        mark, colour = _CHECK_STYLE[c["status"]]
+        t.add_row(f"[{colour}]{mark}[/]", c["name"], c["detail"], c["hint"])
+    console.print(t)
+    fails = sum(1 for c in checks if c["status"] == "fail")
+    warns = sum(1 for c in checks if c["status"] == "warn")
+    colour = "red" if fails else "yellow" if warns else "green"
+    console.print(
+        f"[{colour}]{fails} failing · {warns} warning(s) · {len(checks)} checks[/]"
+    )

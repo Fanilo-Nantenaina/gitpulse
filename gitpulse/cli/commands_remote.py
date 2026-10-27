@@ -76,9 +76,17 @@ def remote(
 
 
 @app.command(name="cache-clear")
-def cache_clear() -> None:
+def cache_clear(
+    digests: bool = typer.Option(
+        False, "--digests", help="Also delete saved digests (gitpulse history)."
+    ),
+) -> None:
     n = gp_remote.clear_cache()
     console.print(f"[green]Cleared {n} cached remote repo(s).[/]")
+    if digests:
+        from ..core import history
+
+        console.print(f"[green]Deleted {history.clear()} saved digest(s).[/]")
 
 
 @app.command()

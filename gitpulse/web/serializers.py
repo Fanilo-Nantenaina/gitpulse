@@ -52,6 +52,8 @@ class _SummaryDictBase(TypedDict):
     input_tokens: int
     output_tokens: int
     cost_usd: float
+    cached: bool
+    redactions: int
 
 
 class SummaryDict(_SummaryDictBase, total=False):
@@ -108,6 +110,8 @@ def summary_dict(s: Summary) -> SummaryDict:
         "input_tokens": s.input_tokens,
         "output_tokens": s.output_tokens,
         "cost_usd": s.cost_usd,
+        "cached": s.cached,
+        "redactions": s.redactions,
     }
     if "-error" in s.source or "-parse-failed" in s.source or "-truncated" in s.source:
         d["fallback_reason"] = s.raw[:500]

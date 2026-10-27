@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import TypedDict
 
 from ..core import config as _config
+from ..core.doctor import Check, make_check
 from ..core.jsonio import JsonValue, as_array, as_int, as_object, as_str
 
 
@@ -54,6 +55,9 @@ class Provider(abc.ABC):
 
     def list_models(self) -> list[str]:
         return []
+
+    def price(self) -> tuple[float, float]:
+        return (0.0, 0.0)
 
     @abc.abstractmethod
     def generate(self, system: str, prompt: str, max_tokens: int) -> GenResult:
@@ -133,6 +137,9 @@ class ClaudeProvider(Provider):
     def list_models(self) -> list[str]:
         return list(_CLAUDE_PRICES.keys())
 
+    def price(self) -> tuple[float, float]:
+        return self._price()
+
     def _price(self) -> tuple[float, float]:
         return _lookup_price(self.model, _CLAUDE_PRICES, DEFAULT_CLAUDE_MODEL)
 
@@ -194,6 +201,9 @@ class OpenAIProvider(Provider):
 
     def list_models(self) -> list[str]:
         return list(_OPENAI_PRICES.keys())
+
+    def price(self) -> tuple[float, float]:
+        return self._price()
 
     def _price(self) -> tuple[float, float]:
         return _lookup_price(self.model, _OPENAI_PRICES, DEFAULT_OPENAI_MODEL)
@@ -257,6 +267,9 @@ class GeminiProvider(Provider):
 
     def list_models(self) -> list[str]:
         return list(_GEMINI_PRICES.keys())
+
+    def price(self) -> tuple[float, float]:
+        return self._price()
 
     def _price(self) -> tuple[float, float]:
         return _lookup_price(self.model, _GEMINI_PRICES, DEFAULT_GEMINI_MODEL)
@@ -508,3 +521,25 @@ def measure_cloud_latency(timeout: float = 3.0) -> CloudLatency:
         except (urllib.error.URLError, OSError):
             continue
     return {"online": online, "latency_ms": latency_ms}
+
+
+def health() -> list[Check]:
+    out: list[Check] = []
+    ready = False
+    for s in status():
+        ready = ready or s["available"]
+        out.append(
+            make_check(
+                f"provider {s['name']}", "ok" if s["available"] else "warn", s["detail"]
+            )
+        )
+    if not ready:
+        out.append(
+            make_check(
+                "AI",
+                "warn",
+                "no model available, the local fallback will be used",
+                "Run Ollama (free, local) or set an API key in the web UI.",
+            )
+        )
+    return out

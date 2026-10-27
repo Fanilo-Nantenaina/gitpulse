@@ -1,7 +1,7 @@
 [project]
 name = "gitpulse"
-version = "0.1.0"
-description = "AI-powered git activity digests — semantic summaries, multi-repo dashboards, scheduled reports."
+version = "0.2.0"
+description = "Your git history, read for you on every machine you work on: digests, standups, risk flags and time reports across Windows, WSL, SSH and any forge."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

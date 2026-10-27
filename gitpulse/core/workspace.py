@@ -2,15 +2,27 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Literal, TypedDict
 
 import pygit2
 
 from .collector import ALL_BRANCHES, collect_activity
 from .models import Commit, RepoActivity, RepoRef
+from .sources import DEFAULT_DEPTH, RepoFailure, RepoSet, discover, expand, is_repo
 
-DEFAULT_DEPTH = 3
+__all__ = [
+    "DEFAULT_DEPTH",
+    "AuthorScope",
+    "RepoFailure",
+    "WorkspaceAuthor",
+    "collect",
+    "collect_refs",
+    "collect_workspace",
+    "discover",
+    "is_repo",
+    "is_workspace",
+    "list_workspace_authors",
+]
 
 AuthorScope = Literal["window", "all"]
 
@@ -22,34 +34,12 @@ class WorkspaceAuthor(TypedDict):
     repos: list[str]
 
 
-class RepoFailure(TypedDict):
-    name: str
-    path: str
-    error: str
-
-
-def is_repo(path: str | os.PathLike[str]) -> bool:
-    return pygit2.discover_repository(str(Path(path).resolve())) is not None
-
-
-def discover(
-    root: str | os.PathLike[str], max_depth: int = DEFAULT_DEPTH
-) -> list[RepoRef]:
-    root_path = Path(root).resolve()
-    found: list[RepoRef] = []
-    root_depth = len(root_path.parts)
-    for dirpath, dirnames, _ in os.walk(root_path):
-        p = Path(dirpath)
-        if len(p.parts) - root_depth > max_depth:
-            dirnames[:] = []
-            continue
-        if ".git" in dirnames or (p / ".git").exists():
-            found.append(RepoRef(name=p.name, path=str(p)))
-            dirnames[:] = []
-    return sorted(found, key=lambda r: r.name.lower())
-
-
 def is_workspace(path: str | os.PathLike[str], max_depth: int = DEFAULT_DEPTH) -> bool:
+    text = str(path)
+    if text.startswith("@"):
+        return True
+    if "://" in text:
+        return False
     return not is_repo(path) and bool(discover(path, max_depth))
 
 
@@ -70,13 +60,31 @@ def collect_workspace(
     author_scope: AuthorScope = "window",
     max_depth: int = DEFAULT_DEPTH,
 ) -> tuple[RepoActivity, list[RepoFailure]]:
-    root_path = Path(root).resolve()
-    refs = discover(root_path, max_depth)
-    if not refs:
-        raise ValueError(f"No git repositories found under {root_path}")
+    repo_set = expand(root, max_depth)
+    return collect_refs(
+        repo_set,
+        since,
+        until,
+        branch=branch,
+        name=name,
+        authors=authors,
+        author_scope=author_scope,
+    )
 
+
+def collect_refs(
+    repo_set: RepoSet,
+    since: datetime,
+    until: datetime | None = None,
+    branch: str | None = None,
+    name: str | None = None,
+    authors: list[str] | None = None,
+    author_scope: AuthorScope = "window",
+) -> tuple[RepoActivity, list[RepoFailure]]:
+    refs = repo_set.refs
     until = until or datetime.now(timezone.utc)
     keep, failures = _repos_for_authors(refs, authors, author_scope, until)
+    failures = [*repo_set.failures, *failures]
 
     commits: list[Commit] = []
     contributed: set[str] = set()
@@ -102,8 +110,8 @@ def collect_workspace(
 
     commits.sort(key=lambda c: c.when, reverse=True)
     activity = RepoActivity(
-        repo_name=name or root_path.name,
-        repo_path=str(root_path),
+        repo_name=name or repo_set.name,
+        repo_path=repo_set.root,
         since=since,
         until=until,
         commits=commits,
@@ -150,21 +158,35 @@ def collect(
     authors: list[str] | None = None,
     author_scope: AuthorScope = "window",
     max_depth: int = DEFAULT_DEPTH,
+    refresh: bool = True,
+    insecure: bool = False,
 ) -> tuple[RepoActivity, list[RepoFailure]]:
-    if is_repo(source):
+    text = str(source)
+    if not text.startswith("@") and "://" not in text and is_repo(source):
         activity = collect_activity(
             source, since, until, branch=branch, name=name, authors=authors
         )
         return activity, []
-    return collect_workspace(
-        source,
+    repo_set = expand(source, max_depth, refresh=refresh, insecure=insecure)
+    if repo_set.single:
+        ref = repo_set.refs[0]
+        activity = collect_activity(
+            ref.path,
+            since,
+            until,
+            branch=branch,
+            name=name or ref.name,
+            authors=authors,
+        )
+        return activity, []
+    return collect_refs(
+        repo_set,
         since,
         until,
         branch=branch,
         name=name,
         authors=authors,
         author_scope=author_scope,
-        max_depth=max_depth,
     )
 
 
@@ -174,9 +196,7 @@ def list_workspace_authors(
     until: datetime | None = None,
     max_depth: int = DEFAULT_DEPTH,
 ) -> list[WorkspaceAuthor]:
-    refs = discover(root, max_depth)
-    if not refs:
-        raise ValueError(f"No git repositories found under {Path(root).resolve()}")
+    refs = expand(root, max_depth).refs
     until = until or datetime.now(timezone.utc)
     by_key: dict[str, WorkspaceAuthor] = {}
     for ref in refs:

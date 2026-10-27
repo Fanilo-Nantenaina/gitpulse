@@ -1,9 +1,37 @@
 # GitPulse
 
-**AI-powered git activity digests.** GitPulse turns your recent commit history
-into a narrative, theme-grouped summary instead of a raw `git log` dump — with
-multi-repo dashboards, scheduled reports, Conventional-Commits changelogs, and
-work-pattern detection (hotspots, off-hours commits, productivity heatmaps).
+**Your git history, read for you — on every machine you work on.**
+
+GitPulse turns commit history into a narrative, theme-grouped digest instead of
+a raw `git log` dump: what the week was about, which subsystems moved, where
+the risk is. It works on one repo or a whole folder of them, on your Windows
+drives, inside your WSL distros, on servers you reach over SSH, and on any git
+forge — and it runs local-first, with Claude, OpenAI, Gemini, a local Ollama
+model, or no model at all.
+
+What you get out of it:
+
+- **Digests** — a synthesis, themes citing real files and symbols, and
+  evidence-backed observations, in 10 languages.
+- **Standups and commit messages** — yesterday's work plus today's WIP, and a
+  Conventional-Commits message for your uncommitted changes.
+- **Every repo, everywhere** — one argument for everything: a repo, a parent
+  folder, a git URL, or a **named workspace** (`@client-a`) mixing Windows,
+  WSL, SSH and forge repos. A browser reaches WSL distros, Windows drives and
+  SSH hosts.
+- **Safe to point at client code** — secrets are redacted before any cloud
+  call, `--dry-run` shows the exact payload and cost, and identical re-runs are
+  served from a local history for free.
+- **Insight without a model** — deterministic risk flags (committed secrets,
+  big untested changes, fix chains, reverts…) and time reports reconstructed
+  from commit times, exportable as CSV for invoicing.
+- **Delivery** — changelogs, Slack/Telegram/email/desktop digests, schedules
+  and a background service on Windows, Linux and macOS.
+
+Not sure your setup is complete? `gitpulse doctor` checks it and tells you what
+to fix.
+
+See [ROADMAP.md](ROADMAP.md) for where it is heading.
 
 ---
 
@@ -27,8 +55,7 @@ testing". The signals block gives the model hard facts to ground them in.
 The model can be Anthropic's Claude API or a local Ollama model — GitPulse
 auto-detects what's available, or you pick one explicitly. With no model at all
 it still works: it falls back to a deterministic local summary (prefix grouping
-
-- pattern detection), so it's useful fully offline too.
+plus pattern detection), so it's useful fully offline too.
 
 A note on local models: smaller Ollama models follow the "be specific, cite
 evidence" instructions less reliably than Claude or large coder models. For the
@@ -153,9 +180,10 @@ digest to your chosen channels.
 
 ## Configuration
 
-GitPulse reads secrets from **environment variables** — there is no config
-file by default, so no secret can be accidentally committed. Copy
-`.env.example` to `.env` for reference, or set system variables directly.
+GitPulse reads secrets from **environment variables**. Copy
+[`.env.example`](.env.example) to `.env` for reference, or set system variables
+directly. Preferences (language, tracked remotes, named workspaces, keys pasted
+in the web UI) live in `~/.gitpulse/config.json`, outside any repository.
 
 ### Persisting variables on Windows (PowerShell)
 
@@ -171,7 +199,7 @@ Restart the terminal afterwards so the variable is picked up.
 | --------------------------- | ------------------------------------------- | ------------------------ |
 | `ANTHROPIC_API_KEY`         | Enables the Claude provider                 | —                        |
 | `ANTHROPIC_WORKSPACE_ID`    | Workspace id, if your Claude key needs one  | —                        |
-| `GITPULSE_MODEL`            | Claude model                                | `claude-sonnet-4-6`      |
+| `GITPULSE_MODEL`            | Claude model                                | `claude-opus-5`          |
 | `GITPULSE_LANG`             | Default output language (code or name)      | `en`                     |
 | `GITPULSE_GIT_TOKEN`        | Access token for private HTTPS remotes      | —                        |
 | `OPENAI_API_KEY`            | Enables the OpenAI provider                 | —                        |
@@ -180,10 +208,16 @@ Restart the terminal afterwards so the variable is picked up.
 | `GITPULSE_SSH_KEY`          | Path to private SSH key for SSH remotes     | agent                    |
 | `GITPULSE_SSH_PASSPHRASE`   | Passphrase for the SSH key, if any          | —                        |
 | `GITPULSE_CACHE_DIR`        | Where remote clones are cached              | `~/.gitpulse/remotes`    |
+| `GITPULSE_CONFIG_DIR`       | Config, workspaces and history location     | `~/.gitpulse`            |
+| `GITPULSE_HISTORY_DIR`      | Where saved digests (the cache) are kept    | `<config dir>/history`   |
+| `GITPULSE_CACHE`            | `off` disables the digest cache             | on                       |
+| `GITPULSE_REDACT`           | `cloud`, `always` or `off` (see Privacy)    | `cloud`                  |
+| `GITPULSE_ALLOWED_HOSTS`    | Extra hostnames the web UI answers to       | —                        |
 | `OLLAMA_HOST`               | Ollama server URL                           | `http://localhost:11434` |
 | `GITPULSE_OLLAMA_MODEL`     | Default Ollama model (else auto-picked)     | —                        |
 | `GITPULSE_OLLAMA_MAX_CTX`   | Ceiling for the Ollama context window       | `32768`                  |
 | `GITPULSE_SLACK_WEBHOOK`    | Slack incoming webhook URL                  | —                        |
+| `GITPULSE_DISCORD_WEBHOOK`  | Discord webhook URL                         | —                        |
 | `GITPULSE_TELEGRAM_TOKEN`   | Telegram bot token (via @BotFather)         | —                        |
 | `GITPULSE_TELEGRAM_CHAT_ID` | Telegram chat ID                            | —                        |
 | `GITPULSE_SMTP_HOST`        | SMTP server host                            | —                        |
@@ -255,6 +289,36 @@ gitpulse summary                                 # auto
 If a selected provider fails or returns malformed output, GitPulse degrades to
 the local summary rather than erroring; the cost line reports what happened
 (e.g. `local(ollama-parse-failed)`).
+
+---
+
+## Privacy, cost and history
+
+**Secret redaction.** Before a payload leaves your machine for a cloud model,
+GitPulse scrubs it: private keys, AWS/GitHub/GitLab/Slack/Stripe/Google/
+OpenAI/Anthropic tokens, JWTs, credentials embedded in URLs, and high-entropy
+values assigned to names like `password`, `secret`, `token` or `api_key`. Each
+one becomes `[REDACTED:<kind>]`, and the cost line says how many were removed
+(`· 2 secret(s) redacted`). Ordinary code such as `token = os.environ["TOKEN"]`
+is left alone. `GITPULSE_REDACT=always` also scrubs local (Ollama) payloads;
+`off` disables it. The same applies to commit-message generation.
+
+**Dry run.** `gitpulse summary --dry-run` prints the system prompt, the exact
+payload after redaction, the token estimate and the worst-case cost for the
+selected provider, and sends nothing.
+
+**Digest cache and history.** Every successful model digest is saved under
+`~/.gitpulse/history`, keyed on the provider, model, language, prompt and
+payload. Running the same window again, from the CLI or the web UI, returns the
+saved digest instantly (`· cached · $0.00`); new commits, another model or
+another language produce a fresh one. `--no-cache` forces a new call and
+`GITPULSE_CACHE=off` disables caching entirely.
+
+```bash
+gitpulse history list            # what GitPulse has already written
+gitpulse history show 1          # reopen one, by row number or key prefix
+gitpulse history clear
+```
 
 ---
 
@@ -370,6 +434,128 @@ commit DAG, the other needs one working tree.
 
 ---
 
+## Projects anywhere: WSL, Windows drives, SSH hosts
+
+Like an editor's remote explorer, GitPulse can reach projects that do not live
+on the filesystem it runs on. Run `gitpulse locations` to see every place it
+can browse from where it is running, with the exact path to paste:
+
+| Running on | It also lists                         | How it reaches them                          |
+| ---------- | ------------------------------------- | -------------------------------------------- |
+| Windows    | every WSL distro (running or stopped) | `\\wsl.localhost\<distro>\…` UNC paths       |
+| WSL        | the Windows drives                    | `/mnt/c`, `/mnt/d`, …                        |
+| anywhere   | the hosts in `~/.ssh/config`          | `ssh` (key/agent auth), analyzed as a remote |
+
+**WSL from Windows.** A WSL folder is an ordinary path, so every command works
+on it, workspace mode included:
+
+```powershell
+gitpulse summary \\wsl.localhost\Ubuntu-26.04\home\me\code   # all repos in WSL ~/code
+gitpulse standup \\wsl.localhost\Ubuntu-26.04\home\me\api
+```
+
+GitPulse finds distros from the registry (no distro is started just to list
+them) and asks `wsl.exe` which are running. A running distro opens on its home
+folder; opening a stopped one boots it, which takes a few seconds. Docker
+Desktop's internal distros are hidden.
+
+**Windows from WSL.** Mounted drives (`/mnt/c`, …) are listed, so a GitPulse
+installed inside WSL can reach checkouts kept on the Windows side.
+
+**SSH hosts.** Hosts declared in `~/.ssh/config` (including `Include` files;
+wildcard patterns are skipped) appear in the list. Browsing a host runs a
+read-only listing over `ssh` in batch mode — key or agent auth only, never a
+password prompt — and marks the folders that are git repositories, bare ones
+included. Picking one gives an `ssh://host/path` URL, which goes through the
+same cached bare clone as `gitpulse remote`:
+
+```bash
+gitpulse remote ssh://vps/srv/git/api.git -w last-week
+```
+
+A host you have never connected to must be accepted once with `ssh <host>` in a
+terminal, since batch mode refuses unknown host keys. Commit-message generation
+and the standup's WIP section need a working tree, so they apply to local and
+WSL folders, not to SSH picks.
+
+In the web UI all of this lives in the **Browse** dialog: locations are grouped
+as This PC, WSL, Windows and SSH above the folder list, a green dot marks
+running distros, a field accepts any `user@host` that is not in your SSH
+config, and a **Use** button on each repository picks it without opening it.
+
+---
+
+## Named workspaces
+
+A named workspace is a saved list of repos, parent folders and git URLs, from
+any location. Every command that takes a `PATH` accepts it as `@name`, and the
+result is one digest that stays aware of each repo:
+
+```bash
+gitpulse workspace add client-a C:\work\client-a \\wsl.localhost\Ubuntu\home\me\api ssh://vps/srv/git/infra.git
+gitpulse workspace show client-a      # resolves every member, lists failures
+gitpulse summary @client-a -w last-week
+gitpulse timesheet @client-a -w last-month -f csv > client-a.csv
+gitpulse workspace remove client-a ssh://vps/srv/git/infra.git
+```
+
+Members that cannot be reached (a stopped VPS, a moved folder) are reported and
+skipped, not fatal. Two repos with the same name get distinct labels (`api`,
+`api-2`). In the web UI, saved workspaces are the first group of the Browse
+dialog, and its **+ Workspace** button adds the folder or SSH repo you are
+looking at to a workspace.
+
+---
+
+## Risk flags
+
+`gitpulse risks` runs deterministic detectors over a window, with no model and
+no cost:
+
+| Flag                        | Severity | Fires when                                                               |
+| --------------------------- | -------- | ------------------------------------------------------------------------ |
+| Possible secret committed   | high     | an added diff line matches a secret pattern (the value is never printed) |
+| Large change without tests  | medium   | 400+ changed lines in code files and no test file touched                |
+| Reverted work               | medium   | revert commits in the window                                             |
+| Repeated fixes in one file  | medium   | the same file appears in 3+ `fix` commits                                |
+| Hard-to-review commit       | low      | 40+ files or 2000+ lines, lockfiles excluded                             |
+| Churn hotspot               | low      | one file changes in 5+ commits and 25%+ of them                          |
+| Lots of off-hours work      | low      | 30%+ of commits between 22h and 6h                                       |
+| Unclear commit messages     | low      | 3+ subjects like `wip`, `tmp`, `fixup!`                                  |
+
+The same flags appear under every `summary` (CLI and web) and in `digest`
+Markdown, and they are passed to the model as verified facts so its
+observations cite them instead of guessing. `--fail-on high` exits with code 2
+when such a flag exists, which makes it usable in CI or a pre-push hook:
+
+```bash
+gitpulse risks . -w 30d
+gitpulse risks @client-a -w 7d --fail-on high
+```
+
+---
+
+## Time reports
+
+`gitpulse timesheet` reconstructs work sessions from commit timestamps across
+all branches. A session ends after `--gap` minutes without a commit (default
+120), and each session is credited `--warmup` minutes for the work before its
+first commit (default 30). A session that spans several repos is split between
+them by commit share, so time is never counted twice.
+
+```bash
+gitpulse timesheet                         # this week, current repo
+gitpulse timesheet @client-a -w last-month --author me@example.com
+gitpulse timesheet ~/code -w 2026-10-01..2026-10-31 -f csv > october.csv
+gitpulse timesheet . -f md                 # Markdown table for a report
+```
+
+These are estimates: work that never reached a commit is invisible, so treat
+the numbers as a floor and a sanity check for invoices, not as a time tracker.
+The web UI's **Time** tab shows the same report with a CSV download.
+
+---
+
 ## Web interface
 
 If you'd rather click than remember commands, GitPulse ships a local web UI
@@ -382,8 +568,10 @@ gitpulse serve              # opens your browser at http://127.0.0.1:8420
 
 It runs entirely on your machine (no data leaves it). The UI has:
 
-- a repository picker accepting a pasted path **or** a built-in folder browser,
-  and a toggle for local path vs. remote URL;
+- a repository picker accepting a pasted path **or** a built-in folder browser
+  that also reaches WSL distros, Windows drives and SSH hosts (see
+  [Projects anywhere](#projects-anywhere-wsl-windows-drives-ssh-hosts)), and a
+  toggle for local path vs. remote URL;
 - a memory of recently used repositories;
 - a provider manager (the "Manage" button): see each backend's live status and
   why it's unavailable, paste API keys for Claude / OpenAI / Gemini (stored in
@@ -399,8 +587,10 @@ It runs entirely on your machine (no data leaves it). The UI has:
   warns about possible data charges, timeouts, and wasted tokens, and offers to
   switch to a local model;
 - a full UI translation (English / French), separate from the summary language;
-- tabs for every action — Summary, Log, Graph, Compare, Standup, Dashboard
-  (tracked remotes), Tracked (add/remove remotes);
+- tabs for every action — Summary (with risk flags), Log, Graph, Compare,
+  Standup, Commit, Time (time report + CSV), Dashboard (tracked remotes),
+  Tracked (add/remove remotes);
+- named workspaces in the Browse dialog, accepted wherever a path is;
 - a dedicated output panel, and a dark/light theme toggle.
 
 `gitpulse serve` options: `--port` (default 8420), `--host`, `--no-open`.
@@ -422,18 +612,28 @@ just criticism). Also shows a 24-hour productivity sparkline and a cost line.
 
 | Option       | Alias | Default          | Description                               |
 | ------------ | ----- | ---------------- | ----------------------------------------- |
-| `PATH`       |       | `.`              | Repository path (quote paths with spaces) |
+| `PATH`       |       | `.`              | Repo, parent folder, git URL, or `@workspace` |
 | `--when`     | `-w`  | `7d`             | Time window (see above)                   |
 | `--branch`   | `-b`  | HEAD             | Specific branch to analyze                |
+| `--author`   | `-a`  | all              | Only these authors (repeatable)           |
 | `--provider` | `-p`  | `auto`           | AI backend: auto, claude, ollama, local   |
 | `--model`    | `-m`  | provider default | Model name                                |
 | `--lang`     | `-l`  | default          | Output language (code or name)            |
+| `--dry-run`  |       | off              | Show payload + cost estimate, send nothing |
+| `--no-cache` |       | off              | Ignore saved digests, call the model again |
+| `--no-risks` |       | off              | Skip risk detection                       |
 
 ```bash
 gitpulse summary
 gitpulse summary "C:\path with spaces\repo" --when 24h
 gitpulse summary ~/proj -b develop -w last-week
+gitpulse summary https://github.com/org/project.git -w 30d
+gitpulse summary @client-a --dry-run -p claude
 ```
+
+Every command below that takes a `PATH` (`log`, `standup`, `compare`, `digest`,
+`watch`, `risks`, `timesheet`, and `dashboard` in local mode) accepts the same
+four forms.
 
 ### `gitpulse log [PATH]`
 
@@ -570,11 +770,15 @@ warning is shown whenever it's enabled.
 
 Generate the AI summary as Markdown and dispatch it to notification channels.
 
-| Option   | Alias | Default   | Description         |
-| -------- | ----- | --------- | ------------------- |
-| `PATH`   |       | `.`       | Repository path     |
-| `--when` | `-w`  | `7d`      | Time window         |
-| `--to`   |       | `desktop` | Channel; repeatable |
+| Option     | Alias | Default   | Description                         |
+| ---------- | ----- | --------- | ----------------------------------- |
+| `PATH`     |       | `.`       | Repo, folder, git URL or @workspace |
+| `--when`   | `-w`  | `7d`      | Time window                         |
+| `--to`     |       | `desktop` | Channel; repeatable                 |
+| `--author` | `-a`  | all       | Only these authors (repeatable)     |
+| `--depth`  |       | `3`       | Folder scan depth                   |
+
+The Markdown includes the medium and high risk flags.
 
 ```bash
 gitpulse digest --to slack
@@ -689,6 +893,17 @@ week. Takes no options.
 gitpulse dates
 ```
 
+### `gitpulse locations`
+
+List every place GitPulse can browse from where it runs: home, drives, WSL
+distros (on Windows, with running/stopped state), Windows drives (inside WSL),
+and SSH hosts from `~/.ssh/config`, each with the path or URL to pass to other
+commands. `--no-ssh` skips the SSH hosts.
+
+```bash
+gitpulse locations
+```
+
 ### `gitpulse providers`
 
 List AI backends and their availability. For Ollama, shows installed models.
@@ -720,10 +935,45 @@ The summarizing commands (`summary`, `remote`, `standup`, `digest`, `dashboard`,
 
 ### `gitpulse cache-clear`
 
-Delete all cached remote clones (used by `gitpulse remote`). Takes no options.
+Delete all cached remote clones (used by `gitpulse remote` and URL sources).
+`--digests` also deletes the saved digests.
 
 ```bash
 gitpulse cache-clear
+gitpulse cache-clear --digests
+```
+
+### `gitpulse risks [PATH]`
+
+Deterministic risk flags for a window (default `30d`). See
+[Risk flags](#risk-flags). Options: `--when`, `--branch`, `--author`,
+`--depth`, `--no-secrets` (skip the diff scan), `--fail-on high|medium|low`.
+
+### `gitpulse timesheet [PATH]`
+
+Estimated time per day, author and repo (default window `this-week`). See
+[Time reports](#time-reports). Options: `--when`, `--author`, `--depth`,
+`--gap`, `--warmup`, `--format table|csv|md`.
+
+### `gitpulse workspace add|remove|list|show`
+
+Manage [named workspaces](#named-workspaces). `add NAME MEMBER...` creates or
+extends one, `remove NAME [MEMBER...]` drops members or the whole workspace,
+`list` prints them, and `show NAME` resolves every member (`--no-refresh` skips
+fetching URL members).
+
+### `gitpulse history list|show|clear`
+
+Saved digests: `list` (`-n` to limit), `show <#|key>` to reopen one, `clear`.
+
+### `gitpulse doctor`
+
+Checks Python, pygit2/libgit2, the git CLI, the SSH client and agent, WSL, the
+config directory, caches, the web extra and every AI provider. Each problem
+comes with a fix hint, and the exit code is 1 if a check fails.
+
+```bash
+gitpulse doctor
 ```
 
 ---
@@ -738,6 +988,7 @@ or `watch`.
 | ---------- | ------------------------------------------------------------ | ----------------------------------------- |
 | `desktop`  | none                                                         | Requires `plyer`. Native OS notification. |
 | `slack`    | `GITPULSE_SLACK_WEBHOOK`                                     | Slack incoming webhook URL.               |
+| `discord`  | `GITPULSE_DISCORD_WEBHOOK`                                   | Discord channel webhook URL.              |
 | `telegram` | `GITPULSE_TELEGRAM_TOKEN`, `GITPULSE_TELEGRAM_CHAT_ID`       | Bot via @BotFather.                       |
 | `email`    | `GITPULSE_SMTP_HOST` + `_PORT`/`_USER`/`_PASS`/`_TO`/`_FROM` | Gmail needs an app password.              |
 
@@ -792,27 +1043,42 @@ gitpulse/
 ├── core/
 │   ├── models.py       # plain dataclasses: Commit, FileChange, RepoActivity
 │   ├── collector.py    # pygit2 history walk + per-file diff stats
+│   ├── stats.py        # chart data: per day, per author, per hour, top files
+│   ├── gitgraph.py     # commit DAG lanes for the Graph view
+│   ├── diffstage.py    # working-tree changes for commit messages
 │   ├── remote.py       # bare-clone any git URL into a cache (pygit2 + git CLI)
 │   ├── trends.py       # period-over-period comparison metrics
 │   ├── standup.py      # yesterday's work + today context (branches, WIP)
 │   ├── dateparse.py    # --when parsing: intervals, dates, ranges, weekdays
 │   ├── config.py       # language, preferences, tracked-remotes list
+│   ├── sources.py      # one resolver: path, parent folder, git URL, @workspace
+│   ├── workspace.py    # merged multi-repo activity over a resolved source
+│   ├── locations.py    # browsable places: drives, WSL distros, SSH hosts
+│   ├── scrub.py        # secret redaction before cloud calls
+│   ├── history.py      # digest cache + saved history
+│   ├── risks.py        # deterministic risk flags (incl. committed secrets)
+│   ├── timesheet.py    # work sessions and time reports from commit times
+│   ├── doctor.py       # environment checks
 │   └── changelog.py    # Conventional-Commits release notes
 ├── ai/
-│   ├── providers.py    # Claude API + Ollama backends, auto-detection
-│   └── summarizer.py   # Summary model, local fallback, provider dispatch
-├── cli/
-│   ├── main.py         # Typer commands
+│   ├── providers.py    # Claude, OpenAI, Gemini, Ollama backends, auto-detection
+│   ├── summarizer.py   # Summary model, local fallback, provider dispatch
+│   └── commitmsg.py    # Conventional-Commits message from uncommitted changes
 ├── cli/
 │   ├── _shared.py          # shared Typer app, console, help strings, helpers
 │   ├── main.py             # thin entry point: imports command modules
 │   ├── commands_analyze.py # summary, log, standup, commit-msg, compare, digest
 │   ├── commands_remote.py  # remote, track, untrack, tracked, cache-clear
 │   ├── commands_dashboard.py  # dashboard (local scan + remote)
-│   ├── commands_tools.py   # serve, changelog, watch, config, providers, dates
+│   ├── commands_tools.py   # serve, changelog, watch, config, locations, providers, dates
+│   ├── commands_insights.py  # risks, timesheet, doctor, history
+│   ├── commands_workspace.py # workspace add/remove/list/show
 │   └── render.py           # Rich terminal, git-log view, Markdown output
 ├── scheduler/
 │   └── runner.py       # APScheduler + systemd-timer unit generation
+├── service/
+│   ├── controller.py   # detached web server: start/stop/status, shutdown
+│   └── units.py        # systemd / launchd / Task Scheduler unit generation
 ├── notifiers/
 │   └── dispatch.py     # slack / telegram / email / desktop
 └── web/
@@ -824,12 +1090,12 @@ gitpulse/
     │   ├── analysis.py    # summary, log, compare, standup, graph, dashboard
     │   ├── commit.py      # changes-count, commit-message
     │   ├── providers.py   # provider status, latency, keys, ollama control
-    │   └── repos.py       # branches, browse, drives, tracked, config
+    │   └── repos.py       # branches, browse, locations, ssh browse, tracked, config
     └── static/
         ├── index.html      # markup shell (loads css + js modules)
         ├── css/app.css     # all styles
         └── js/             # core, providers, repo, actions, summary,
-                            #   graph, commit, init (loaded in order)
+                            #   graph, commit, insights, init (loaded in order)
 ```
 
 The `core` layer has zero AI/CLI dependencies — import the collector in any
@@ -856,11 +1122,15 @@ date-window, graph, and diff assertions are deterministic.
 
 ## Roadmap
 
-Done: remote repos (`remote`), standup mode (`standup`), trend comparison
-(`compare`), multi-remote dashboard (`track` + `dashboard --remote`), web UI
-(`serve`).
+Shipped in 0.2: named workspaces across locations, one source resolver for
+every command, secret redaction, dry runs, the digest cache and history, risk
+flags, time reports, `doctor`, and browsing across WSL, Windows drives and SSH
+hosts. See [CHANGELOG.md](CHANGELOG.md).
 
-- **Quality-risk flags** — large unreviewed diffs, commits without test changes.
+Next up: containers and an SSH working-tree mode, hierarchical retrospectives
+built on the history, PR descriptions and audience modes, and an MCP server so
+coding agents can ask GitPulse what happened. The full plan is in
+[ROADMAP.md](ROADMAP.md).
 
 ---
 

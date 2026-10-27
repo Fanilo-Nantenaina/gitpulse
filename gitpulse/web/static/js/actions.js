@@ -28,6 +28,10 @@ function renderControls() {
     add('<div class="field ws-only" style="display:none"><label title="' + t('wsScanDepthHint') + '">' + t('wsScanDepth') + '</label><input id="ctlDepth" type="number" value="3" min="1" max="8"></div>');
     if (cfg.author) add('<div class="field ws-only" style="display:none"><label>' + t('wsAuthorScope') + '</label><select id="ctlAuthorScope" title="' + t('wsScopeHint') + '" disabled><option value="window">' + t('wsScopeWindow') + '</option><option value="all">' + t('wsScopeAll') + '</option></select></div>');
   }
+  if (cfg.timeopts) {
+    add('<div class="field"><label title="' + t('gapHint') + '">' + t('sessionGap') + '</label><input id="ctlGap" type="number" value="120" min="15" step="15"></div>');
+    add('<div class="field"><label title="' + t('warmupHint') + '">' + t('warmup') + '</label><input id="ctlWarmup" type="number" value="30" min="0" step="5"></div>');
+  }
   if (cfg.summarize) add('<div class="field"><label>' + t('aiHeadline') + '</label><select id="ctlSummarize"><option value="false">' + t('off') + '</option><option value="true">' + t('on') + '</option></select></div>');
   if (cfg.graphmode) {
     add('<div class="field go"><label>&nbsp;</label><button class="btn ghost" id="refreshBtn">&#8635; ' + t('refresh') + '</button></div>');

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
 
 import typer
 from rich.console import Console
@@ -28,7 +27,10 @@ WHEN_HELP = (
 PROVIDER_HELP = "AI backend: auto, claude, ollama, or local (no model)."
 MODEL_HELP = "Model name (provider-specific, e.g. claude-opus-5 or llama3.1)."
 LANG_HELP = "Output language: code (fr, en, es...) or name. Overrides the default."
-PATH_HELP = "Repository, or a parent folder of repositories"
+PATH_HELP = (
+    "What to analyze: a repository, a parent folder of repositories, a git URL "
+    "(https://, git@, ssh://), or a named workspace (@name)."
+)
 DEPTH_HELP = "How deep to look for repositories under a parent folder."
 AUTHOR_HELP = "Only commits by this author (name or email, repeatable)."
 AUTHOR_SCOPE_HELP = (
@@ -56,7 +58,7 @@ def resolve_range(when: str) -> DateRange:
 
 
 def collect_scope(
-    path: Path,
+    source: str,
     since: datetime,
     until: datetime | None = None,
     branch: str | None = None,
@@ -66,7 +68,7 @@ def collect_scope(
 ) -> tuple[RepoActivity, list[RepoFailure]]:
     try:
         return workspace.collect(
-            path,
+            source,
             since,
             until,
             branch=branch,
@@ -74,6 +76,12 @@ def collect_scope(
             author_scope=author_scope.scope,
             max_depth=depth,
         )
-    except ValueError as e:
+    except (ValueError, RuntimeError) as e:
         console.print(f"[red]{e}[/]")
         raise typer.Exit(1)
+
+
+def source_label(source: str) -> str:
+    from ..core.sources import display_name
+
+    return display_name(source)

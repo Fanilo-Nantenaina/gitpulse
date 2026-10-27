@@ -11,6 +11,7 @@ from ..core import remote as gp_remote
 from ..core import workspace
 from ..core.collector import collect_activity
 from ..core.models import RepoActivity
+from ..core.sources import expand
 from ._shared import (
     DEPTH_HELP,
     LANG_HELP,
@@ -21,12 +22,14 @@ from ._shared import (
     console,
     resolve_range,
 )
-from .render import progress_bar
+from .render import progress_bar, render_failures
 
 
 @app.command()
 def dashboard(
-    root: Path = typer.Argument(Path("."), help="Directory to scan (local mode)"),
+    root: str = typer.Argument(
+        ".", help="Folder to scan, or a named workspace (@name), in local mode"
+    ),
     when: str = typer.Option("7d", "--when", "-w", help=WHEN_HELP),
     depth: int = typer.Option(workspace.DEFAULT_DEPTH, "--depth", help=DEPTH_HELP),
     remote: bool = typer.Option(
@@ -79,13 +82,17 @@ def dashboard(
             scan = prog.add_task(
                 "Scanning for repositories", total=None, detail=str(root)
             )
-            repos = workspace.discover(root, max_depth=depth)
-            prog.update(scan, total=1, completed=1, detail=f"found {len(repos)}")
-        if not repos:
-            console.print("[yellow]No git repositories found.[/]")
-            raise typer.Exit()
-        sources = [(repo.name, repo.path) for repo in repos]
-        prefetch_failed = 0
+            try:
+                repo_set = expand(root, max_depth=depth)
+            except (ValueError, RuntimeError) as e:
+                console.print(f"[yellow]{e}[/]")
+                raise typer.Exit()
+            prog.update(
+                scan, total=1, completed=1, detail=f"found {len(repo_set.refs)}"
+            )
+        render_failures(repo_set.failures)
+        sources = [(repo.name, repo.path) for repo in repo_set.refs]
+        prefetch_failed = len(repo_set.failures)
         title = f"Activity: {r.label}"
 
     rows: list[tuple[RepoActivity, Summary | None]] = []

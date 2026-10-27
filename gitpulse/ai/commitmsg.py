@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 
-from ..core import config
+from ..core import config, scrub
 from ..core.diffstage import WorkingChanges
 from . import providers
 
@@ -17,6 +17,7 @@ class CommitMessage:
     input_tokens: int = 0
     output_tokens: int = 0
     cost_usd: float = 0.0
+    redactions: int = 0
 
     @property
     def full_text(self) -> str:
@@ -135,14 +136,20 @@ def generate_commit_message(
         )
 
     max_tokens = 1200
+    payload = _build_payload(changes)
+    redactions = 0
+    if scrub.should_redact(prov.kind):
+        cleaned = scrub.scrub(payload)
+        payload, redactions = cleaned.text, cleaned.count
     try:
-        result = prov.generate(system, _build_payload(changes), max_tokens)
+        result = prov.generate(system, payload, max_tokens)
     except Exception as e:
         fb = _local_fallback(changes, lang)
         if force_type:
             fb.subject = _apply_type(fb.subject, force_type)
         fb.source = f"local({prov.name}-error)"
         fb.raw = str(e)
+        fb.redactions = redactions
         return fb
 
     try:
@@ -155,6 +162,7 @@ def generate_commit_message(
             result.output_tokens,
             result.cost_usd,
         )
+        msg.redactions = redactions
         return msg
     except (json.JSONDecodeError, KeyError, ValueError):
         fb = _local_fallback(changes, lang)
@@ -162,6 +170,7 @@ def generate_commit_message(
             fb.subject = _apply_type(fb.subject, force_type)
         fb.raw = result.text
         fb.source = f"local({prov.name}-parse-failed)"
+        fb.redactions = redactions
         return fb
 
 

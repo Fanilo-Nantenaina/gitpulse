@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import TypedDict
 
 import pygit2
+
+from ..core import locations
 
 
 class BrowseEntry(TypedDict):
@@ -50,7 +51,7 @@ def list_dir(path: str | None) -> BrowseResult:
                 {
                     "name": child.name,
                     "path": str(child),
-                    "is_repo": _is_repo(child),
+                    "is_repo": _holds_repo(child),
                 }
             )
     except PermissionError:
@@ -78,14 +79,14 @@ def _is_repo(p: Path) -> bool:
         return False
 
 
-def drives() -> list[str]:
-    if os.name != "nt":
-        return ["/"]
-    import string
+def _holds_repo(p: Path) -> bool:
+    try:
+        if (p / ".git").exists():
+            return True
+        return (p / "HEAD").is_file() and (p / "objects").is_dir()
+    except OSError:
+        return False
 
-    found: list[str] = []
-    for letter in string.ascii_uppercase:
-        d = f"{letter}:\\"
-        if Path(d).exists():
-            found.append(d)
-    return found
+
+def drives() -> list[str]:
+    return locations.drives()

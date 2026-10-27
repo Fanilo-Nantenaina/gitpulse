@@ -61,37 +61,90 @@ async function updateChangesBadge() {
 async function runDashboard() { const go = async () => { try { loading('...'); const sum = document.getElementById('ctlSummarize').value === 'true'; const d = await post('/api/dashboard', Object.assign({ when: whenValue(), summarize: sum }, modelArgs())); if (d.error) { out.innerHTML = '<div class="placeholder">' + t('noTrackedHint') + '</div>'; return; } const head = '<tr><th>' + t('repository') + '</th><th class="num">' + t('commits') + '</th><th class="num">+</th><th class="num">&minus;</th><th class="num">' + t('files') + '</th>' + (sum ? '<th>Headline</th>' : '') + '</tr>'; const rows = d.rows.map(r => '<tr><td class="repo-name">' + esc(r.name) + '</td><td class="num">' + r.commits + '</td><td class="num add">+' + r.additions + '</td><td class="num del">-' + r.deletions + '</td><td class="num">' + r.files + '</td>' + (sum ? '<td style="color:var(--muted)">' + esc(r.headline || '') + '</td>' : '') + '</tr>').join(''); const total = d.rows.reduce((s, r) => s + r.commits, 0); const failBlock = (d.failed && d.failed.length) ? '<div class="fail-block"><div class="fail-h">' + d.failed.length + ' ' + t('dashFailed') + '</div>' + d.failed.map(f => '<div class="fail-row"><span class="fail-name">' + esc(f.name) + '</span><span class="fail-reason fr-' + (f.reason || 'other') + '">' + t('reason_' + (f.reason || 'other')) + '</span><span class="fail-url">' + esc(f.url || '') + '</span></div>').join('') + '</div>' : ''; out.innerHTML = '<div class="block"><h3>' + t('remoteActivity') + ' &middot; ' + esc(d.range_label) + '</h3><table class="grid"><thead>' + head + '</thead><tbody>' + rows + '</tbody></table><div class="cost">' + d.rows.length + ' active &middot; ' + total + ' ' + t('commits') + (d.failed.length ? ' &middot; ' + d.failed.length + ' ' + t('dashFailed') : '') + '</div>' + failBlock + '</div>'; } catch (e) { showErr(e); } }; const sum = document.getElementById('ctlSummarize').value === 'true'; if (sum) cloudGuard(go); else go(); }
 async function runTracked() { try { loading('...'); const items = await api('/api/tracked'); let add = '<div class="block"><h3>' + t('addRemote') + '</h3><div class="controls" style="padding:0;border:none;background:none"><div class="field" style="flex:2"><label>' + t('gitUrl') + '</label><input id="trackUrl" placeholder="https://... or git@..."></div><div class="field"><label>' + t('label') + '</label><input id="trackLabel"></div><div class="field go"><label>&nbsp;</label><button class="btn" id="trackBtn">' + t('track') + '</button></div></div></div>'; const rows = items.length ? items.map((it, i) => { const nm = it.label || it.url.replace(/\.git$/, '').split(/[\/:]/).pop(); return '<tr><td class="num" style="color:var(--muted)">' + (i + 1) + '</td><td class="repo-name">' + esc(nm) + '</td><td style="font-family:var(--mono);font-size:12px;color:var(--muted)">' + esc(it.url) + '</td><td class="num"><button class="browse-btn untrackBtn" data-url="' + esc(it.url) + '">' + t('remove') + '</button></td></tr>'; }).join('') : '<tr><td colspan="4" style="color:var(--muted);padding:14px">' + t('noTracked') + '</td></tr>'; out.innerHTML = add + '<div class="block"><h3>' + t('tracked') + ' (' + items.length + ')</h3><table class="grid"><tbody>' + rows + '</tbody></table></div>'; $('#trackBtn').onclick = async () => { const url = $('#trackUrl').value.trim(); if (!url) return; await post('/api/tracked', { url, label: $('#trackLabel').value.trim() || null }); runTracked(); }; document.querySelectorAll('.untrackBtn').forEach(b => b.onclick = async () => { await api('/api/tracked?needle=' + encodeURIComponent(b.dataset.url), { method: 'DELETE' }); runTracked(); }); } catch (e) { showErr(e); } }
 
-let modalPath = null;
+let modalSel = null, browseSeq = 0;
+const LOC_GROUPS = [['locWorkspaces', ['workspace']], ['locPc', ['home', 'drive']], ['locWsl', ['wsl']], ['locWindows', ['windows']], ['locSsh', ['ssh']]];
 async function openBrowser() {
   $('#modalBg').classList.add('show');
-  $('#modalCur').textContent = t('loading') || '…';
   $('#modalList').innerHTML = '';
-  $('#modalDrives').innerHTML = '';
-  try {
-    const drv = await api('/api/drives');
-    $('#modalDrives').innerHTML = (drv.drives || []).map(d => '<span class="drive" data-p="' + esc(d) + '">' + esc(d) + '</span>').join('');
-    document.querySelectorAll('.drive').forEach(el => el.onclick = () => browseTo(el.dataset.p));
-  } catch (e) { $('#modalDrives').innerHTML = '<span class="err">' + esc(e && e.message ? e.message : e) + '</span>'; }
+  loadLocations();
+  const m = state.source === 'url' && ($('#urlInput').value || '').trim().match(/^ssh:\/\/([^/]+)(\/.*)?$/);
+  if (m) return browseSsh(m[1], m[2] || null);
   const p = ($('#pathInput').value || '').trim();
   await browseTo(p || null);
 }
+function locChip(l) {
+  const dot = l.kind === 'wsl' ? '<span class="dot ' + (l.running ? 'on' : 'off') + '"></span>' : '';
+  const title = l.kind === 'wsl' ? t(l.running ? 'wslRunning' : 'wslStopped') : (l.detail || l.path);
+  return '<span class="drive loc" data-kind="' + esc(l.kind) + '" data-p="' + esc(l.path) + '" data-host="' + esc(l.host || '') + '" title="' + esc(title) + '">' + dot + esc(l.label) + (l.default ? ' ★' : '') + '</span>';
+}
+async function loadLocations() {
+  const box = $('#modalDrives');
+  box.innerHTML = '<span class="loc-h">' + t('loading') + '</span>';
+  try {
+    const r = await api('/api/locations');
+    const locs = r.locations || [];
+    box.innerHTML = LOC_GROUPS.map(([key, kinds]) => {
+      const items = locs.filter(l => kinds.includes(l.kind));
+      const extra = key === 'locSsh' ? '<input class="ssh-in" id="sshHostIn" placeholder="' + esc(t('sshOtherPh')) + '" spellcheck="false">' : '';
+      if (!items.length && !extra) return '';
+      return '<div class="loc-group"><span class="loc-h">' + t(key) + '</span>' + items.map(locChip).join('') + extra + '</div>';
+    }).join('');
+    box.querySelectorAll('.loc').forEach(el => el.onclick = () => {
+      if (el.dataset.kind === 'workspace') pickSelection({ path: el.dataset.p, url: null });
+      else if (el.dataset.kind === 'ssh') browseSsh(el.dataset.host, null);
+      else browseTo(el.dataset.p);
+    });
+    const inp = $('#sshHostIn');
+    if (inp) inp.onkeydown = e => { if (e.key === 'Enter' && inp.value.trim()) browseSsh(inp.value.trim(), null); };
+  } catch (e) { box.innerHTML = '<span class="err">' + esc(e && e.message ? e.message : e) + '</span>'; }
+}
+function renderListing(d, seq, nav) {
+  if (seq !== browseSeq) return;
+  $('#modalCur').textContent = (d.url || d.path || '') + (d.is_repo ? '  ● git' : '');
+  $('#modalUp').onclick = () => d.parent && nav(d.parent);
+  if (d.error) { $('#modalList').innerHTML = '<div class="err" style="padding:14px">' + esc(d.error) + '</div>'; return; }
+  const items = d.entries || [];
+  $('#modalList').innerHTML = items.length
+    ? items.map(e => '<div class="dir-item ' + (e.is_repo ? 'is-repo' : '') + '" data-p="' + esc(e.path) + '"><span class="ico">' + (e.is_repo ? '&#9670;' : '&#9656;') + '</span><span class="nm">' + esc(e.name) + '</span>' + (e.is_repo ? '<button class="mini use" data-p="' + esc(e.path) + '" data-url="' + esc(e.url || '') + '">' + t('useRepo') + '</button>' : '') + '</div>').join('')
+    : '<div style="color:var(--muted);padding:14px">' + t('emptyFolder') + '</div>';
+  $('#modalList').querySelectorAll('.dir-item').forEach(el => el.onclick = () => nav(el.dataset.p));
+  $('#modalList').querySelectorAll('.use').forEach(b => b.onclick = ev => { ev.stopPropagation(); pickSelection({ path: b.dataset.p, url: b.dataset.url || null }); });
+}
+function showBrowsing(label) {
+  $('#modalCur').textContent = label + ' …';
+  $('#modalList').innerHTML = '<div style="color:var(--muted);padding:14px">' + t('loading') + '</div>';
+}
 async function browseTo(path) {
+  const seq = ++browseSeq;
+  showBrowsing(path || '~');
   try {
     const d = await api('/api/browse' + (path ? ('?path=' + encodeURIComponent(path)) : ''));
-    modalPath = d.path || path || '';
-    $('#modalCur').textContent = (d.path || '') + (d.is_repo ? '  ● git' : '');
-    $('#modalUp').onclick = () => d.parent && browseTo(d.parent);
-    if (d.error) { $('#modalList').innerHTML = '<div class="err" style="padding:14px">' + esc(d.error) + '</div>'; return; }
-    const items = (d.entries || []);
-    $('#modalList').innerHTML = items.length
-      ? items.map(e => '<div class="dir-item ' + (e.is_repo ? 'is-repo' : '') + '" data-p="' + esc(e.path) + '"><span class="ico">' + (e.is_repo ? '&#9670;' : '&#9656;') + '</span> ' + esc(e.name) + '</div>').join('')
-      : '<div style="color:var(--muted);padding:14px">' + (t('emptyFolder') || '— empty —') + '</div>';
-    document.querySelectorAll('.dir-item').forEach(el => el.onclick = () => browseTo(el.dataset.p));
+    if (seq === browseSeq) modalSel = { path: d.path || path || '', url: null };
+    renderListing(d, seq, browseTo);
   } catch (e) {
-    $('#modalList').innerHTML = '<div class="err" style="padding:14px">' + esc(e && e.message ? e.message : e) + '</div>';
+    if (seq === browseSeq) $('#modalList').innerHTML = '<div class="err" style="padding:14px">' + esc(e && e.message ? e.message : e) + '</div>';
   }
+}
+async function browseSsh(host, path) {
+  const seq = ++browseSeq;
+  showBrowsing('ssh://' + host + (path || ''));
+  try {
+    const d = await post('/api/browse/ssh', { host, path });
+    if (seq === browseSeq) modalSel = d.error ? null : { path: d.path, url: d.url };
+    renderListing(d, seq, p => browseSsh(host, p));
+  } catch (e) {
+    if (seq === browseSeq) { modalSel = null; $('#modalList').innerHTML = '<div class="err" style="padding:14px">' + esc(e && e.message ? e.message : e) + '</div>'; }
+  }
+}
+function pickSelection(sel) {
+  $('#modalBg').classList.remove('show');
+  if (!sel) return;
+  if (sel.url) { setSource('url'); $('#urlInput').value = sel.url; }
+  else if (sel.path) { setSource('local'); $('#pathInput').value = sel.path; }
+  onRepoChanged();
 }
 $('#browseBtn').onclick = openBrowser;
 $('#modalClose').onclick = () => $('#modalBg').classList.remove('show');
 $('#modalBg').onclick = e => { if (e.target === $('#modalBg')) $('#modalBg').classList.remove('show'); };
-$('#modalPick').onclick = () => { if (modalPath) { $('#pathInput').value = modalPath; setSource('local'); } $('#modalBg').classList.remove('show'); onRepoChanged(); };
+$('#modalPick').onclick = () => pickSelection(modalSel);
+$('#modalSaveWs').onclick = () => saveToWorkspace(modalSel);
